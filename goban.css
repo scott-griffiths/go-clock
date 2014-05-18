@@ -1,0 +1,12 @@
+
+body {
+    background-image:url(tatami.jpg);
+    background-size: cover;
+}
+
+#goban img {
+    max-height: 97%;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
