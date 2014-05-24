@@ -27,6 +27,9 @@ black_stone.src = "black_stone1.png";
 var gobanImage = new Image();
 gobanImage.src = "goban.jpg";
 
+var white = 1;
+var black = 3;
+
 var goban;
 
 // Small numbers, 5x7
@@ -60,7 +63,6 @@ resize = function() {
     } else {
         h = w*goban_ratio;
     }
-    h -= 50;
     y_offset = (canvas.height - h) / 2;
     if (y_offset > max_top_padding) {
         y_offset = max_top_padding;
@@ -79,8 +81,14 @@ function Goban(){
     for (var i = 0; i < gridsize*gridsize; ++i){
         this.stones.push(0); // empty space
     }
+    this.clear = function() {
+        this.stones = [];
+        for (var i = 0; i < gridsize*gridsize; ++i){
+            this.stones.push(0); // empty space
+        }
+    }
     this.addStone = function(x, y, isWhite){
-        this.stones[y*gridsize + x] = isWhite ? 1 : 2;
+        this.stones[y*gridsize + x] = isWhite ? white : black;
     }
     this.draw = function(stones){
         if (this.drawnOnce == false) {
@@ -104,10 +112,10 @@ function Goban(){
         for (var i = 0; i < gridsize; ++i){
             for (var j = 0; j < gridsize; ++j){
                 var p = stones[i*gridsize + j];
-                if (p == 1) {
+                if (p == white) {
                     this.drawStone(j, i, true);
                 }
-                if (p == 2) {
+                if (p == black) {
                     this.drawStone(j, i, false);
                 }
             }
@@ -179,10 +187,10 @@ function line(x0, x1, y0, y1) {
     return points;
 }
 
-function drawNumber(number, x_offset, y_offset, small, white) {
+function drawNumber(number, x_offset, y_offset, small, isWhite) {
     var num = small_num[number];
     for (var i = 0; i < num.length; ++i) {
-        goban.addStone(num[i][0] + x_offset, num[i][1] + y_offset, white);
+        goban.addStone(num[i][0] + x_offset, num[i][1] + y_offset, isWhite);
     }
 }
 
@@ -195,7 +203,7 @@ function updateGoban() {
     var analogue = $("#analogue").is(":checked");
 
     if (analogue) {
-        goban.stones = [];
+        goban.clear();
         hour_stones = [[9, 1], [13, 2], [16, 5], [17, 9], [16, 13], [13, 16], [9, 17], [5, 16], [2, 13], [1, 9], [2, 5], [5, 2]];
         for (var i = 0; i < hour_stones.length; ++i) {
             goban.addStone(hour_stones[i][0], hour_stones[i][1], false);
@@ -225,9 +233,9 @@ function updateGoban() {
         }
     }
     else {
-        goban.stones = [];
+        goban.clear();
         drawNumber((hour - hour%10)/10, 4, 2, true, true);
-        drawNumber(hour%10, 10, 2, true, true)
+        drawNumber(hour%10, 10, 2, true, true);
         minute = second;
         drawNumber((minute - minute%10)/10, 4, 11, true, false);
         drawNumber(minute%10, 10, 11, true, false);
@@ -235,10 +243,77 @@ function updateGoban() {
 
 }
 
+function dist(i, j) {
+    var xi = i%gridsize;
+    var yi = (i-xi)/gridsize;
+    var xj = j%gridsize;
+    var yj = (j-xj)/gridsize;
+    return Math.sqrt((xi - xj)*(xi - xj) + (yi - yj)*(yi - yj));
+}
+
 function transformGoban() {
     // Incrementally change the displayed goban to the desired configuration
     var shown = goban.stones_shown.slice();
     var final = goban.stones;
+    var diff = [];
+    for (var i = 0; i < shown.length; ++i) {
+        diff.push(shown[i] - final[i]);
+    }
+    var best_i = -1;
+    var best_j = -1;
+    for (var i = 0; i < diff.length; ++i) {
+        if (diff[i] == -white || diff[i] == -black) {
+            // we want a white or black stone here - search for the nearest excess white or black
+            if (best_i == -1) {
+                best_i = i;
+            }
+            for (var j = 0; j < diff.length; ++j) {
+                if (diff[j] == -diff[i]) {
+                    if (best_j == -1 || dist(j, i) < dist(best_j, best_i)) {
+                        best_j = j;
+                        best_i = i;
+                    }
+                }
+            }
+        }
+    }
+    if (best_j != -1) {
+        // Move stone from best_j to best_i
+        shown[best_i] = shown[best_j];
+        shown[best_j] = 0;
+    }
+    else {
+        // No more moving will help. Find stone to remove.
+        var removed = false;
+        // Prefer removing stones which are where the opposite colour wants to be
+        for (var i = 0; i < diff.length; ++i) {
+            if (diff[i] == black - white || diff[i] == white - black) {
+                shown[i] = 0;
+                removed = true;
+                break;
+            }
+        }
+        if (removed == false) {
+            // Try removing other ones
+            for (var i = 0; i < diff.length; ++i) {
+                if (diff[i] == black || diff[i] == white) {
+                    shown[i] = 0;
+                    removed = true;
+                    break;
+                }
+            }
+        }
+        if (removed == false) {
+            // Finally do some adding
+            for (var i = 0; i < diff.length; ++i) {
+                if (diff[i] == -black || diff[i] == -white) {
+                    shown[i] = -diff[i];
+                    break;
+                }
+            }
+        }
+    }
+/*
     var shown_white = 0;
     var shown_black = 0;
     var final_white = 0;
@@ -265,7 +340,7 @@ function transformGoban() {
                 made_change = true;
             }
         }
-    }
+    }*/
 
 
     goban.draw(shown);
