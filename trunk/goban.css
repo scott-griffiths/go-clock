@@ -20,3 +20,6 @@ html, body {
     margin-right: auto;
 }
 
+#frame-counter {
+    font-size: 300%;
+}
