@@ -17,7 +17,7 @@ var y_offset = 0;
 var x_offset = 0;
 var max_top_padding = 50;
 var padding = 30;
-var min_bottom_padding = 30;
+var min_bottom_padding = 80;
 
 var white_stone = new Image();
 white_stone.src = "white_stone1.png";
@@ -64,27 +64,6 @@ var tiny_num = [s0, s1, s2, s3, s4, s5, s6, s7, s8, s9];
 //    e.preventDefault();
 //}
 
-resize = function() {
-    goban.drawnOnce = false;
-    canvas.width  = window.innerWidth;
-    canvas.height = window.innerHeight - min_bottom_padding;
-    w = canvas.width - 2*padding;
-    h = canvas.height - 2*padding;
-    if (w*goban_ratio > h) {
-        // clip to height
-        w = h/goban_ratio;
-    } else {
-        h = w*goban_ratio;
-    }
-    y_offset = (canvas.height - h) / 2;
-    if (y_offset > max_top_padding) {
-        y_offset = max_top_padding;
-    }
-    x_offset = (canvas.width - w) / 2;
-    goban.draw();
-
-}
-window.onresize = resize;
 
 function assert(condition, message) {
     if (!condition) {
@@ -93,8 +72,9 @@ function assert(condition, message) {
 }
 
 function Goban(){
-    this.stones = [];
+    this.stones = []; // The current (desired) state
     this.stones_shown = []; // The stones last drawn
+    this.stone_queue = []; // Prioritise putting these stones on the board, in this order.
     this.drawnOnce = false;
     this.moving_stone = false;
     this.stone_from = [0, 0];
@@ -102,6 +82,11 @@ function Goban(){
     this.stone_percent = 0;
     this.stone_colour = white;
     this.view = 0;
+
+    this.frameCounter = 0;
+
+    this.bufferCanvas = document.createElement('canvas');
+    this.bufferContext = this.bufferCanvas.getContext('2d');
 
     this.clear = function() {
         this.stones = [];
@@ -114,47 +99,71 @@ function Goban(){
     for (var i = 0; i < gridsize*gridsize; ++i){
         this.stones_shown.push(0); // empty space
     }
-    this.drawNumber = function(number, x_offset, y_offset, small, isWhite) {
-        var num = small ? tiny_num[number] : small_num[number];
-        for (var i = 0; i < num.length; ++i) {
-            this.addStone(num[i][0] + x_offset, num[i][1] + y_offset, isWhite);
+
+    this.resize = function(width, height) {
+        this.drawnOnce = false;
+        w = width - 2*padding;
+        h = height - 2*padding;
+        if (w*goban_ratio > h) {
+            // clip to height
+            w = h/goban_ratio | 0;
+        } else {
+            h = w*goban_ratio | 0;
         }
+        y_offset = (height - h) / 2 | 0;
+        if (y_offset > max_top_padding) {
+            y_offset = max_top_padding;
+        }
+        x_offset = (width - w) / 2 | 0;
+        canvas.width = this.bufferCanvas.width = width;
+        canvas.height = this.bufferCanvas.height = height;
+        this.drawBuffer();
+        this.draw();
     }
 
-    this.addStone = function(x, y, isWhite){
-        this.stones[y*gridsize + x] = isWhite ? white : black;
+    this.drawNumber = function(number, x_offset, y_offset, small, colour) {
+        var num = small ? tiny_num[number] : small_num[number];
+        for (var i = 0; i < num.length; ++i) {
+            this.addStone(num[i][0] + x_offset, num[i][1] + y_offset, colour);
+        }
     }
-    this.draw = function(){
+    this.addStone = function(x, y, colour){
+        this.stones[y*gridsize + x] = colour;
+    }
+    this.addStoneToQueue = function(x, y, colour) {
+        this.stone_queue.push([x, y, colour]);
+    }
+    this.drawBuffer = function(){
         if (this.drawnOnce == false) {
-            context.shadowColor = "rgba( 0, 0, 0, 0.6)";
-            context.shadowOffsetX = w/80;
-            context.shadowOffsetY = w/30;
-            context.shadowBlur = w/50;
+            this.bufferContext.shadowColor = "rgba( 0, 0, 0, 0.6)";
+            this.bufferContext.shadowOffsetX = w/80;
+            this.bufferContext.shadowOffsetY = w/30;
+            this.bufferContext.shadowBlur = w/50;
             this.drawnOnce = true;
         }
         else {
-            context.shadowOffsetX = context.shadowOffsetY = 0;
-            context.shadowBlur = 0;
+            this.bufferContext.shadowOffsetX = this.bufferContext.shadowOffsetY = 0;
+            this.bufferContext.shadowBlur = 0;
         }
-        context.drawImage(gobanImage, x_offset, y_offset, w, h)
+        this.bufferContext.drawImage(gobanImage, x_offset, y_offset, w, h)
 
-        context.shadowOffsetX = 1;
-        context.shadowOffsetY = 3;
-        context.shadowColor = "rgba( 0, 0, 0, 0.5)";
-        context.shadowBlur = 0;
         for (var i = 0; i < gridsize; ++i){
             for (var j = 0; j < gridsize; ++j){
                 var p = this.stones_shown[i*gridsize + j];
-                if (p == white) {
-                    this.drawStone(j, i, true, 0);
-                }
-                if (p == black) {
-                    this.drawStone(j, i, false, 0);
+                if (p != 0) {
+                    this.drawStone(this.bufferContext, j, i, p, 0);
                 }
             }
         }
     }
-    this.drawStone = function(x, y, isWhite, height) {
+    this.draw = function() {
+        context.shadowOffsetX = 0;
+        context.shadowOffsetY = 0;
+        context.shadowBlur = 0;
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        context.drawImage(this.bufferCanvas, 0, 0);
+    }
+    this.drawStone = function(ctx, x, y, colour, height) {
         if (x < 0 || x > gridsize - 1 || y < 0 || y > gridsize - 1) {
             return;
         }
@@ -163,21 +172,25 @@ function Goban(){
         if (height > 10) {
             height = 10;
         }
-        context.shadowOffsetX *= 1 + height;
-        context.shadowOffsetY *= 1 + height;
-        context.globalAlpha = 1 - height/20;
-        if (isWhite == true) {
+        ctx.shadowOffsetX = 1;
+        ctx.shadowOffsetY = 3;
+        ctx.shadowColor = "rgba(0, 0, 0, " + (0.5 - height/20) + ")";
+        ctx.shadowBlur = height + 5;
+
+        ctx.shadowOffsetX *= 1 + height;
+        ctx.shadowOffsetY *= 1 + height;
+        ctx.globalAlpha = height < 5 ? 1 : 1 - (height - 5)/5;
+        if (colour == white) {
             var diameter = w/21;
             diameter *= 1 + height/10;
-            context.drawImage(white_stone, xpos - diameter/2 + x_offset, ypos - diameter/2 + y_offset, diameter, diameter);
+            ctx.drawImage(white_stone, xpos - diameter/2 + x_offset, ypos - diameter/2 + y_offset, diameter, diameter);
         }
         else {
             var diameter = w/20;
             diameter *= 1 + height/10;
-            context.drawImage(black_stone, xpos - diameter/2 + x_offset, ypos - diameter/2 + y_offset, diameter, diameter);
+            ctx.drawImage(black_stone, xpos - diameter/2 + x_offset, ypos - diameter/2 + y_offset, diameter, diameter);
         }
-        context.globalAlpha = 1;
-
+        ctx.globalAlpha = 1;
     }
 
     this.update = function() {
@@ -185,74 +198,90 @@ function Goban(){
         hour = now.getHours();
         minute = now.getMinutes();
         second = now.getSeconds();
-        // TODO: pass in analogue
-        var analogue = $("#analogue").is(":checked");
-
+        $("#frame-counter").text(this.frameCounter);
+        this.frameCounter = 0;
         views = 3;
         this.view %= views;
-
         this.clear();
         if (this.view == 0) {
             hour_stones = [[9, 1], [13, 2], [16, 5], [17, 9], [16, 13], [13, 16], [9, 17], [5, 16], [2, 13], [1, 9], [2, 5], [5, 2]];
             for (var i = 0; i < hour_stones.length; ++i) {
-                this.addStone(hour_stones[i][0], hour_stones[i][1], false);
+                this.addStone(hour_stones[i][0], hour_stones[i][1], black);
             }
             var min_pos = 60*minute + second;
-            min_pos += 45*60;
             var theta = 2*Math.PI*min_pos / 3600;
             var R = 7.0;
-            var endX = Math.round(9 + R*Math.cos(theta));
-            var endY = Math.round(9 + R*Math.sin(theta));
+            var endX = Math.round(9 + R*Math.sin(theta));
+            var endY = Math.round(9 - R*Math.cos(theta));
             var hand_stones = line(9, endX, 9, endY);
             for (var i = 0; i < hand_stones.length; ++i) {
-                this.addStone(hand_stones[i][0], hand_stones[i][1], true);
+                this.addStone(hand_stones[i][0], hand_stones[i][1], white);
             }
 
             hour %= 12;
             hour *= 5;
-            hour += 45;
             hour += minute/12;
             var theta = 2*Math.PI*hour / 60;
             var R = 4.5;
-            var endX = Math.round(9 + R*Math.cos(theta));
-            var endY = Math.round(9 + R*Math.sin(theta));
+            var endX = Math.round(9 + R*Math.sin(theta));
+            var endY = Math.round(9 - R*Math.cos(theta));
             var hand_stones = line(9, endX, 9, endY);
             for (var i = 0; i < hand_stones.length; ++i) {
-                this.addStone(hand_stones[i][0], hand_stones[i][1], false);
+                this.addStone(hand_stones[i][0], hand_stones[i][1], black);
             }
         }
         else if (this.view == 1) {
-            this.drawNumber((hour - hour%10)/10, 4, 2, false, false);
-            this.drawNumber(hour%10, 10, 2, false, false);
+/*            var theta = 2*Math.PI*second / 60;
+            var R = 9.0;
+            var x = Math.round(9 + R*Math.sin(theta));
+            var y = Math.round(9 - R*Math.cos(theta));
+            var second_hand = line(9, x, 9, y);
+            for (var i = 0; i < second_hand.length; ++i) {
+                this.addStone(second_hand[i][0], second_hand[i][1], white);
+            }*/
 
-            this.drawNumber((minute - minute%10)/10, 4, 10, false, true);
-            this.drawNumber(minute%10, 10, 10, false, true);
+            this.drawNumber((hour - hour%10)/10, 4, 2, false, black);
+            this.drawNumber(hour%10, 10, 2, false, black);
+
+            this.drawNumber((minute - minute%10)/10, 4, 10, false, white);
+            this.drawNumber(minute%10, 10, 10, false, white);
         }
         else if (this.view == 2) {
 
 //            hour_stones = [[9, 0], [14, 1], [17, 4], [18, 9], [17, 14], [14, 17], [9, 18], [4, 17], [1, 14], [0, 9], [1, 4], [4, 1]];
             hour_stones = [[9, 1], [13, 2], [16, 5], [17, 9], [16, 13], [13, 16], [9, 17], [5, 16], [2, 13], [1, 9], [2, 5], [5, 2]];
             for (var i = 0; i < hour_stones.length; ++i) {
-                this.addStone(hour_stones[i][0], hour_stones[i][1], hour%12 == i ? true : false);
+                this.addStone(hour_stones[i][0], hour_stones[i][1], hour%12 == i ? white : black);
             }
 
-            this.drawNumber((minute - minute%10)/10, 6, 4, true, false);
-            this.drawNumber(minute%10, 10, 4, true, false);
+            this.drawNumber((minute - minute%10)/10, 6, 4, true, black);
+            this.drawNumber(minute%10, 10, 4, true, black);
 
-            this.drawNumber((second - second%10)/10, 6, 10, true, true);
-            this.drawNumber(second%10, 10, 10, true, true);
+            this.drawNumber((second - second%10)/10, 6, 10, true, white);
+            this.drawNumber(second%10, 10, 10, true, white);
 
         }
     }
 
     this.transform = function() {
+        this.frameCounter += 1;
         // Incrementally change the displayed goban to the desired configuration
+        if (this.moving_stone == false) {
+            // See if there's anything in the queue to do first
+            // TODO!
+        }
         if (this.moving_stone == true) {
-            this.stone_percent += 15;
+            this.stone_percent += 5;
             if (this.stone_percent >= 100) {
                 if (this.stone_to[1] >= 0 && this.stone_to[1] < gridsize && this.stone_to[0] >= 0 && this.stone_to[0] < gridsize) {
                     // add stone to board
                     this.stones_shown[this.stone_to[0] + gridsize*this.stone_to[1]] = this.stone_colour;
+                    this.drawStone(this.bufferContext, this.stone_to[0], this.stone_to[1], this.stone_colour, 0);
+                }
+                else if (this.stone_to[0] == 100) {
+                    // stone removed from board
+                    // Refresh buffer view. (TODO: This could be more efficient)
+                    this.drawBuffer();
                 }
                 this.moving_stone = false;
                 this.draw();
@@ -262,14 +291,14 @@ function Goban(){
             this.draw();
             if (this.stone_from[0] == 100) {
                 // Stone being added
-                this.drawStone(this.stone_to[0], this.stone_to[1], this.stone_colour == white, 10*(1 - this.stone_percent/100));
+                this.drawStone(context, this.stone_to[0], this.stone_to[1], this.stone_colour, 10*(1 - this.stone_percent/100));
             }
             else if (this.stone_to[0] == 100) {
                 // Stone being removed
-                this.drawStone(this.stone_from[0], this.stone_from[1], this.stone_colour == white, 10*this.stone_percent/100);
+                this.drawStone(context, this.stone_from[0], this.stone_from[1], this.stone_colour, 10*this.stone_percent/100);
             }
             else {
-                this.drawStone(this.stone_from[0] + this.stone_percent*(this.stone_to[0] - this.stone_from[0])/100, this.stone_from[1] + this.stone_percent*(this.stone_to[1] - this.stone_from[1])/100, this.stone_colour == white, 0);
+                this.drawStone(context, this.stone_from[0] + this.stone_percent*(this.stone_to[0] - this.stone_from[0])/100, this.stone_from[1] + this.stone_percent*(this.stone_to[1] - this.stone_from[1])/100, this.stone_colour, 0);
             }
             return;
         }
@@ -295,6 +324,7 @@ function Goban(){
                 }
             }
         }
+        var removed = false;
         if (best_j != -1) {
             // Move stone from best_j to best_i
             this.moving_stone = true;
@@ -302,13 +332,13 @@ function Goban(){
             this.stone_to = coords(best_i);
             this.stone_colour = this.stones_shown[best_j];
             this.stones_shown[best_j] = 0;
+            removed = true;
         }
-        else {
+        // Randomise where we start looking
+        var start = Math.random()*diff.length | 0;
+        if (removed == false) {
             // No more moving will help. Find stone to remove.
-            var removed = false;
             // Prefer removing stones which are where the opposite colour wants to be
-            // Randomise where we start looking
-            var start = Math.floor(Math.random()*diff.length);
             for (var i = 0; i < diff.length; ++i) {
                 var p = i + start % diff.length;
                 if (diff[p] == black - white || diff[p] == white - black) {
@@ -321,41 +351,41 @@ function Goban(){
                     break;
                 }
             }
-            if (removed == false) {
-                // Try removing other ones
-                var start = Math.floor(Math.random()*diff.length);
-                for (var i = 0; i < diff.length; ++i) {
-                    var p = i + start % diff.length;
-                    if (diff[p] == black || diff[p] == white) {
-                        this.moving_stone = true;
-                        this.stone_from = coords(p);
-                        this.stone_colour = this.stones_shown[p]
-                        this.stone_to = [100, 100];
-                        this.stones_shown[p] = 0;
-                        removed = true;
-                        break;
-                    }
-                }
-            }
-            if (removed == false) {
-                // Finally do some adding
-                var start = Math.floor(Math.random()*diff.length);
-                for (var i = 0; i < diff.length; ++i) {
-                    var p = i + start % diff.length;
-                    if (diff[p] == -black || diff[p] == -white) {
-                        this.moving_stone = true;
-                        this.stone_colour = -diff[p];
-                        this.stone_from = [100, 100];
-                        this.stone_to = coords(p);
-                        break;
-                    }
+        }
+        if (removed == false) {
+            // Try removing other ones
+            for (var i = 0; i < diff.length; ++i) {
+                var p = i + start % diff.length;
+                if (diff[p] == black || diff[p] == white) {
+                    this.moving_stone = true;
+                    this.stone_from = coords(p);
+                    this.stone_colour = this.stones_shown[p]
+                    this.stone_to = [100, 100];
+                    this.stones_shown[p] = 0;
+                    removed = true;
+                    break;
                 }
             }
         }
+        if (removed == false) {
+            // Finally do some adding
+            for (var i = 0; i < diff.length; ++i) {
+                var p = i + start % diff.length;
+                if (diff[p] == -black || diff[p] == -white) {
+                    this.moving_stone = true;
+                    this.stone_colour = -diff[p];
+                    this.stone_from = [100, 100];
+                    this.stone_to = coords(p);
+                    break;
+                }
+            }
+        }
+        if (removed == true) {
+            // Refresh board: TODO: make more efficient
+            this.drawBuffer();
+        }
         this.draw();
     }
-
-
 };
 
 // find integer points that form the line from x0, y0 to x1, y1
@@ -409,7 +439,7 @@ function line(x0, x1, y0, y1) {
     return points;
 }
 
-
+// The distance between points on the board with given indices
 function dist(i, j) {
     var xi = i%gridsize;
     var yi = (i-xi)/gridsize;
@@ -418,6 +448,7 @@ function dist(i, j) {
     return Math.sqrt((xi - xj)*(xi - xj) + (yi - yj)*(yi - yj));
 }
 
+// The coordinates of a point with a given index
 function coords(p) {
     return [p%gridsize, (p - p%gridsize)/gridsize];
 }
@@ -427,16 +458,17 @@ function coords(p) {
 $(window).load(function() {
     canvas = document.getElementById('goCanvas');
     context = canvas.getContext("2d");
-    context.shadowColor = "rgba( 0, 0, 0, 0.3 )";
 
     goban = new Goban();
     $("#switch_view").click(function() {
         goban.view += 1;
     });
 
-    resize();
+    //window.onresize = function() {goban.resize(window.innerWidth, window.innerHeight - min_bottom_padding)};
+    goban.resize(window.innerWidth, window.innerHeight - min_bottom_padding);
     setInterval(function() {goban.update()}, 1000);
-    setInterval(function() {goban.transform()}, 50);
+    setInterval(function() {goban.transform()}, 10);
+
 
 });
 
