@@ -25,8 +25,14 @@ white_stone.src = "white_stone1.png";
 var black_stone = new Image();
 black_stone.src = "black_stone1.png";
 
-var gobanImage = new Image();
-gobanImage.src = "goban.jpg";
+var goban_1200 = new Image();
+goban_1200.src = "goban_1200.jpg";
+
+var goban_400 = new Image();
+goban_400.src = "goban_400.jpg";
+
+var goban_200 = new Image();
+goban_200.src = "goban_200.jpg";
 
 var white = 1;
 var black = 3;
@@ -75,7 +81,6 @@ function Goban(){
     this.stones = []; // The current (desired) state
     this.stones_shown = []; // The stones last drawn
     this.stone_queue = []; // Prioritise putting these stones on the board, in this order.
-    this.drawnOnce = false;
     this.moving_stone = false;
     this.stone_from = [0, 0];
     this.stone_to = [0, 0];
@@ -104,7 +109,6 @@ function Goban(){
     }
 
     this.resize = function(width, height) {
-        this.drawnOnce = false;
         w = width - 2*padding;
         h = height - 2*padding;
         if (w*goban_ratio > h) {
@@ -137,18 +141,18 @@ function Goban(){
         this.stone_queue.push([x, y, colour]);
     };
     this.drawBuffer = function(){
-        if (this.drawnOnce == false) {
-            this.bufferContext.shadowColor = "rgba( 0, 0, 0, 0.6)";
-            this.bufferContext.shadowOffsetX = w/80;
-            this.bufferContext.shadowOffsetY = w/30;
-            this.bufferContext.shadowBlur = w/50;
-            this.drawnOnce = true;
+        this.bufferContext.shadowColor = "rgba( 0, 0, 0, 0.6)";
+        this.bufferContext.shadowOffsetX = w/80;
+        this.bufferContext.shadowOffsetY = w/30;
+        this.bufferContext.shadowBlur = w/50;
+        var gobanImage = goban_1200;
+        if (w <= 400) {
+            gobanImage = goban_400;
         }
-        else {
-            this.bufferContext.shadowOffsetX = this.bufferContext.shadowOffsetY = 0;
-            this.bufferContext.shadowBlur = 0;
+        if (w <= 200) {
+            gobanImage = goban_200;
         }
-        // TODO: Do we still need the 'drawnOnce'?
+
         this.bufferContext.drawImage(gobanImage, x_offset, y_offset, w, h);
         this.emptyBoardContext.drawImage(this.bufferCanvas, 0, 0);
 
@@ -177,24 +181,14 @@ function Goban(){
         if (height > 10) {
             height = 10;
         }
-        ctx.shadowOffsetX = 1;
-        ctx.shadowOffsetY = 3;
+        ctx.shadowOffsetX = height;
+        ctx.shadowOffsetY = 3*height;
         ctx.shadowColor = "rgba(0, 0, 0, " + (0.5 - height/20) + ")";
         ctx.shadowBlur = height;
-
-        ctx.shadowOffsetX *= 1 + height;
-        ctx.shadowOffsetY *= 1 + height;
         ctx.globalAlpha = height < 5 ? 1 : 1 - (height - 5)/5;
-        if (colour == white) {
-            var diameter = w/20;
-            diameter *= 1 + height/10;
-            ctx.drawImage(white_stone, xpos - diameter/2 + x_offset, ypos - diameter/2 + y_offset, diameter, diameter);
-        }
-        else {
-            var diameter = w/20;
-            diameter *= 1 + height/10;
-            ctx.drawImage(black_stone, xpos - diameter/2 + x_offset, ypos - diameter/2 + y_offset, diameter, diameter);
-        }
+
+        var diameter = (w/20) * (1 + height/10);
+        ctx.drawImage(colour == white ? white_stone : black_stone, xpos - diameter/2 + x_offset, ypos - diameter/2 + y_offset, diameter, diameter);
         ctx.globalAlpha = 1;
     };
 
@@ -206,8 +200,7 @@ function Goban(){
         ypos += y_offset - d/2;
         this.bufferContext.shadowOffsetX = this.bufferContext.shadowOffsetY = 0;
         this.bufferContext.shadowBlur = 0;
-        // The 1 and 3 here match the size of the shadow in drawStone
-        this.bufferContext.drawImage(this.emptyBoardCanvas, xpos, ypos, d + 1, d + 3, xpos, ypos, d + 1, d + 3);
+        this.bufferContext.drawImage(this.emptyBoardCanvas, xpos, ypos, d, d, xpos, ypos, d, d);
     };
 
     this.update = function() {
