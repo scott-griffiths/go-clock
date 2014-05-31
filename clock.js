@@ -88,12 +88,15 @@ function Goban(){
     this.bufferCanvas = document.createElement('canvas');
     this.bufferContext = this.bufferCanvas.getContext('2d');
 
+    this.emptyBoardCanvas = document.createElement('canvas');
+    this.emptyBoardContext = this.emptyBoardCanvas.getContext('2d');
+
     this.clear = function() {
         this.stones = [];
         for (var i = 0; i < gridsize*gridsize; ++i){
             this.stones.push(0); // empty space
         }
-    }
+    };
 
     this.clear();
     for (var i = 0; i < gridsize*gridsize; ++i){
@@ -115,24 +118,24 @@ function Goban(){
             y_offset = max_top_padding;
         }
         x_offset = (width - w) / 2 | 0;
-        canvas.width = this.bufferCanvas.width = width;
-        canvas.height = this.bufferCanvas.height = height;
+        canvas.width = this.bufferCanvas.width = this.emptyBoardCanvas.width = width;
+        canvas.height = this.bufferCanvas.height = this.emptyBoardCanvas.height = height;
         this.drawBuffer();
         this.draw();
-    }
+    };
 
     this.drawNumber = function(number, x_offset, y_offset, small, colour) {
         var num = small ? tiny_num[number] : small_num[number];
         for (var i = 0; i < num.length; ++i) {
             this.addStone(num[i][0] + x_offset, num[i][1] + y_offset, colour);
         }
-    }
+    };
     this.addStone = function(x, y, colour){
         this.stones[y*gridsize + x] = colour;
-    }
+    };
     this.addStoneToQueue = function(x, y, colour) {
         this.stone_queue.push([x, y, colour]);
-    }
+    };
     this.drawBuffer = function(){
         if (this.drawnOnce == false) {
             this.bufferContext.shadowColor = "rgba( 0, 0, 0, 0.6)";
@@ -145,7 +148,9 @@ function Goban(){
             this.bufferContext.shadowOffsetX = this.bufferContext.shadowOffsetY = 0;
             this.bufferContext.shadowBlur = 0;
         }
-        this.bufferContext.drawImage(gobanImage, x_offset, y_offset, w, h)
+        // TODO: Do we still need the 'drawnOnce'?
+        this.bufferContext.drawImage(gobanImage, x_offset, y_offset, w, h);
+        this.emptyBoardContext.drawImage(this.bufferCanvas, 0, 0);
 
         for (var i = 0; i < gridsize; ++i){
             for (var j = 0; j < gridsize; ++j){
@@ -155,14 +160,14 @@ function Goban(){
                 }
             }
         }
-    }
+    };
     this.draw = function() {
         context.shadowOffsetX = 0;
         context.shadowOffsetY = 0;
         context.shadowBlur = 0;
         context.clearRect(0, 0, canvas.width, canvas.height);
         context.drawImage(this.bufferCanvas, 0, 0);
-    }
+    };
     this.drawStone = function(ctx, x, y, colour, height) {
         if (x < 0 || x > gridsize - 1 || y < 0 || y > gridsize - 1) {
             return;
@@ -175,13 +180,13 @@ function Goban(){
         ctx.shadowOffsetX = 1;
         ctx.shadowOffsetY = 3;
         ctx.shadowColor = "rgba(0, 0, 0, " + (0.5 - height/20) + ")";
-        ctx.shadowBlur = height + 5;
+        ctx.shadowBlur = height;
 
         ctx.shadowOffsetX *= 1 + height;
         ctx.shadowOffsetY *= 1 + height;
         ctx.globalAlpha = height < 5 ? 1 : 1 - (height - 5)/5;
         if (colour == white) {
-            var diameter = w/21;
+            var diameter = w/20;
             diameter *= 1 + height/10;
             ctx.drawImage(white_stone, xpos - diameter/2 + x_offset, ypos - diameter/2 + y_offset, diameter, diameter);
         }
@@ -191,7 +196,19 @@ function Goban(){
             ctx.drawImage(black_stone, xpos - diameter/2 + x_offset, ypos - diameter/2 + y_offset, diameter, diameter);
         }
         ctx.globalAlpha = 1;
-    }
+    };
+
+    this.eraseStone = function(x, y) {
+        var xpos = minx*w + x*(maxx-minx)*w/(gridsize - 1);
+        var ypos = miny*h + y*(maxy-miny)*h/(gridsize - 1);
+        var d = w/20;
+        xpos += x_offset - d/2;
+        ypos += y_offset - d/2;
+        this.bufferContext.shadowOffsetX = this.bufferContext.shadowOffsetY = 0;
+        this.bufferContext.shadowBlur = 0;
+        // The 1 and 3 here match the size of the shadow in drawStone
+        this.bufferContext.drawImage(this.emptyBoardCanvas, xpos, ypos, d + 1, d + 3, xpos, ypos, d + 1, d + 3);
+    };
 
     this.update = function() {
         var now = new Date();
@@ -261,7 +278,7 @@ function Goban(){
             this.drawNumber(second%10, 10, 10, true, white);
 
         }
-    }
+    };
 
     this.transform = function() {
         this.frameCounter += 1;
@@ -271,7 +288,7 @@ function Goban(){
             // TODO!
         }
         if (this.moving_stone == true) {
-            this.stone_percent += 5;
+            this.stone_percent += 10;
             if (this.stone_percent >= 100) {
                 if (this.stone_to[1] >= 0 && this.stone_to[1] < gridsize && this.stone_to[0] >= 0 && this.stone_to[0] < gridsize) {
                     // add stone to board
@@ -280,8 +297,7 @@ function Goban(){
                 }
                 else if (this.stone_to[0] == 100) {
                     // stone removed from board
-                    // Refresh buffer view. (TODO: This could be more efficient)
-                    this.drawBuffer();
+                    this.eraseStone(this.stone_from[0], this.stone_from[1]);
                 }
                 this.moving_stone = false;
                 this.draw();
@@ -306,19 +322,23 @@ function Goban(){
         for (var i = 0; i < this.stones_shown.length; ++i) {
             diff.push(this.stones_shown[i] - this.stones[i]);
         }
+        // Randomise where we start looking
+        var start = Math.random()*diff.length | 0;
+
         var best_i = -1;
         var best_j = -1;
         for (var i = 0; i < diff.length; ++i) {
-            if (diff[i] == -white || diff[i] == -black) {
+            var p = (i + start) % diff.length;
+            if (diff[p] == -white || diff[p] == -black) {
                 // we want a white or black stone here - search for the nearest excess white or black
                 if (best_i == -1) {
-                    best_i = i;
+                    best_i = p;
                 }
                 for (var j = 0; j < diff.length; ++j) {
-                    if (diff[j] == -diff[i]) {
-                        if (best_j == -1 || dist(j, i) < dist(best_j, best_i)) {
+                    if (diff[j] == -diff[p]) {
+                        if (best_j == -1 || dist(j, p) < dist(best_j, best_i)) {
                             best_j = j;
-                            best_i = i;
+                            best_i = p;
                         }
                     }
                 }
@@ -334,17 +354,16 @@ function Goban(){
             this.stones_shown[best_j] = 0;
             removed = true;
         }
-        // Randomise where we start looking
-        var start = Math.random()*diff.length | 0;
+
         if (removed == false) {
             // No more moving will help. Find stone to remove.
             // Prefer removing stones which are where the opposite colour wants to be
             for (var i = 0; i < diff.length; ++i) {
-                var p = i + start % diff.length;
+                var p = (i + start) % diff.length;
                 if (diff[p] == black - white || diff[p] == white - black) {
                     this.moving_stone = true;
                     this.stone_from = coords(p);
-                    this.stone_colour = this.stones_shown[p]
+                    this.stone_colour = this.stones_shown[p];
                     this.stone_to = [100, 100];
                     this.stones_shown[p] = 0;
                     removed = true;
@@ -355,11 +374,11 @@ function Goban(){
         if (removed == false) {
             // Try removing other ones
             for (var i = 0; i < diff.length; ++i) {
-                var p = i + start % diff.length;
+                var p = (i + start) % diff.length;
                 if (diff[p] == black || diff[p] == white) {
                     this.moving_stone = true;
                     this.stone_from = coords(p);
-                    this.stone_colour = this.stones_shown[p]
+                    this.stone_colour = this.stones_shown[p];
                     this.stone_to = [100, 100];
                     this.stones_shown[p] = 0;
                     removed = true;
@@ -370,7 +389,7 @@ function Goban(){
         if (removed == false) {
             // Finally do some adding
             for (var i = 0; i < diff.length; ++i) {
-                var p = i + start % diff.length;
+                var p = (i + start) % diff.length;
                 if (diff[p] == -black || diff[p] == -white) {
                     this.moving_stone = true;
                     this.stone_colour = -diff[p];
@@ -380,13 +399,12 @@ function Goban(){
                 }
             }
         }
-        if (removed == true) {
-            // Refresh board: TODO: make more efficient
-            this.drawBuffer();
-        }
         this.draw();
+        if (removed == true) {
+            this.eraseStone(this.stone_from[0], this.stone_from[1]);
+        }
     }
-};
+}
 
 // find integer points that form the line from x0, y0 to x1, y1
 function line(x0, x1, y0, y1) {
@@ -467,7 +485,7 @@ $(window).load(function() {
     //window.onresize = function() {goban.resize(window.innerWidth, window.innerHeight - min_bottom_padding)};
     goban.resize(window.innerWidth, window.innerHeight - min_bottom_padding);
     setInterval(function() {goban.update()}, 1000);
-    setInterval(function() {goban.transform()}, 10);
+    setInterval(function() {goban.transform()}, 20);
 
 
 });
