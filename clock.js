@@ -82,10 +82,12 @@ function Goban(){
     this.stones_shown = []; // The stones last drawn
     this.stone_queue = []; // Prioritise putting these stones on the board, in this order.
     this.moving_stone = false;
-    this.stone_from = [0, 0];
-    this.stone_to = [0, 0];
-    this.stone_percent = 0;
+    this.stone_from = [0, 0]; // Board coordinates
+    this.stone_to = [0, 0]; // Board coordinates
+    this.stone_percent = 0; // Percentage stone is between the from and to
     this.stone_colour = white;
+    this.stone_pos = [0, 0, 0, 0]; // Pixel position of last drawn moving stone: x, y, w, h
+
     this.view = 0;
 
     this.frameCounter = 0;
@@ -141,7 +143,7 @@ function Goban(){
         this.stone_queue.push([x, y, colour]);
     };
     this.drawBuffer = function(){
-        this.bufferContext.shadowColor = "rgba( 0, 0, 0, 0.6)";
+        this.bufferContext.shadowColor = "rgba( 0, 0, 0, 0.0)"; // was 0.6 alpha
         this.bufferContext.shadowOffsetX = w/80;
         this.bufferContext.shadowOffsetY = w/30;
         this.bufferContext.shadowBlur = w/50;
@@ -160,11 +162,12 @@ function Goban(){
             for (var j = 0; j < gridsize; ++j){
                 var p = this.stones_shown[i*gridsize + j];
                 if (p != 0) {
-                    this.drawStone(this.bufferContext, j, i, p, 0);
+                    this.drawStone(this.bufferContext, [j, i], p, 0);
                 }
             }
         }
     };
+
     this.draw = function() {
         context.shadowOffsetX = 0;
         context.shadowOffsetY = 0;
@@ -172,35 +175,32 @@ function Goban(){
         context.clearRect(0, 0, canvas.width, canvas.height);
         context.drawImage(this.bufferCanvas, 0, 0);
     };
-    this.drawStone = function(ctx, x, y, colour, height) {
-        if (x < 0 || x > gridsize - 1 || y < 0 || y > gridsize - 1) {
+
+    this.drawStone = function(ctx, coords, colour, height) {
+        if (coords[0] < 0 || coords[0] > gridsize - 1 || coords[1] < 0 || coords[1] > gridsize - 1) {
             return;
         }
-        var xpos = minx*w + x*(maxx-minx)*w/(gridsize - 1);
-        var ypos = miny*h + y*(maxy-miny)*h/(gridsize - 1);
-        if (height > 10) {
-            height = 10;
-        }
-        ctx.shadowOffsetX = height;
+        p = this.stonePosition(coords[0], coords[1], height);
+        // TODO: Shadow distance should be proportional to goban size
+/*        ctx.shadowOffsetX = height;
         ctx.shadowOffsetY = 3*height;
         ctx.shadowColor = "rgba(0, 0, 0, " + (0.5 - height/20) + ")";
         ctx.shadowBlur = height;
         ctx.globalAlpha = height < 5 ? 1 : 1 - (height - 5)/5;
-
-        var diameter = (w/20) * (1 + height/10);
-        ctx.drawImage(colour == white ? white_stone : black_stone, xpos - diameter/2 + x_offset, ypos - diameter/2 + y_offset, diameter, diameter);
-        ctx.globalAlpha = 1;
+*/
+        ctx.drawImage(colour == white ? white_stone : black_stone, p[0], p[1], p[2], p[3]);
+//        ctx.globalAlpha = 1;
+        return p;
     };
 
-    this.eraseStone = function(x, y) {
-        var xpos = minx*w + x*(maxx-minx)*w/(gridsize - 1);
-        var ypos = miny*h + y*(maxy-miny)*h/(gridsize - 1);
-        var d = w/20;
-        xpos += x_offset - d/2;
-        ypos += y_offset - d/2;
+    // Remove a stone from the buffered board
+    this.eraseStone = function(coords) {
+        p = this.stonePosition(coords[0], coords[1], 0);
         this.bufferContext.shadowOffsetX = this.bufferContext.shadowOffsetY = 0;
         this.bufferContext.shadowBlur = 0;
-        this.bufferContext.drawImage(this.emptyBoardCanvas, xpos, ypos, d, d, xpos, ypos, d, d);
+        this.bufferContext.drawImage(this.emptyBoardCanvas, p[0], p[1], p[2], p[3], p[0], p[1], p[2], p[3]);
+        context.drawImage(this.bufferCanvas, p[0], p[1], p[2], p[3], p[0], p[1], p[2], p[3]);
+
     };
 
     this.update = function() {
@@ -273,6 +273,20 @@ function Goban(){
         }
     };
 
+    // Given board coordinates and a height, return the stone's pixel x, y, w, h
+    this.stonePosition = function(x, y, height) {
+        if (x < 0 || x > gridsize - 1 || y < 0 || y > gridsize - 1) {
+            return;
+        }
+        var xpos = minx*w + x*(maxx-minx)*w/(gridsize - 1);
+        var ypos = miny*h + y*(maxy-miny)*h/(gridsize - 1);
+        if (height > 10) {
+            height = 10;
+        }
+        var diameter = (w/20) * (1 + height/10);
+        return [xpos - diameter/2 + x_offset, ypos - diameter/2 + y_offset, diameter, diameter];
+    };
+
     this.transform = function() {
         this.frameCounter += 1;
         // Incrementally change the displayed goban to the desired configuration
@@ -281,33 +295,46 @@ function Goban(){
             // TODO!
         }
         if (this.moving_stone == true) {
+            if (this.stone_percent != 0) {
+                // Erase previous moving stone
+                context.shadowColor = "rgba(80, 80, 80, 0)";
+                var xpos = this.stone_pos[0];
+                var ypos = this.stone_pos[1];
+                var w = this.stone_pos[2];
+                var h = this.stone_pos[3];
+
+                context.drawImage(this.bufferCanvas, xpos, ypos, w, h, xpos, ypos, w, h);
+            }
+
             this.stone_percent += 10;
             if (this.stone_percent >= 100) {
                 if (this.stone_to[1] >= 0 && this.stone_to[1] < gridsize && this.stone_to[0] >= 0 && this.stone_to[0] < gridsize) {
-                    // add stone to board
+                    // add stone to board and draw on buffer and shown context
                     this.stones_shown[this.stone_to[0] + gridsize*this.stone_to[1]] = this.stone_colour;
-                    this.drawStone(this.bufferContext, this.stone_to[0], this.stone_to[1], this.stone_colour, 0);
+                    this.drawStone(this.bufferContext, this.stone_to, this.stone_colour, 0);
+                    this.drawStone(context, this.stone_to, this.stone_colour, 0);
                 }
                 else if (this.stone_to[0] == 100) {
                     // stone removed from board
-                    this.eraseStone(this.stone_from[0], this.stone_from[1]);
+                    this.eraseStone(this.stone_from);
                 }
                 this.moving_stone = false;
-                this.draw();
                 this.stone_percent = 0;
                 return;
             }
-            this.draw();
+
             if (this.stone_from[0] == 100) {
                 // Stone being added
-                this.drawStone(context, this.stone_to[0], this.stone_to[1], this.stone_colour, 10*(1 - this.stone_percent/100));
+                this.stone_pos = this.drawStone(context, this.stone_to, this.stone_colour, 10*(1 - this.stone_percent/100));
             }
             else if (this.stone_to[0] == 100) {
                 // Stone being removed
-                this.drawStone(context, this.stone_from[0], this.stone_from[1], this.stone_colour, 10*this.stone_percent/100);
+                this.stone_pos = this.drawStone(context, this.stone_from, this.stone_colour, 10*this.stone_percent/100);
             }
             else {
-                this.drawStone(context, this.stone_from[0] + this.stone_percent*(this.stone_to[0] - this.stone_from[0])/100, this.stone_from[1] + this.stone_percent*(this.stone_to[1] - this.stone_from[1])/100, this.stone_colour, 0);
+                var x = this.stone_from[0] + this.stone_percent*(this.stone_to[0] - this.stone_from[0])/100;
+                var y = this.stone_from[1] + this.stone_percent*(this.stone_to[1] - this.stone_from[1])/100;
+                this.stone_pos = this.drawStone(context, [x, y], this.stone_colour, 0);
             }
             return;
         }
@@ -392,9 +419,8 @@ function Goban(){
                 }
             }
         }
-        this.draw();
         if (removed == true) {
-            this.eraseStone(this.stone_from[0], this.stone_from[1]);
+            this.eraseStone(this.stone_from);
         }
     }
 }
@@ -475,7 +501,7 @@ $(window).load(function() {
         goban.view += 1;
     });
 
-    //window.onresize = function() {goban.resize(window.innerWidth, window.innerHeight - min_bottom_padding)};
+    window.onresize = function() {goban.resize(window.innerWidth, window.innerHeight - min_bottom_padding)};
     goban.resize(window.innerWidth, window.innerHeight - min_bottom_padding);
     setInterval(function() {goban.update()}, 1000);
     setInterval(function() {goban.transform()}, 20);
