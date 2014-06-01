@@ -17,7 +17,9 @@ var y_offset = 0;
 var x_offset = 0;
 var max_top_padding = 50;
 var padding = 30;
-var min_bottom_padding = 80;
+var min_bottom_padding = 0;
+
+var go_bowl = 999;
 
 var white_stone = new Image();
 white_stone.src = "white_stone1.png";
@@ -33,6 +35,9 @@ goban_400.src = "goban_400.jpg";
 
 var goban_200 = new Image();
 goban_200.src = "goban_200.jpg";
+
+var tatami = new Image();
+tatami.src = "tatami copy.jpg";
 
 var white = 1;
 var black = 3;
@@ -142,8 +147,9 @@ function Goban(){
     this.addStoneToQueue = function(x, y, colour) {
         this.stone_queue.push([x, y, colour]);
     };
+    // Draw the underlying board (i.e. everything except any moving stones)
     this.drawBuffer = function(){
-        this.bufferContext.shadowColor = "rgba( 0, 0, 0, 0.0)"; // was 0.6 alpha
+        this.bufferContext.shadowColor = "rgba( 0, 0, 0, 0.6)";
         this.bufferContext.shadowOffsetX = w/80;
         this.bufferContext.shadowOffsetY = w/30;
         this.bufferContext.shadowBlur = w/50;
@@ -154,10 +160,11 @@ function Goban(){
         if (w <= 200) {
             gobanImage = goban_200;
         }
-
+        this.bufferContext.drawImage(tatami, 0, 0, this.bufferCanvas.width, this.bufferCanvas.height);
         this.bufferContext.drawImage(gobanImage, x_offset, y_offset, w, h);
         this.emptyBoardContext.drawImage(this.bufferCanvas, 0, 0);
 
+        this.bufferContext.shadowColor = "rgba( 0, 0, 0, 0.0)";
         for (var i = 0; i < gridsize; ++i){
             for (var j = 0; j < gridsize; ++j){
                 var p = this.stones_shown[i*gridsize + j];
@@ -185,11 +192,10 @@ function Goban(){
 /*        ctx.shadowOffsetX = height;
         ctx.shadowOffsetY = 3*height;
         ctx.shadowColor = "rgba(0, 0, 0, " + (0.5 - height/20) + ")";
-        ctx.shadowBlur = height;
-        ctx.globalAlpha = height < 5 ? 1 : 1 - (height - 5)/5;
-*/
+        ctx.shadowBlur = height;*/
+        ctx.globalAlpha = height < 3 ? 1 : 1 - (height - 3)/8;
         ctx.drawImage(colour == white ? white_stone : black_stone, p[0], p[1], p[2], p[3]);
-//        ctx.globalAlpha = 1;
+        ctx.globalAlpha = 1;
         return p;
     };
 
@@ -241,15 +247,6 @@ function Goban(){
             }
         }
         else if (this.view == 1) {
-/*            var theta = 2*Math.PI*second / 60;
-            var R = 9.0;
-            var x = Math.round(9 + R*Math.sin(theta));
-            var y = Math.round(9 - R*Math.cos(theta));
-            var second_hand = line(9, x, 9, y);
-            for (var i = 0; i < second_hand.length; ++i) {
-                this.addStone(second_hand[i][0], second_hand[i][1], white);
-            }*/
-
             this.drawNumber((hour - hour%10)/10, 4, 2, false, black);
             this.drawNumber(hour%10, 10, 2, false, black);
 
@@ -257,7 +254,6 @@ function Goban(){
             this.drawNumber(minute%10, 10, 10, false, white);
         }
         else if (this.view == 2) {
-
 //            hour_stones = [[9, 0], [14, 1], [17, 4], [18, 9], [17, 14], [14, 17], [9, 18], [4, 17], [1, 14], [0, 9], [1, 4], [4, 1]];
             hour_stones = [[9, 1], [13, 2], [16, 5], [17, 9], [16, 13], [13, 16], [9, 17], [5, 16], [2, 13], [1, 9], [2, 5], [5, 2]];
             for (var i = 0; i < hour_stones.length; ++i) {
@@ -283,8 +279,8 @@ function Goban(){
         if (height > 10) {
             height = 10;
         }
-        var diameter = (w/20) * (1 + height/10);
-        return [xpos - diameter/2 + x_offset, ypos - diameter/2 + y_offset, diameter, diameter];
+        var diameter = (w/20) * (1 + height/10) | 0;
+        return [xpos - diameter/2 + x_offset | 0, ypos - diameter/2 + y_offset | 0, diameter, diameter];
     };
 
     this.transform = function() {
@@ -314,7 +310,7 @@ function Goban(){
                     this.drawStone(this.bufferContext, this.stone_to, this.stone_colour, 0);
                     this.drawStone(context, this.stone_to, this.stone_colour, 0);
                 }
-                else if (this.stone_to[0] == 100) {
+                else if (this.stone_to[0] == go_bowl) {
                     // stone removed from board
                     this.eraseStone(this.stone_from);
                 }
@@ -323,11 +319,11 @@ function Goban(){
                 return;
             }
 
-            if (this.stone_from[0] == 100) {
+            if (this.stone_from[0] == go_bowl) {
                 // Stone being added
                 this.stone_pos = this.drawStone(context, this.stone_to, this.stone_colour, 10*(1 - this.stone_percent/100));
             }
-            else if (this.stone_to[0] == 100) {
+            else if (this.stone_to[0] == go_bowl) {
                 // Stone being removed
                 this.stone_pos = this.drawStone(context, this.stone_from, this.stone_colour, 10*this.stone_percent/100);
             }
@@ -384,7 +380,7 @@ function Goban(){
                     this.moving_stone = true;
                     this.stone_from = coords(p);
                     this.stone_colour = this.stones_shown[p];
-                    this.stone_to = [100, 100];
+                    this.stone_to = [go_bowl, go_bowl];
                     this.stones_shown[p] = 0;
                     removed = true;
                     break;
@@ -399,7 +395,7 @@ function Goban(){
                     this.moving_stone = true;
                     this.stone_from = coords(p);
                     this.stone_colour = this.stones_shown[p];
-                    this.stone_to = [100, 100];
+                    this.stone_to = [go_bowl, go_bowl];
                     this.stones_shown[p] = 0;
                     removed = true;
                     break;
@@ -413,7 +409,7 @@ function Goban(){
                 if (diff[p] == -black || diff[p] == -white) {
                     this.moving_stone = true;
                     this.stone_colour = -diff[p];
-                    this.stone_from = [100, 100];
+                    this.stone_from = [go_bowl, go_bowl];
                     this.stone_to = coords(p);
                     break;
                 }
@@ -478,10 +474,10 @@ function line(x0, x1, y0, y1) {
 
 // The distance between points on the board with given indices
 function dist(i, j) {
-    var xi = i%gridsize;
-    var yi = (i-xi)/gridsize;
-    var xj = j%gridsize;
-    var yj = (j-xj)/gridsize;
+    var xi = i % gridsize;
+    var yi = (i - xi)/gridsize;
+    var xj = j % gridsize;
+    var yj = (j - xj)/gridsize;
     return Math.sqrt((xi - xj)*(xi - xj) + (yi - yj)*(yi - yj));
 }
 
@@ -497,7 +493,7 @@ $(window).load(function() {
     context = canvas.getContext("2d");
 
     goban = new Goban();
-    $("#switch_view").click(function() {
+    $("#goban").click(function() {
         goban.view += 1;
     });
 
