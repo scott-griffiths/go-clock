@@ -4,20 +4,10 @@
 
 var canvas;
 var context;
-var w = 650; // Goban image width
-var h = w*857/800; // Goban image height
-var goban_ratio = 857/800;
-var minx = 0.026;
-var maxx = 0.974;
-var miny = 0.03;
-var maxy = 0.972;
-var gridsize = 19;
 
-var y_offset = 0;
-var x_offset = 0;
 var max_top_padding = 50;
-var padding = 30;
 var min_bottom_padding = 0;
+var gridsize = 19;
 
 var go_bowl = 999;
 
@@ -95,7 +85,11 @@ function Goban(){
 
     this.view = 0;
 
-    this.frameCounter = 0;
+    // Pixel information for goban position
+    this.x_offset;
+    this.y_offset;
+    this.goban_width;
+    this.goban_height;
 
     this.bufferCanvas = document.createElement('canvas');
     this.bufferContext = this.bufferCanvas.getContext('2d');
@@ -116,19 +110,21 @@ function Goban(){
     }
 
     this.resize = function(width, height) {
-        w = width - 2*padding;
-        h = height - 2*padding;
-        if (w*goban_ratio > h) {
+        this.goban_width = width * 0.95; // Some padding to show background
+        this.goban_height = height * 0.95;
+        var goban_ratio = 857/800; // Ratio of the goban image
+
+        if (this.goban_width*goban_ratio > this.goban_height) {
             // clip to height
-            w = h/goban_ratio | 0;
+            this.goban_width = this.goban_height/goban_ratio | 0;
         } else {
-            h = w*goban_ratio | 0;
+            this.goban_height = this.goban_width*goban_ratio | 0;
         }
-        y_offset = (height - h) / 2 | 0;
-        if (y_offset > max_top_padding) {
-            y_offset = max_top_padding;
+        this.y_offset = (height - this.goban_height) / 2 | 0;
+        if (this.y_offset > max_top_padding) {
+            this.y_offset = max_top_padding;
         }
-        x_offset = (width - w) / 2 | 0;
+        this.x_offset = (width - this.goban_width) / 2 | 0;
         canvas.width = this.bufferCanvas.width = this.emptyBoardCanvas.width = width;
         canvas.height = this.bufferCanvas.height = this.emptyBoardCanvas.height = height;
         this.drawBuffer();
@@ -150,18 +146,18 @@ function Goban(){
     // Draw the underlying board (i.e. everything except any moving stones)
     this.drawBuffer = function(){
         this.bufferContext.shadowColor = "rgba( 0, 0, 0, 0.6)";
-        this.bufferContext.shadowOffsetX = w/80;
-        this.bufferContext.shadowOffsetY = w/30;
-        this.bufferContext.shadowBlur = w/50;
+        this.bufferContext.shadowOffsetX = this.goban_width/80;
+        this.bufferContext.shadowOffsetY = this.goban_width/30;
+        this.bufferContext.shadowBlur = this.goban_width/50;
         var gobanImage = goban_1200;
-        if (w <= 400) {
+        if (this.goban_width <= 400) {
             gobanImage = goban_400;
         }
-        if (w <= 200) {
+        if (this.goban_width <= 200) {
             gobanImage = goban_200;
         }
         this.bufferContext.drawImage(tatami, 0, 0, this.bufferCanvas.width, this.bufferCanvas.height);
-        this.bufferContext.drawImage(gobanImage, x_offset, y_offset, w, h);
+        this.bufferContext.drawImage(gobanImage, this.x_offset, this.y_offset, this.goban_width, this.goban_height);
         this.emptyBoardContext.drawImage(this.bufferCanvas, 0, 0);
 
         this.bufferContext.shadowColor = "rgba( 0, 0, 0, 0.0)";
@@ -214,8 +210,6 @@ function Goban(){
         hour = now.getHours();
         minute = now.getMinutes();
         second = now.getSeconds();
-        $("#frame-counter").text(this.frameCounter);
-        this.frameCounter = 0;
         views = 3;
         this.view %= views;
         this.clear();
@@ -274,17 +268,22 @@ function Goban(){
         if (x < 0 || x > gridsize - 1 || y < 0 || y > gridsize - 1) {
             return;
         }
-        var xpos = minx*w + x*(maxx-minx)*w/(gridsize - 1);
-        var ypos = miny*h + y*(maxy-miny)*h/(gridsize - 1);
+        // These give the relative positions of the sides of the goban grid as a proportion of the goban image
+        var minx = 0.026;
+        var maxx = 0.974;
+        var miny = 0.03;
+        var maxy = 0.972;
+
+        var xpos = minx*this.goban_width + x*(maxx-minx)*this.goban_width/(gridsize - 1);
+        var ypos = miny*this.goban_height + y*(maxy-miny)*this.goban_height/(gridsize - 1);
         if (height > 10) {
             height = 10;
         }
-        var diameter = (w/20) * (1 + height/10) | 0;
-        return [xpos - diameter/2 + x_offset | 0, ypos - diameter/2 + y_offset | 0, diameter, diameter];
+        var diameter = (this.goban_width/20) * (1 + height/10) | 0;
+        return [xpos - diameter/2 + this.x_offset | 0, ypos - diameter/2 + this.y_offset | 0, diameter, diameter];
     };
 
     this.transform = function() {
-        this.frameCounter += 1;
         // Incrementally change the displayed goban to the desired configuration
         if (this.moving_stone == false) {
             // See if there's anything in the queue to do first
@@ -485,12 +484,29 @@ function dist(i, j) {
 function coords(p) {
     return [p%gridsize, (p - p%gridsize)/gridsize];
 }
+/*
+function backingScale(ctx) {
+    if ('devicePixelRatio' in window) {
+        if (window.devicePixelRatio > 1) {
+            return window.devicePixelRatio;
+        }
+    }
+    return 1;
+}*/
 
 
 // This runs after the DOM *and* images have loaded
 $(window).load(function() {
     canvas = document.getElementById('goCanvas');
     context = canvas.getContext("2d");
+/*    var scaleFactor = backingScale(context);
+    if (scaleFactor > 1) {
+        canvas.width = canvas.width * scaleFactor;
+        canvas.height = canvas.height * scaleFactor;
+        // update the context for the new canvas scale
+        context.scale(scaleFactor, scaleFactor);
+        context = canvas.getContext("2d");
+    }*/
 
     goban = new Goban();
     $("#goban").click(function() {
