@@ -26,8 +26,8 @@ goban_400.src = "goban_400.jpg";
 var goban_200 = new Image();
 goban_200.src = "goban_200.jpg";
 
-var tatami = new Image();
-tatami.src = "tatami copy.jpg";
+var backgroundImage = new Image();
+backgroundImage.src = "wood1.jpg";
 
 var white = 1;
 var black = 3;
@@ -156,7 +156,7 @@ function Goban(){
         if (this.goban_width <= 200) {
             gobanImage = goban_200;
         }
-        this.bufferContext.drawImage(tatami, 0, 0, this.bufferCanvas.width, this.bufferCanvas.height);
+        this.bufferContext.drawImage(backgroundImage, 0, 0, this.bufferCanvas.width, this.bufferCanvas.height);
         this.bufferContext.drawImage(gobanImage, this.x_offset, this.y_offset, this.goban_width, this.goban_height);
         this.emptyBoardContext.drawImage(this.bufferCanvas, 0, 0);
 
