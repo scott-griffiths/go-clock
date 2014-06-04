@@ -185,10 +185,11 @@ function Goban(){
         }
         p = this.stonePosition(coords[0], coords[1], height);
         // TODO: Shadow distance should be proportional to goban size
-/*        ctx.shadowOffsetX = height;
-        ctx.shadowOffsetY = 3*height;
+        var shadowSize = height*this.goban_width/800;
+        ctx.shadowOffsetX = shadowSize;
+        ctx.shadowOffsetY = 5*shadowSize;
         ctx.shadowColor = "rgba(0, 0, 0, " + (0.5 - height/20) + ")";
-        ctx.shadowBlur = height;*/
+        ctx.shadowBlur = shadowSize;
         ctx.globalAlpha = height < 3 ? 1 : 1 - (height - 3)/8;
         ctx.drawImage(colour == white ? white_stone : black_stone, p[0], p[1], p[2], p[3]);
         ctx.globalAlpha = 1;
@@ -279,7 +280,7 @@ function Goban(){
         if (height > 10) {
             height = 10;
         }
-        var diameter = (this.goban_width/20) * (1 + height/10) | 0;
+        var diameter = (this.goban_width/20) * (1 + height/20) | 0;
         return [xpos - diameter/2 + this.x_offset | 0, ypos - diameter/2 + this.y_offset | 0, diameter, diameter];
     };
 
@@ -297,8 +298,8 @@ function Goban(){
                 var ypos = this.stone_pos[1];
                 var w = this.stone_pos[2];
                 var h = this.stone_pos[3];
-
-                context.drawImage(this.bufferCanvas, xpos, ypos, w, h, xpos, ypos, w, h);
+                // We erase 4* the area to make sure we get the shadow. Bit of a hack.
+                context.drawImage(this.bufferCanvas, xpos, ypos, w*2, h*2, xpos, ypos, w*2, h*2);
             }
 
             this.stone_percent += 10;
