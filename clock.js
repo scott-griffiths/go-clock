@@ -5,14 +5,19 @@
 var canvas;
 var context;
 
-var max_top_padding = 50;
 var min_bottom_padding = 0;
 var gridsize = 19;
 
 var go_bowl = 999;
 
-var white_stone = new Image();
-white_stone.src = "white_stone1.png";
+var white_stone0 = new Image();
+white_stone0.src = "white_stone0.png";
+var white_stone1 = new Image();
+white_stone1.src = "white_stone1.png";
+var white_stone2 = new Image();
+white_stone2.src = "white_stone2.png";
+var white_stone3 = new Image();
+white_stone3.src = "white_stone3.png";
 
 var black_stone = new Image();
 black_stone.src = "black_stone1.png";
@@ -65,12 +70,31 @@ var tiny_num = [s0, s1, s2, s3, s4, s5, s6, s7, s8, s9];
 //    e.preventDefault();
 //}
 
-
-function assert(condition, message) {
-    if (!condition) {
-        throw message || "Assertion failed";
-    }
+function createCookie(name, value, days) {
+	if (days) {
+		var date = new Date();
+		date.setTime(date.getTime() + (days*24*60*60*1000));
+		var expires = "; expires=" + date.toGMTString();
+	}
+	else var expires = "";
+	document.cookie = name + "=" + value + expires + "; path=/";
 }
+
+function readCookie(name) {
+	var nameEQ = name + "=";
+	var ca = document.cookie.split(';');
+	for(var i=0; i < ca.length; i++) {
+		var c = ca[i];
+		while (c.charAt(0)==' ') c = c.substring(1, c.length);
+		if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);
+	}
+	return null;
+}
+
+function eraseCookie(name) {
+	createCookie(name, "", -1);
+}
+
 
 function Goban(){
     this.stones = []; // The current (desired) state
@@ -110,8 +134,8 @@ function Goban(){
     }
 
     this.resize = function(width, height) {
-        this.goban_width = width * 0.95; // Some padding to show background
-        this.goban_height = height * 0.95;
+        this.goban_width = width * 0.90; // Some padding to show background
+        this.goban_height = height * 0.90;
         var goban_ratio = 857/800; // Ratio of the goban image
 
         if (this.goban_width*goban_ratio > this.goban_height) {
@@ -121,8 +145,8 @@ function Goban(){
             this.goban_height = this.goban_width*goban_ratio | 0;
         }
         this.y_offset = (height - this.goban_height) / 2 | 0;
-        if (this.y_offset > max_top_padding) {
-            this.y_offset = max_top_padding;
+        if (this.y_offset > this.goban_height/4) {
+            this.y_offset = this.goban_height/4;
         }
         this.x_offset = (width - this.goban_width) / 2 | 0;
         canvas.width = this.bufferCanvas.width = this.emptyBoardCanvas.width = width;
@@ -134,7 +158,7 @@ function Goban(){
     this.drawNumber = function(number, x_offset, y_offset, small, colour) {
         var num = small ? tiny_num[number] : small_num[number];
         for (var i = 0; i < num.length; ++i) {
-            this.addStone(num[i][0] + x_offset, num[i][1] + y_offset, colour);
+            this.addStoneToQueue(num[i][0] + x_offset, num[i][1] + y_offset, colour);
         }
     };
     this.addStone = function(x, y, colour){
@@ -142,12 +166,13 @@ function Goban(){
     };
     this.addStoneToQueue = function(x, y, colour) {
         this.stone_queue.push([x, y, colour]);
+        this.addStone(x, y, colour);
     };
     // Draw the underlying board (i.e. everything except any moving stones)
     this.drawBuffer = function(){
         this.bufferContext.shadowColor = "rgba( 0, 0, 0, 0.6)";
         this.bufferContext.shadowOffsetX = this.goban_width/80;
-        this.bufferContext.shadowOffsetY = this.goban_width/30;
+        this.bufferContext.shadowOffsetY = this.goban_width/20;
         this.bufferContext.shadowBlur = this.goban_width/50;
         var gobanImage = goban_1200;
         if (this.goban_width <= 400) {
@@ -184,14 +209,29 @@ function Goban(){
             return;
         }
         p = this.stonePosition(coords[0], coords[1], height);
-        // TODO: Shadow distance should be proportional to goban size
-        var shadowSize = height*this.goban_width/800;
-        ctx.shadowOffsetX = shadowSize;
-        ctx.shadowOffsetY = 5*shadowSize;
-        ctx.shadowColor = "rgba(0, 0, 0, " + (0.5 - height/20) + ")";
-        ctx.shadowBlur = shadowSize;
-        ctx.globalAlpha = height < 3 ? 1 : 1 - (height - 3)/8;
-        ctx.drawImage(colour == white ? white_stone : black_stone, p[0], p[1], p[2], p[3]);
+        if (height != 0) {
+            var shadowSize = height*this.goban_width/800;
+            ctx.shadowOffsetX = shadowSize;
+            ctx.shadowOffsetY = 5*shadowSize;
+            ctx.shadowColor = "rgba(0, 0, 0, " + (0.5 - height/20) + ")";
+            ctx.shadowBlur = shadowSize;
+            ctx.globalAlpha = height < 3 ? 1 : 1 - (height - 3)/8;
+        } else {
+/*            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 0;
+            ctx.shadowColor = "rgba(0, 0, 0, 0.6)";
+            ctx.shadowBlur = 5;*/
+        }
+        if (colour == white) {
+            var r = (Math.random()*6 | 0) - 2;
+            var s = white_stone0;
+            if (r == 1) s = white_stone1;
+            if (r == 2) s = white_stone2;
+            if (r == 3) s = white_stone3;
+            ctx.drawImage(s, p[0], p[1], p[2], p[3]);
+        } else {
+            ctx.drawImage(black_stone, p[0], p[1], p[2], p[3]);
+        }
         ctx.globalAlpha = 1;
         return p;
     };
@@ -217,7 +257,7 @@ function Goban(){
         if (this.view == 0) {
             hour_stones = [[9, 1], [13, 2], [16, 5], [17, 9], [16, 13], [13, 16], [9, 17], [5, 16], [2, 13], [1, 9], [2, 5], [5, 2]];
             for (var i = 0; i < hour_stones.length; ++i) {
-                this.addStone(hour_stones[i][0], hour_stones[i][1], black);
+                this.addStoneToQueue(hour_stones[i][0], hour_stones[i][1], black);
             }
             var min_pos = 60*minute + second;
             var theta = 2*Math.PI*min_pos / 3600;
@@ -226,7 +266,7 @@ function Goban(){
             var endY = Math.round(9 - R*Math.cos(theta));
             var hand_stones = line(9, endX, 9, endY);
             for (var i = 0; i < hand_stones.length; ++i) {
-                this.addStone(hand_stones[i][0], hand_stones[i][1], white);
+                this.addStoneToQueue(hand_stones[i][0], hand_stones[i][1], white);
             }
 
             hour %= 12;
@@ -238,7 +278,7 @@ function Goban(){
             var endY = Math.round(9 - R*Math.cos(theta));
             var hand_stones = line(9, endX, 9, endY);
             for (var i = 0; i < hand_stones.length; ++i) {
-                this.addStone(hand_stones[i][0], hand_stones[i][1], black);
+                this.addStoneToQueue(hand_stones[i][0], hand_stones[i][1], black);
             }
         }
         else if (this.view == 1) {
@@ -252,7 +292,7 @@ function Goban(){
 //            hour_stones = [[9, 0], [14, 1], [17, 4], [18, 9], [17, 14], [14, 17], [9, 18], [4, 17], [1, 14], [0, 9], [1, 4], [4, 1]];
             hour_stones = [[9, 1], [13, 2], [16, 5], [17, 9], [16, 13], [13, 16], [9, 17], [5, 16], [2, 13], [1, 9], [2, 5], [5, 2]];
             for (var i = 0; i < hour_stones.length; ++i) {
-                this.addStone(hour_stones[i][0], hour_stones[i][1], hour%12 == i ? white : black);
+                this.addStoneToQueue(hour_stones[i][0], hour_stones[i][1], hour%12 == i ? white : black);
             }
 
             this.drawNumber((minute - minute%10)/10, 6, 4, true, black);
@@ -286,10 +326,6 @@ function Goban(){
 
     this.transform = function() {
         // Incrementally change the displayed goban to the desired configuration
-        if (this.moving_stone == false) {
-            // See if there's anything in the queue to do first
-            // TODO!
-        }
         if (this.moving_stone == true) {
             if (this.stone_percent != 0) {
                 // Erase previous moving stone
@@ -404,14 +440,29 @@ function Goban(){
         }
         if (removed == false) {
             // Finally do some adding
-            for (var i = 0; i < diff.length; ++i) {
-                var p = (i + start) % diff.length;
-                if (diff[p] == -black || diff[p] == -white) {
+            var added = false;
+            while (this.stone_queue.length != 0) {
+                var new_stone = this.stone_queue.shift();
+                if (this.stones_shown[new_stone[0] + gridsize*new_stone[1]] == 0 &&
+                    this.stones[new_stone[0] + gridsize*new_stone[1]] == new_stone[2]) {
                     this.moving_stone = true;
-                    this.stone_colour = -diff[p];
+                    this.stone_colour = new_stone[2];
                     this.stone_from = [go_bowl, go_bowl];
-                    this.stone_to = coords(p);
+                    this.stone_to = [new_stone[0], new_stone[1]];
+                    added = true;
                     break;
+                }
+            }
+            if (added == false) {
+                for (var i = 0; i < diff.length; ++i) {
+                    var p = (i + start) % diff.length;
+                    if (diff[p] == -black || diff[p] == -white) {
+                        this.moving_stone = true;
+                        this.stone_colour = -diff[p];
+                        this.stone_from = [go_bowl, go_bowl];
+                        this.stone_to = coords(p);
+                        break;
+                    }
                 }
             }
         }
@@ -485,33 +536,40 @@ function dist(i, j) {
 function coords(p) {
     return [p%gridsize, (p - p%gridsize)/gridsize];
 }
-/*
-function backingScale(ctx) {
+
+function backingScale() {
     if ('devicePixelRatio' in window) {
         if (window.devicePixelRatio > 1) {
             return window.devicePixelRatio;
         }
     }
     return 1;
-}*/
+}
 
 
 // This runs after the DOM *and* images have loaded
 $(window).load(function() {
     canvas = document.getElementById('goCanvas');
     context = canvas.getContext("2d");
-/*    var scaleFactor = backingScale(context);
+    var scaleFactor = backingScale();
     if (scaleFactor > 1) {
         canvas.width = canvas.width * scaleFactor;
         canvas.height = canvas.height * scaleFactor;
         // update the context for the new canvas scale
         context.scale(scaleFactor, scaleFactor);
         context = canvas.getContext("2d");
-    }*/
+    }
 
     goban = new Goban();
+    var storedView = readCookie('goban_view');
+    if (storedView) {
+        goban.view = storedView;
+    }
     $("#goban").click(function() {
         goban.view += 1;
+        goban.stone_queue = [];
+        goban.update();
+        createCookie('goban_view', goban.view, 100);
     });
 
     window.onresize = function() {goban.resize(window.innerWidth, window.innerHeight - min_bottom_padding)};
