@@ -223,6 +223,7 @@ function Goban(){
             ctx.shadowBlur = 5;*/
         }
         if (colour == white) {
+            // TODO: This just picks a white stone randomly - looks silly when they move!
             var r = (Math.random()*6 | 0) - 2;
             var s = white_stone0;
             if (r == 1) s = white_stone1;
@@ -243,9 +244,9 @@ function Goban(){
         this.bufferContext.shadowBlur = 0;
         this.bufferContext.drawImage(this.emptyBoardCanvas, p[0], p[1], p[2], p[3], p[0], p[1], p[2], p[3]);
         context.drawImage(this.bufferCanvas, p[0], p[1], p[2], p[3], p[0], p[1], p[2], p[3]);
-
     };
 
+    // Update the desired state of the clock
     this.update = function() {
         var now = new Date();
         hour = now.getHours();
@@ -324,8 +325,8 @@ function Goban(){
         return [xpos - diameter/2 + this.x_offset | 0, ypos - diameter/2 + this.y_offset | 0, diameter, diameter];
     };
 
+    // Incrementally change the displayed goban to the desired configuration
     this.transform = function() {
-        // Incrementally change the displayed goban to the desired configuration
         if (this.moving_stone == true) {
             if (this.stone_percent != 0) {
                 // Erase previous moving stone
@@ -338,7 +339,7 @@ function Goban(){
                 context.drawImage(this.bufferCanvas, xpos, ypos, w*2, h*2, xpos, ypos, w*2, h*2);
             }
 
-            this.stone_percent += 10;
+            this.stone_percent += 30;
             if (this.stone_percent >= 100) {
                 if (this.stone_to[1] >= 0 && this.stone_to[1] < gridsize && this.stone_to[0] >= 0 && this.stone_to[0] < gridsize) {
                     // add stone to board and draw on buffer and shown context
@@ -410,58 +411,57 @@ function Goban(){
         if (removed == false) {
             // No more moving will help. Find stone to remove.
             // Prefer removing stones which are where the opposite colour wants to be
+            var to_remove_first = [];
+            var to_remove_next = [];
+            var to_add = [];
             for (var i = 0; i < diff.length; ++i) {
-                var p = (i + start) % diff.length;
-                if (diff[p] == black - white || diff[p] == white - black) {
-                    this.moving_stone = true;
-                    this.stone_from = coords(p);
-                    this.stone_colour = this.stones_shown[p];
-                    this.stone_to = [go_bowl, go_bowl];
-                    this.stones_shown[p] = 0;
-                    removed = true;
-                    break;
+                if (diff[i] == black - white || diff[i] == white - black) {
+                    to_remove_first.push(i);
+                }
+                else if (diff[i] == black || diff[i] == white) {
+                    to_remove_next.push(i);
+                }
+                else if (diff[i] == -black || diff[i] == -white) {
+                    to_add.push(i);
                 }
             }
-        }
-        if (removed == false) {
-            // Try removing other ones
-            for (var i = 0; i < diff.length; ++i) {
-                var p = (i + start) % diff.length;
-                if (diff[p] == black || diff[p] == white) {
-                    this.moving_stone = true;
-                    this.stone_from = coords(p);
-                    this.stone_colour = this.stones_shown[p];
-                    this.stone_to = [go_bowl, go_bowl];
-                    this.stones_shown[p] = 0;
-                    removed = true;
-                    break;
-                }
+            var i = -1;
+            if (to_remove_first.length != 0) {
+                i = to_remove_first[Math.random() * to_remove_first.length | 0];
             }
-        }
-        if (removed == false) {
-            // Finally do some adding
-            var added = false;
-            while (this.stone_queue.length != 0) {
-                var new_stone = this.stone_queue.shift();
-                if (this.stones_shown[new_stone[0] + gridsize*new_stone[1]] == 0 &&
-                    this.stones[new_stone[0] + gridsize*new_stone[1]] == new_stone[2]) {
-                    this.moving_stone = true;
-                    this.stone_colour = new_stone[2];
-                    this.stone_from = [go_bowl, go_bowl];
-                    this.stone_to = [new_stone[0], new_stone[1]];
-                    added = true;
-                    break;
-                }
+            if (to_remove_next.length != 0) {
+                i = to_remove_next[Math.random() * to_remove_next.length | 0];
             }
-            if (added == false) {
-                for (var i = 0; i < diff.length; ++i) {
-                    var p = (i + start) % diff.length;
-                    if (diff[p] == -black || diff[p] == -white) {
+            if (i != -1) {
+                this.moving_stone = true;
+                this.stone_from = coords(i);
+                this.stone_colour = this.stones_shown[i];
+                this.stone_to = [go_bowl, go_bowl];
+                this.stones_shown[i] = 0;
+                removed = true;
+            }
+            else {
+                // Finally do some adding
+                var added = false;
+                while (this.stone_queue.length != 0) {
+                    var new_stone = this.stone_queue.shift();
+                    if (this.stones_shown[new_stone[0] + gridsize * new_stone[1]] == 0 &&
+                        this.stones[new_stone[0] + gridsize * new_stone[1]] == new_stone[2]) {
                         this.moving_stone = true;
-                        this.stone_colour = -diff[p];
+                        this.stone_colour = new_stone[2];
                         this.stone_from = [go_bowl, go_bowl];
-                        this.stone_to = coords(p);
+                        this.stone_to = [new_stone[0], new_stone[1]];
+                        added = true;
                         break;
+                    }
+                }
+                if (added == false) {
+                    if (to_add.length != 0) {
+                        var i = to_add[Math.random() * to_add.length | 0];
+                        this.moving_stone = true;
+                        this.stone_colour = -diff[i];
+                        this.stone_from = [go_bowl, go_bowl];
+                        this.stone_to = coords(i);
                     }
                 }
             }
