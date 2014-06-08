@@ -1,7 +1,5 @@
 
 body {
-    /*background-image:url(tatami.jpg);
-    background-size: 2000px 200px*/
     background-color: grey;
 }
 
@@ -18,8 +16,4 @@ html, body {
     display: block;
     margin-left: auto;
     margin-right: auto;
-}
-
-#frame-counter {
-    font-size: 200%;
 }
