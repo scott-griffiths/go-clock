@@ -9,9 +9,18 @@ var context;
 var xmouse;
 var ymouse;
 
-onmousemove = function(e) {
-    xmouse = e.offsetX;
-    ymouse = e.offsetY;
+document.onmousemove = function(e) {
+  if (e.offsetX == undefined) // Firefox
+  {
+       //alert('hi' + " " + e.pageX + " " + e.pageY );
+       xmouse = e.pageX;
+       ymouse = e.pageY;
+  }
+  else // Chrome etc.
+  {
+      xmouse = e.offsetX;
+      ymouse = e.offsetY;
+  }
 }
 
 var min_bottom_padding = 0;
@@ -38,7 +47,7 @@ goban_400.src = "goban_400.jpg";
 var goban_200 = new Image();
 goban_200.src = "goban_200.jpg";
 
-backgrounds = ['wood1.jpg', 'wood2.jpg', 'stone1.jpg', 'stone2.jpg', 'asphalt1.jpg', 'mosaic1.jpg', 'wood3.jpg'];
+backgrounds = ['wood1.jpg', 'wood2.jpg', 'stone1.jpg', 'stone2.jpg', 'asphalt1.jpg', 'mosaic1.jpg', 'black.png'];
 var backgroundImages = [];
 for (var i = 0; i < backgrounds.length; ++i) {
     backgroundImages.push(new Image())
@@ -144,6 +153,11 @@ function Goban(){
     this.resize = function(width, height) {
         this.goban_width = width * 0.90; // Some padding to show background
         this.goban_height = height * 0.90;
+        if (this.background == 6) {
+            // Black border - show board as full screen as possible
+            this.goban_height = height;
+            this.goban_width = width;
+        }
         var goban_ratio = 857/800; // Ratio of the goban image
 
         if (this.goban_width*goban_ratio > this.goban_height) {
@@ -194,6 +208,8 @@ function Goban(){
         this.bufferContext.shadowOffsetX = this.goban_width/80;
         this.bufferContext.shadowOffsetY = this.goban_width/20;
         this.bufferContext.shadowBlur = this.goban_width/50;
+        // We choose the goban image based on the display size as the canvas
+        // isn't very good at resizing and keeping the board line detail
         var gobanImage = goban_1200;
         if (this.goban_width <= 400) {
             gobanImage = goban_400;
@@ -209,9 +225,9 @@ function Goban(){
             this.bufferContext.drawImage(bg, (bg.width - bg.height*ratio)/2, 0, bg.height*ratio, bg.height, 0, 0, this.bufferCanvas.width, this.bufferCanvas.height);
 
         } else {
+            // show full width and trim height
             this.bufferContext.drawImage(bg, 0, (bg.height - bg.width/ratio)/2, bg.width, bg.width/ratio, 0, 0, this.bufferCanvas.width, this.bufferCanvas.height);
         }
-
 
         this.bufferContext.drawImage(gobanImage, this.x_offset, this.y_offset, this.goban_width, this.goban_height);
         this.emptyBoardContext.drawImage(this.bufferCanvas, 0, 0);
@@ -274,6 +290,7 @@ function Goban(){
         this.bufferContext.shadowOffsetX = this.bufferContext.shadowOffsetY = 0;
         this.bufferContext.shadowBlur = 0;
         this.bufferContext.drawImage(this.emptyBoardCanvas, p[0], p[1], p[2], p[3], p[0], p[1], p[2], p[3]);
+        // TODO: Should this be done in transform if percent == 0? Maybe to avoid flicker?
         context.drawImage(this.bufferCanvas, p[0], p[1], p[2], p[3], p[0], p[1], p[2], p[3]);
     };
 
@@ -355,6 +372,9 @@ function Goban(){
     // Incrementally change the displayed goban to the desired configuration
     this.transform = function() {
         if (this.moving_stone == true) {
+            if (this.stone_percent == 0 && this.stone_from[0] != go_bowl) {
+                this.eraseStone(this.stone_from);
+            }
             if (this.stone_percent != 0) {
                 // Erase previous moving stone
                 context.shadowColor = "rgba(80, 80, 80, 0)";
@@ -392,8 +412,12 @@ function Goban(){
                 this.stone_pos = this.drawStone(context, this.stone_from, this.stone_colour, 10*this.stone_percent/100);
             }
             else {
-                var x = this.stone_from[0] + this.stone_percent*(this.stone_to[0] - this.stone_from[0])/100;
-                var y = this.stone_from[1] + this.stone_percent*(this.stone_to[1] - this.stone_from[1])/100;
+                // Scale percentage to get more natural movement
+                var p = this.stone_percent/100*6 - 3; // convert to -3 to 3 range
+                p = 1/(1 + Math.exp(-p)); // now in 0 to 1 range
+
+                var x = this.stone_from[0] + p*(this.stone_to[0] - this.stone_from[0]);
+                var y = this.stone_from[1] + p*(this.stone_to[1] - this.stone_from[1]);
                 this.stone_pos = this.drawStone(context, [x, y], this.stone_colour, 0);
             }
             return;
@@ -494,9 +518,6 @@ function Goban(){
                 }
             }
         }
-        if (removed == true) {
-            this.eraseStone(this.stone_from);
-        }
     }
 }
 
@@ -590,12 +611,16 @@ $(window).load(function() {
     var goban = new Goban();
     var storedView = readCookie('goban_view');
     if (storedView) {
-        goban.view = storedView;
+        goban.view = parseInt(storedView);
     }
-    var background = 0;
+    var storedBackground = readCookie('goban_background');
+    if (storedBackground) {
+        goban.background = parseInt(storedBackground);
+    }
     $("#goban").click(function() {
         var top_left = goban.stonePosition(0, 0, 0);
         var bottom_right = goban.stonePosition(18, 18, 0);
+        //alert(xmouse, ymouse);
         if (xmouse < top_left[0] || (xmouse > bottom_right[0] + bottom_right[2]) ||
             ymouse < top_left[1] || (ymouse > bottom_right[1] + bottom_right[3])) {
             goban.background += 1;
@@ -603,13 +628,14 @@ $(window).load(function() {
                 goban.background = 0;
             }
             goban.resize(window.innerWidth, window.innerHeight - min_bottom_padding);
+            createCookie('goban_background', goban.background, 100);
         }
         else {
             goban.view += 1;
             goban.stone_queue = [];
+            createCookie('goban_view', goban.view, 100);
         }
         goban.update();
-        createCookie('goban_view', goban.view, 100);
     });
 
     window.onresize = function() {goban.resize(window.innerWidth, window.innerHeight - min_bottom_padding)};
