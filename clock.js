@@ -5,7 +5,7 @@
 var canvas;
 var context;
 
-var angle = 350;
+var angle = 30;
 
 var xmouse;
 var ymouse;
@@ -207,9 +207,6 @@ function Goban(){
     };
     // Draw the underlying board (i.e. everything except any moving stones)
     this.drawBuffer = function(){
-        angle += 10;
-        if (angle >= 360) angle -= 360;
-
         this.bufferContext.shadowColor = "rgba( 0, 0, 0, 0.6)";
         var shadowLength = this.goban_width/20;
         this.bufferContext.shadowOffsetX = shadowLength * Math.sin(angle*Math.PI/180);
@@ -248,7 +245,6 @@ function Goban(){
                 }
             }
         }
-        this.draw();
     };
 
     this.draw = function() {
