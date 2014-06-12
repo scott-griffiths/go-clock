@@ -5,6 +5,7 @@
 var canvas;
 var context;
 
+var angle = 350;
 
 var xmouse;
 var ymouse;
@@ -28,30 +29,32 @@ var gridsize = 19;
 
 var go_bowl = 999;
 
+ext = "http://go-clock.googlecode.com/svn/trunk/"
+
 var white_stone0 = new Image();
-white_stone0.src = "white_stone0.png";
+white_stone0.src = ext + "white_stone0.png";
 var white_stone1 = new Image();
-white_stone1.src = "white_stone1.png";
+white_stone1.src = ext + "white_stone1.png";
 var white_stone2 = new Image();
-white_stone2.src = "white_stone2.png";
+white_stone2.src = ext + "white_stone2.png";
 var white_stone3 = new Image();
-white_stone3.src = "white_stone3.png";
+white_stone3.src = ext + "white_stone3.png";
 
 var black_stone = new Image();
-black_stone.src = "black_stone1.png";
+black_stone.src = ext + "black_stone1.png";
 
 var goban_1200 = new Image();
-goban_1200.src = "goban_1200.jpg";
+goban_1200.src = ext + "goban_1200.jpg";
 var goban_400 = new Image();
-goban_400.src = "goban_400.jpg";
+goban_400.src = ext + "goban_400.jpg";
 var goban_200 = new Image();
-goban_200.src = "goban_200.jpg";
+goban_200.src = ext + "goban_200.jpg";
 
 backgrounds = ['wood1.jpg', 'wood2.jpg', 'stone1.jpg', 'stone2.jpg', 'asphalt1.jpg', 'mosaic1.jpg', 'black.png'];
 var backgroundImages = [];
 for (var i = 0; i < backgrounds.length; ++i) {
     backgroundImages.push(new Image())
-    backgroundImages[i].src = backgrounds[i];
+    backgroundImages[i].src = ext + backgrounds[i];
 }
 
 var white = 1;
@@ -155,8 +158,8 @@ function Goban(){
         this.goban_height = height * 0.90;
         if (this.background == 6) {
             // Black border - show board as full screen as possible
-            this.goban_height = height;
-            this.goban_width = width;
+            this.goban_height = height * 0.98;
+            this.goban_width = width * 0.98;
         }
         var goban_ratio = 857/800; // Ratio of the goban image
 
@@ -204,9 +207,13 @@ function Goban(){
     };
     // Draw the underlying board (i.e. everything except any moving stones)
     this.drawBuffer = function(){
+        angle += 10;
+        if (angle >= 360) angle -= 360;
+
         this.bufferContext.shadowColor = "rgba( 0, 0, 0, 0.6)";
-        this.bufferContext.shadowOffsetX = this.goban_width/80;
-        this.bufferContext.shadowOffsetY = this.goban_width/20;
+        var shadowLength = this.goban_width/20;
+        this.bufferContext.shadowOffsetX = shadowLength * Math.sin(angle*Math.PI/180);
+        this.bufferContext.shadowOffsetY = shadowLength * Math.cos(angle*Math.PI/180);
         this.bufferContext.shadowBlur = this.goban_width/50;
         // We choose the goban image based on the display size as the canvas
         // isn't very good at resizing and keeping the board line detail
@@ -241,6 +248,7 @@ function Goban(){
                 }
             }
         }
+        this.draw();
     };
 
     this.draw = function() {
@@ -300,6 +308,7 @@ function Goban(){
         var hour = now.getHours();
         var minute = now.getMinutes();
         var second = now.getSeconds();
+
         var views = 3;
         this.view %= views;
         this.clear();
@@ -603,8 +612,13 @@ function getMousePos(canvas, evt) {
     };
 }
 
+$(document).ready(function(){
+    $("#splash_screen").show();
+});
+
 // This runs after the DOM *and* images have loaded
 $(window).load(function() {
+    $("#splash_screen").hide();
     canvas = document.getElementById('goCanvas');
     context = canvas.getContext("2d");
 
@@ -643,6 +657,7 @@ $(window).load(function() {
     goban.update();
     goban.setup = true;
     setInterval(function() {goban.update()}, 1000);
+    setInterval(function() {goban.drawBuffer()}, 1000);
     setInterval(function() {goban.transform()}, 20);
 });
 
