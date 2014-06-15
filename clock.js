@@ -10,18 +10,23 @@ var angle = 30;
 var xmouse;
 var ymouse;
 
+var timeOut;
 document.onmousemove = function(e) {
-  if (e.offsetX == undefined) // Firefox
-  {
-       //alert('hi' + " " + e.pageX + " " + e.pageY );
+    clearTimeout(timeOut);
+    if (!$("#about").is(":visible")) {
+        $("#help_icon").fadeIn(1000);
+    }
+    timeOut = setTimeout(function(){$("#help_icon").fadeOut()}, 3000);
+    if (e.offsetX == undefined) // Firefox
+    {
        xmouse = e.pageX;
        ymouse = e.pageY;
-  }
-  else // Chrome etc.
-  {
+    }
+    else // Chrome etc.
+    {
       xmouse = e.offsetX;
       ymouse = e.offsetY;
-  }
+    }
 }
 
 var min_bottom_padding = 0;
@@ -43,6 +48,9 @@ white_stone3.src = ext + "white_stone3.png";
 var black_stone = new Image();
 black_stone.src = ext + "black_stone1.png";
 
+var help_icon = new Image();
+help_icon.src = ext + "white_stone0.png";
+
 var goban_1200 = new Image();
 goban_1200.src = ext + "goban_1200.jpg";
 var goban_400 = new Image();
@@ -50,7 +58,7 @@ goban_400.src = ext + "goban_400.jpg";
 var goban_200 = new Image();
 goban_200.src = ext + "goban_200.jpg";
 
-backgrounds = ['wood1.jpg', 'wood2.jpg', 'stone1.jpg', 'stone2.jpg', 'asphalt1.jpg', 'mosaic1.jpg', 'black.png'];
+backgrounds = ['black.png', 'wood1.jpg', 'wood2.jpg', 'stone1.jpg', 'mosaic1.jpg'];
 var backgroundImages = [];
 for (var i = 0; i < backgrounds.length; ++i) {
     backgroundImages.push(new Image())
@@ -93,6 +101,7 @@ var tiny_num = [s0, s1, s2, s3, s4, s5, s6, s7, s8, s9];
 //    e.preventDefault();
 //}
 
+
 function createCookie(name, value, days) {
 	if (days) {
 		var date = new Date();
@@ -131,7 +140,7 @@ function Goban(){
     this.stone_pos = [0, 0, 0, 0]; // Pixel position of last drawn moving stone: x, y, w, h
 
     this.view = 0;
-    this.background = 0;
+    this.background = 1;
 
     this.setup = true; // if true we're doing the first drawing of the clock
 
@@ -156,7 +165,7 @@ function Goban(){
     this.resize = function(width, height) {
         this.goban_width = width * 0.90; // Some padding to show background
         this.goban_height = height * 0.90;
-        if (this.background == 6) {
+        if (this.background == 0) {
             // Black border - show board as full screen as possible
             this.goban_height = height * 0.98;
             this.goban_width = width * 0.98;
@@ -440,9 +449,6 @@ function Goban(){
             var p = (i + start) % diff.length;
             if (diff[p] == -white || diff[p] == -black) {
                 // we want a white or black stone here - search for the nearest excess white or black
-                if (best_i == -1) {
-                    best_i = p;
-                }
                 for (var j = 0; j < diff.length; ++j) {
                     if (diff[j] == -diff[p]) {
                         if (best_j == -1 || dist(j, p) < dist(best_j, best_i)) {
@@ -612,6 +618,7 @@ $(document).ready(function(){
     $("#splash_screen").show();
 });
 
+
 // This runs after the DOM *and* images have loaded
 $(window).load(function() {
     $("#splash_screen").hide();
@@ -626,11 +633,11 @@ $(window).load(function() {
     var storedBackground = readCookie('goban_background');
     if (storedBackground) {
         goban.background = parseInt(storedBackground);
+        goban.background %= backgrounds.length;
     }
     $("#goban").click(function() {
         var top_left = goban.stonePosition(0, 0, 0);
         var bottom_right = goban.stonePosition(18, 18, 0);
-        //alert(xmouse, ymouse);
         if (xmouse < top_left[0] || (xmouse > bottom_right[0] + bottom_right[2]) ||
             ymouse < top_left[1] || (ymouse > bottom_right[1] + bottom_right[3])) {
             goban.background += 1;
@@ -647,6 +654,16 @@ $(window).load(function() {
         }
         goban.update();
     });
+
+    $("#help_icon").click(function() {
+        $("#help_icon").fadeOut();
+        $("#about").fadeIn();
+    });
+
+    $("#about").click(function() {
+        $("#about").fadeOut();
+    });
+
 
     window.onresize = function() {goban.resize(window.innerWidth, window.innerHeight - min_bottom_padding)};
     goban.resize(window.innerWidth, window.innerHeight - min_bottom_padding);
