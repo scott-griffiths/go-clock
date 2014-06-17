@@ -20,7 +20,6 @@ function showHelpIcon(time) {
 }
 
 document.onmousemove = function(e) {
-    showHelpIcon(1000);
     if (e.offsetX == undefined) // Firefox
     {
        xmouse = e.pageX;
@@ -32,8 +31,6 @@ document.onmousemove = function(e) {
       ymouse = e.offsetY;
     }
 }
-
-document.onclick = function() {showHelpIcon(3000);}
 
 var min_bottom_padding = 0;
 var gridsize = 19;
@@ -106,7 +103,7 @@ tips_of_the_day.push("Why not download as a web app on the new iPad Air and then
 tips_of_the_day.push("To use as an alarm clock simply employ a small child to watch the Go Clock and tell them to wake you when it shows the right time.");
 tips_of_the_day.push("For extra accuracy when timing sporting events, use the view with the second counter.");
 tips_of_the_day.push("Use the Go Clock on an iPod touch sellotaped to your wrist and your friend(s) will think you have an iWatch!");
-tips_of_the_day.push("");
+tips_of_the_day.push("If you need more than one clock, why not also try the <a href='https://itunes.apple.com/gb/app/shogi-clock/id538427388?mt=8'>Shogi Clock</a> on the iPad? (I didn't write that one, but I think it's really cool.)");
 
 var current_tip;
 // Prevent scrolling in iOS
@@ -715,7 +712,7 @@ $(window).load(function() {
 //    setInterval(function() {goban.drawBuffer()}, 1000);
     setInterval(function() {goban.transform()}, 20);
 
-    showHelpIcon(5000);
+    showHelpIcon(10000);
 });
 
 
