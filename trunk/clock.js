@@ -11,12 +11,16 @@ var xmouse;
 var ymouse;
 
 var timeOut;
-document.onmousemove = function(e) {
+function showHelpIcon(time) {
     clearTimeout(timeOut);
     if (!$("#about").is(":visible")) {
         $("#help_icon").fadeIn(1000);
     }
-    timeOut = setTimeout(function(){$("#help_icon").fadeOut()}, 3000);
+    timeOut = setTimeout(function(){$("#help_icon").fadeOut()}, time);
+}
+
+document.onmousemove = function(e) {
+    showHelpIcon(1000);
     if (e.offsetX == undefined) // Firefox
     {
        xmouse = e.pageX;
@@ -28,6 +32,8 @@ document.onmousemove = function(e) {
       ymouse = e.offsetY;
     }
 }
+
+document.onclick = function() {showHelpIcon(3000);}
 
 var min_bottom_padding = 0;
 var gridsize = 19;
@@ -95,7 +101,14 @@ s9 = [[1, 2], [0, 2], [0, 1], [0, 0], [1, 0], [2, 0], [2, 1], [2, 2], [2, 3], [2
 
 var tiny_num = [s0, s1, s2, s3, s4, s5, s6, s7, s8, s9];
 
+var tips_of_the_day = [];
+tips_of_the_day.push("Why not download as a web app on the new iPad Air and then nail or glue it to your living room wall?");
+tips_of_the_day.push("To use as an alarm clock simply employ a small child to watch the Go Clock and tell them to wake you when it shows the right time.");
+tips_of_the_day.push("For extra accuracy when timing sporting events, use the view with the second counter.");
+tips_of_the_day.push("Use the Go Clock on an iPod touch sellotaped to your wrist and your friend(s) will think you have an iWatch!");
+tips_of_the_day.push("");
 
+var current_tip;
 // Prevent scrolling in iOS
 //document.ontouchstart = function(e){
 //    e.preventDefault();
@@ -286,9 +299,9 @@ function Goban(){
             // TODO: This just picks a white stone randomly - looks silly when they move!
             var r = (Math.random()*6 | 0) - 2;
             var s = white_stone0;
-            if (r == 1) s = white_stone1;
-            if (r == 2) s = white_stone2;
-            if (r == 3) s = white_stone3;
+//            if (r == 1) s = white_stone1;
+//            if (r == 2) s = white_stone2;
+//            if (r == 3) s = white_stone3;
             ctx.drawImage(s, p[0], p[1], p[2], p[3]);
         } else {
             ctx.drawImage(black_stone, p[0], p[1], p[2], p[3]);
@@ -436,6 +449,7 @@ function Goban(){
             }
             return;
         }
+        // No moving stones, so work out what, if anything, needs to change
         var diff = [];
         for (var i = 0; i < this.stones_shown.length; ++i) {
             diff.push(this.stones_shown[i] - this.stones[i]);
@@ -445,15 +459,31 @@ function Goban(){
 
         var best_i = -1;
         var best_j = -1;
-        for (var i = 0; i < diff.length; ++i) {
-            var p = (i + start) % diff.length;
-            if (diff[p] == -white || diff[p] == -black) {
-                // we want a white or black stone here - search for the nearest excess white or black
-                for (var j = 0; j < diff.length; ++j) {
-                    if (diff[j] == -diff[p]) {
-                        if (best_j == -1 || dist(j, p) < dist(best_j, best_i)) {
+        // First look for stones on a spot where the opposite colour wants to be
+        for (var j = 0; j < diff.length; ++j) {
+            if (diff[j] == black - white || diff[j] == white - black) {
+                var wanted = (diff[j] == black - white) ? -black : -white;
+                for (var i = 0; i < diff.length; ++i) {
+                    if (diff[i] == wanted) {
+                        if (best_j == -1 || dist(j, i) < dist(best_j, best_i)) {
+                            best_i = i;
                             best_j = j;
-                            best_i = p;
+                        }
+                    }
+                }
+            }
+        }
+        if (best_j == -1) {
+            for (var i = 0; i < diff.length; ++i) {
+                var p = (i + start) % diff.length;
+                if (diff[p] == -white || diff[p] == -black) {
+                    // we want a white or black stone here - search for the nearest excess white or black
+                    for (var j = 0; j < diff.length; ++j) {
+                        if (diff[j] == -diff[p]) {
+                            if (best_j == -1 || dist(j, p) < dist(best_j, best_i)) {
+                                best_j = j;
+                                best_i = p;
+                            }
                         }
                     }
                 }
@@ -491,7 +521,7 @@ function Goban(){
             if (to_remove_first.length != 0) {
                 i = to_remove_first[Math.random() * to_remove_first.length | 0];
             }
-            if (to_remove_next.length != 0) {
+            if (i == -1 && to_remove_next.length != 0) {
                 i = to_remove_next[Math.random() * to_remove_next.length | 0];
             }
             if (i != -1) {
@@ -616,6 +646,12 @@ function getMousePos(canvas, evt) {
 
 $(document).ready(function(){
     $("#splash_screen").show();
+    var now = new Date();
+    var time = now.getTime();
+    time /= 1000*60*60*24; // convert from milliseconds to days
+    time |= 0;
+    current_tip = time % tips_of_the_day.length;
+    $('#tip_of_the_day').html(tips_of_the_day[current_tip]);
 });
 
 
@@ -636,6 +672,10 @@ $(window).load(function() {
         goban.background %= backgrounds.length;
     }
     $("#goban").click(function() {
+        if ($('#about').is(':visible')) {
+            $("#about").fadeOut();
+            return;
+        }
         var top_left = goban.stonePosition(0, 0, 0);
         var bottom_right = goban.stonePosition(18, 18, 0);
         if (xmouse < top_left[0] || (xmouse > bottom_right[0] + bottom_right[2]) ||
@@ -660,8 +700,10 @@ $(window).load(function() {
         $("#about").fadeIn();
     });
 
-    $("#about").click(function() {
-        $("#about").fadeOut();
+    $('#next_tip').click(function() {
+        current_tip += 1;
+        current_tip %= tips_of_the_day.length;
+        $('#tip_of_the_day').html(tips_of_the_day[current_tip]);
     });
 
 
@@ -670,8 +712,10 @@ $(window).load(function() {
     goban.update();
     goban.setup = true;
     setInterval(function() {goban.update()}, 1000);
-    setInterval(function() {goban.drawBuffer()}, 1000);
+//    setInterval(function() {goban.drawBuffer()}, 1000);
     setInterval(function() {goban.transform()}, 20);
+
+    showHelpIcon(5000);
 });
 
 

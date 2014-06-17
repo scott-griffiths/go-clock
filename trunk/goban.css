@@ -1,6 +1,6 @@
 
 body {
-    background-color: grey;
+    background-color: white;
 }
 
 html, body {
@@ -25,11 +25,11 @@ html, body {
 
 #about {
     display: none;
-    width: 600px;
+    width: 400px;
     position: absolute;
     left: 50px;
     top: 50px;
-    background-color: rgba(255, 255, 255, 0.85);
+    background-color: rgba(249, 255, 182, 0.95);
     padding: 10px;
     border: 2px solid black;
     font-family: "Lucida Grande";
@@ -42,8 +42,9 @@ html, body {
     left: 20px;
     width: 60px;
     height: 60px;
-    background-color: rgba(255, 255, 255, 0.5);
-    border: 2px solid grey;
+    background-image: url('http://go-clock.googlecode.com/svn/trunk/white_stone1.png');
+    background-size: 100% 100%;
+    cursor: pointer;
     text-align: center;
     font-size: 50px;
 }

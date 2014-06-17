@@ -7,21 +7,20 @@
     <script src="http://go-clock.googlecode.com/svn/trunk/jquery-1.11.1.js"></script>
     <script src="clock.js"></script>
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name = "viewport" content = "user-scalable = no">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name = "viewport" content = "user-scalable = no, minimal-ui">
     <link rel="shortcut icon" href="http://go-clock.googlecode.com/svn/trunk/white_stone1.png" type="image/x-icon" />
 </head>
 <body>
 <link rel="apple-touch-icon" href="http://go-clock.googlecode.com/svn/trunk/touch-icon.png">
 <p id="splash_screen">Loading the Go Clock...</p>
 <div id="about">
-    <p style="font-size: larger; text-align: center">About</p>
+    <p style="font-weight: bold; font-size: large; text-align: center">About</p>
     <p>The Go Clock is a virtual Goban where the stones are used to tell you the time, saving you from the effort of
         setting up and continually updating your own Go board.</p>
     <p>Click on the board to change the clock type and click on the background for a change of scenery.</p>
-    <p><span style="font-weight: bold;">Tip of the day:</span> Why not download as a web app on the new iPad Air and then nail or glue it to your living room wall?
-    Your friends and loved-ones will be incredulous.</p>
-    <p style="font-size: small">&copy; Broken Symmetry/Scott Griffiths, but released as open source under the MIT licence.
+    <p><span style="font-weight: bold;">Tip of the day:</span> <span id="tip_of_the_day"></span> <a href="#" id="next_tip"> See next tip.</a></p>
+    <p style="font-size: small">&copy; Broken Symmetry/Scott Griffiths, and released as open source under the MIT licence.
         See <a href="http://code.google.com/p/go-clock/">Google code</a> for more information.</p>
 </div>
 <div id="help_icon">?</div>
