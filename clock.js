@@ -76,7 +76,7 @@ var s0 = [[3, 0], [2, 0], [1, 0], [0, 1], [0, 2], [0, 3], [0, 4], [0, 5], [1, 6]
 var s1 = [[1, 1], [2, 0], [2, 1], [2, 2], [2, 3], [2, 4], [2, 5], [2, 6], [1, 6], [3, 6]];
 var s2 = [[0, 1], [1, 0], [2, 0], [3, 0], [4, 1], [4, 2], [3, 3], [2, 3], [1, 3], [0, 4], [0, 5], [0, 6], [1, 6], [2, 6], [3, 6], [4, 6]];
 var s3 = [[0, 1], [1, 0], [2, 0], [3, 0], [4, 1], [4, 2], [3, 3], [2, 3], [4, 4], [4, 5], [3, 6], [2, 6], [1, 6], [0, 5]];
-var s4 = [[4, 3], [3, 3], [2, 3], [1, 3], [0, 3], [1, 2], [2, 1], [3, 0], [3, 1], [3, 2], [3, 4], [3, 5], [3, 6]];
+var s4 = [[4, 4], [3, 4], [2, 4], [1, 4], [0, 4], [0, 3], [1, 2], [2, 1], [3, 0], [3, 1], [3, 2], [3, 3], [3, 5], [3, 6]];
 var s5 = [[4, 0], [3, 0], [2, 0], [1, 0], [0, 0], [0, 1], [0, 2], [1, 2], [2, 2], [3, 2], [4, 3], [4, 4], [4, 5], [3, 6], [2, 6], [1, 6], [0, 5]];
 var s6 = [[3, 0], [2, 0], [1, 0], [0, 1], [0, 2], [0, 3], [0, 4], [0, 5], [1, 6], [2, 6], [3, 6], [4, 5], [4, 4], [3, 3], [2, 3], [1, 3]];
 var s7 = [[0, 0], [1, 0], [2, 0], [3, 0], [4, 0], [4, 1], [3, 2], [2, 3], [1, 4], [1, 5], [1, 6]];
@@ -102,7 +102,7 @@ var tips_of_the_day = [];
 tips_of_the_day.push("Why not download as a web app on the new iPad Air and then nail or glue it to your living room wall?");
 tips_of_the_day.push("To use as an alarm clock simply employ a small child to watch the Go Clock and tell them to wake you when it shows the right time.");
 tips_of_the_day.push("For extra accuracy when timing sporting events, use the view with the second counter.");
-tips_of_the_day.push("Use the Go Clock on an iPod touch sellotaped to your wrist and your friend(s) will think you have an iWatch!");
+tips_of_the_day.push("Use the Go Clock on an iPhone sellotaped to your wrist and your friend(s) will think you have an iWatch!");
 tips_of_the_day.push("If you need more than one clock, why not also try the <a href='https://itunes.apple.com/gb/app/shogi-clock/id538427388?mt=8'>Shogi Clock</a> on the iPad? (I didn't write that one, but I think it's really cool.)");
 
 var current_tip;
@@ -324,7 +324,7 @@ function Goban(){
         var minute = now.getMinutes();
         var second = now.getSeconds();
 
-        var views = 3;
+        var views = 4;
         this.view %= views;
         this.clear();
         if (this.view == 0) {
@@ -355,13 +355,6 @@ function Goban(){
             }
         }
         else if (this.view == 1) {
-            this.drawNumber((hour - hour%10)/10, 4, 2, false, black);
-            this.drawNumber(hour%10, 10, 2, false, black);
-            this.drawNumber((minute - minute%10)/10, 4, 10, false, white);
-            this.drawNumber(minute%10, 10, 10, false, white);
-        }
-        else if (this.view == 2) {
-//            hour_stones = [[9, 0], [14, 1], [17, 4], [18, 9], [17, 14], [14, 17], [9, 18], [4, 17], [1, 14], [0, 9], [1, 4], [4, 1]];
             hour_stones = [[9, 1], [13, 2], [16, 5], [17, 9], [16, 13], [13, 16], [9, 17], [5, 16], [2, 13], [1, 9], [2, 5], [5, 2]];
             for (var i = 0; i < hour_stones.length; ++i) {
                 this.addStoneToQueue(hour_stones[i][0], hour_stones[i][1], hour%12 == i ? white : black);
@@ -370,6 +363,35 @@ function Goban(){
             this.drawNumber(minute%10, 10, 4, true, black);
             this.drawNumber((second - second%10)/10, 6, 10, true, white);
             this.drawNumber(second%10, 10, 10, true, white);
+        }
+        else if (this.view == 2) {
+            this.drawNumber((hour - hour%10)/10, 4, 2, false, black);
+            this.drawNumber(hour%10, 10, 2, false, black);
+            this.drawNumber((minute - minute%10)/10, 4, 10, false, white);
+            this.drawNumber(minute%10, 10, 10, false, white);
+        }
+        else if (this.view == 3) {
+            this.drawNumber((hour - hour%10)/10, 1, 1, true, black);
+            this.drawNumber(hour%10, 5, 1, true, black);
+            this.addStoneToQueue(9, 2, black);
+            this.addStoneToQueue(9, 4, black);
+            this.drawNumber((minute - minute%10)/10, 11, 1, true, black);
+            this.drawNumber(minute%10, 15, 1, true, black);
+
+            var second_stones = [[9, 6], [12, 7], [14, 9], [15, 12], [14, 15], [12, 17], [9, 18], [6, 17], [4, 15], [3, 12], [4, 9], [6, 7]];
+            for (var i=0; i < second_stones.length; ++i) {
+                this.addStoneToQueue(second_stones[i][0], second_stones[i][1], i == Math.floor(second/5) ? black : white);
+            }
+
+            var theta = 2*Math.PI*second / 60;
+            var R = 4;
+            var endX = Math.round(9 + R*Math.sin(theta));
+            var endY = Math.round(12 - R*Math.cos(theta));
+            var hand_stones = line(9, endX, 12, endY);
+            for (var i=0; i < hand_stones.length; ++i) {
+                this.addStoneToQueue(hand_stones[i][0], hand_stones[i][1], white);
+            }
+
         }
     };
 
@@ -633,14 +655,6 @@ function backingScale() {
     return 1;
 }
 
-function getMousePos(canvas, evt) {
-    var rect = canvas.getBoundingClientRect();
-    return {
-        x: evt.clientX - rect.left,
-        y: evt.clientY - rect.top
-    };
-}
-
 $(document).ready(function(){
     $("#splash_screen").show();
     var now = new Date();
@@ -709,7 +723,6 @@ $(window).load(function() {
     goban.update();
     goban.setup = true;
     setInterval(function() {goban.update()}, 1000);
-//    setInterval(function() {goban.drawBuffer()}, 1000);
     setInterval(function() {goban.transform()}, 20);
 
     showHelpIcon(10000);
