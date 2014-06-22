@@ -138,7 +138,7 @@ function eraseCookie(name) {
 }
 
 
-function Goban(){
+function GoClock(){
     this.stones = []; // The current (desired) state
     this.stones_shown = []; // The stones last drawn
     this.stone_queue = []; // Prioritise putting these stones on the board, in this order.
@@ -172,7 +172,8 @@ function Goban(){
         this.stones_shown.push(0); // empty space
     }
 
-    this.resize = function(width, height) {
+    // Draw the underlying board (i.e. everything except any moving stones)
+    this.draw = function(width, height) {
         this.goban_width = width * 0.90; // Some padding to show background
         this.goban_height = height * 0.90;
         if (this.background == 0) {
@@ -207,25 +208,6 @@ function Goban(){
             context.scale(scaleFactor, scaleFactor);
         }
 */
-        this.drawBuffer();
-        this.draw();
-    };
-
-    this.drawNumber = function(number, x_offset, y_offset, small, colour) {
-        var num = small ? tiny_num[number] : small_num[number];
-        for (var i = 0; i < num.length; ++i) {
-            this.addStoneToQueue(num[i][0] + x_offset, num[i][1] + y_offset, colour);
-        }
-    };
-    this.addStone = function(x, y, colour){
-        this.stones[y*gridsize + x] = colour;
-    };
-    this.addStoneToQueue = function(x, y, colour) {
-        this.stone_queue.push([x, y, colour]);
-        this.addStone(x, y, colour);
-    };
-    // Draw the underlying board (i.e. everything except any moving stones)
-    this.drawBuffer = function(){
         this.bufferContext.shadowColor = "rgba( 0, 0, 0, 0.6)";
         var shadowLength = this.goban_width/20;
         this.bufferContext.shadowOffsetX = shadowLength * Math.sin(angle*Math.PI/180);
@@ -264,9 +246,6 @@ function Goban(){
                 }
             }
         }
-    };
-
-    this.draw = function() {
         context.shadowOffsetX = 0;
         context.shadowOffsetY = 0;
         context.shadowBlur = 0;
@@ -274,6 +253,19 @@ function Goban(){
         context.drawImage(this.bufferCanvas, 0, 0);
     };
 
+    this.drawNumber = function(number, x_offset, y_offset, small, colour) {
+        var num = small ? tiny_num[number] : small_num[number];
+        for (var i = 0; i < num.length; ++i) {
+            this.addStoneToQueue(num[i][0] + x_offset, num[i][1] + y_offset, colour);
+        }
+    };
+    this.addStone = function(x, y, colour){
+        this.stones[y*gridsize + x] = colour;
+    };
+    this.addStoneToQueue = function(x, y, colour) {
+        this.stone_queue.push([x, y, colour]);
+        this.addStone(x, y, colour);
+    };
     this.drawStone = function(ctx, coords, colour, height) {
         if (coords[0] < 0 || coords[0] > gridsize - 1 || coords[1] < 0 || coords[1] > gridsize - 1) {
             return;
@@ -313,16 +305,17 @@ function Goban(){
         this.bufferContext.shadowOffsetX = this.bufferContext.shadowOffsetY = 0;
         this.bufferContext.shadowBlur = 0;
         this.bufferContext.drawImage(this.emptyBoardCanvas, p[0], p[1], p[2], p[3], p[0], p[1], p[2], p[3]);
-        // TODO: Should this be done in transform if percent == 0? Maybe to avoid flicker?
         context.drawImage(this.bufferCanvas, p[0], p[1], p[2], p[3], p[0], p[1], p[2], p[3]);
     };
 
     // Update the desired state of the clock
-    this.update = function() {
+    this.update = function(seconds, minutes, hours, days) {
         var now = new Date();
-        var hour = now.getHours();
-        var minute = now.getMinutes();
-        var second = now.getSeconds();
+
+        hours = typeof hours !== 'undefined' ? hours : now.getHours();
+        minutes = typeof minutes !== 'undefined' ? minutes : now.getMinutes();
+        seconds = typeof seconds !== 'undefined' ? seconds : now.getSeconds();
+        days = typeof days !== 'undefined' ? days : 0;
 
         var views = 4;
         this.view %= views;
@@ -332,7 +325,7 @@ function Goban(){
             for (var i = 0; i < hour_stones.length; ++i) {
                 this.addStoneToQueue(hour_stones[i][0], hour_stones[i][1], black);
             }
-            var min_pos = 60*minute + second;
+            var min_pos = 60*minutes + seconds;
             var theta = 2*Math.PI*min_pos / 3600;
             var R = 7.0;
             var endX = Math.round(9 + R*Math.sin(theta));
@@ -342,10 +335,10 @@ function Goban(){
                 this.addStoneToQueue(hand_stones[i][0], hand_stones[i][1], white);
             }
 
-            hour %= 12;
-            hour *= 5;
-            hour += minute/12;
-            theta = 2*Math.PI*hour / 60;
+            hours %= 12;
+            hours *= 5;
+            hours += minutes/12;
+            theta = 2*Math.PI*hours / 60;
             R = 4.5;
             endX = Math.round(9 + R*Math.sin(theta));
             endY = Math.round(9 - R*Math.cos(theta));
@@ -357,33 +350,33 @@ function Goban(){
         else if (this.view == 1) {
             hour_stones = [[9, 1], [13, 2], [16, 5], [17, 9], [16, 13], [13, 16], [9, 17], [5, 16], [2, 13], [1, 9], [2, 5], [5, 2]];
             for (var i = 0; i < hour_stones.length; ++i) {
-                this.addStoneToQueue(hour_stones[i][0], hour_stones[i][1], hour%12 == i ? white : black);
+                this.addStoneToQueue(hour_stones[i][0], hour_stones[i][1], hours%12 == i ? white : black);
             }
-            this.drawNumber((minute - minute%10)/10, 6, 4, true, black);
-            this.drawNumber(minute%10, 10, 4, true, black);
-            this.drawNumber((second - second%10)/10, 6, 10, true, white);
-            this.drawNumber(second%10, 10, 10, true, white);
+            this.drawNumber((minutes - minutes%10)/10, 6, 4, true, black);
+            this.drawNumber(minutes%10, 10, 4, true, black);
+            this.drawNumber((seconds - seconds%10)/10, 6, 10, true, white);
+            this.drawNumber(seconds%10, 10, 10, true, white);
         }
         else if (this.view == 2) {
-            this.drawNumber((hour - hour%10)/10, 4, 2, false, black);
-            this.drawNumber(hour%10, 10, 2, false, black);
-            this.drawNumber((minute - minute%10)/10, 4, 10, false, white);
-            this.drawNumber(minute%10, 10, 10, false, white);
+            this.drawNumber((hours - hours%10)/10, 4, 2, false, black);
+            this.drawNumber(hours%10, 10, 2, false, black);
+            this.drawNumber((minutes - minutes%10)/10, 4, 10, false, white);
+            this.drawNumber(minutes%10, 10, 10, false, white);
         }
         else if (this.view == 3) {
-            this.drawNumber((hour - hour%10)/10, 1, 1, true, black);
-            this.drawNumber(hour%10, 5, 1, true, black);
+            this.drawNumber((hours - hours%10)/10, 1, 1, true, black);
+            this.drawNumber(hours%10, 5, 1, true, black);
             this.addStoneToQueue(9, 2, black);
             this.addStoneToQueue(9, 4, black);
-            this.drawNumber((minute - minute%10)/10, 11, 1, true, black);
-            this.drawNumber(minute%10, 15, 1, true, black);
+            this.drawNumber((minutes - minutes%10)/10, 11, 1, true, black);
+            this.drawNumber(minutes%10, 15, 1, true, black);
 
             var second_stones = [[9, 6], [12, 7], [14, 9], [15, 12], [14, 15], [12, 17], [9, 18], [6, 17], [4, 15], [3, 12], [4, 9], [6, 7]];
             for (var i=0; i < second_stones.length; ++i) {
-                this.addStoneToQueue(second_stones[i][0], second_stones[i][1], i == Math.floor(second/5) ? black : white);
+                this.addStoneToQueue(second_stones[i][0], second_stones[i][1], i == Math.floor(seconds/5) ? black : white);
             }
 
-            var theta = 2*Math.PI*second / 60;
+            var theta = 2*Math.PI*seconds / 60;
             var R = 4;
             var endX = Math.round(9 + R*Math.sin(theta));
             var endY = Math.round(12 - R*Math.cos(theta));
@@ -672,38 +665,38 @@ $(window).load(function() {
     canvas = document.getElementById('goCanvas');
     context = canvas.getContext("2d");
 
-    var goban = new Goban();
+    var goClock = new GoClock();
     var storedView = readCookie('goban_view');
     if (storedView) {
-        goban.view = parseInt(storedView);
+        goClock.view = parseInt(storedView);
     }
     var storedBackground = readCookie('goban_background');
     if (storedBackground) {
-        goban.background = parseInt(storedBackground);
-        goban.background %= backgrounds.length;
+        goClock.background = parseInt(storedBackground);
+        goClock.background %= backgrounds.length;
     }
     $("#goban").click(function() {
         if ($('#about').is(':visible')) {
             $("#about").fadeOut();
             return;
         }
-        var top_left = goban.stonePosition(0, 0, 0);
-        var bottom_right = goban.stonePosition(18, 18, 0);
+        var top_left = goClock.stonePosition(0, 0, 0);
+        var bottom_right = goClock.stonePosition(18, 18, 0);
         if (xmouse < top_left[0] || (xmouse > bottom_right[0] + bottom_right[2]) ||
             ymouse < top_left[1] || (ymouse > bottom_right[1] + bottom_right[3])) {
-            goban.background += 1;
-            if (goban.background == backgrounds.length) {
-                goban.background = 0;
+            goClock.background += 1;
+            if (goClock.background == backgrounds.length) {
+                goClock.background = 0;
             }
-            goban.resize(window.innerWidth, window.innerHeight - min_bottom_padding);
-            createCookie('goban_background', goban.background, 100);
+            goClock.draw(window.innerWidth, window.innerHeight - min_bottom_padding);
+            createCookie('goban_background', goClock.background, 100);
         }
         else {
-            goban.view += 1;
-            goban.stone_queue = [];
-            createCookie('goban_view', goban.view, 100);
+            goClock.view += 1;
+            goClock.stone_queue = [];
+            createCookie('goban_view', goClock.view, 100);
         }
-        goban.update();
+        goClock.update();
     });
 
     $("#help_icon").click(function() {
@@ -718,12 +711,12 @@ $(window).load(function() {
     });
 
 
-    window.onresize = function() {goban.resize(window.innerWidth, window.innerHeight - min_bottom_padding)};
-    goban.resize(window.innerWidth, window.innerHeight - min_bottom_padding);
-    goban.update();
-    goban.setup = true;
-    setInterval(function() {goban.update()}, 1000);
-    setInterval(function() {goban.transform()}, 20);
+    window.onresize = function() {goClock.draw(window.innerWidth, window.innerHeight - min_bottom_padding)};
+    window.onresize();
+    goClock.update();
+    goClock.setup = true;
+    setInterval(function() {goClock.update()}, 1000);
+    setInterval(function() {goClock.transform()}, 20);
 
     showHelpIcon(10000);
 });
