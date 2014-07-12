@@ -2,35 +2,7 @@
  * Created by scott on 15/05/2014.
  */
 
-var canvas;
-var context;
-
 var angle = 30;
-
-var xmouse;
-var ymouse;
-
-var timeOut;
-function showHelpIcon(time) {
-    clearTimeout(timeOut);
-    if (!$("#about").is(":visible")) {
-        $("#help_icon").fadeIn(1000);
-    }
-    timeOut = setTimeout(function(){$("#help_icon").fadeOut()}, time);
-}
-
-document.onmousemove = function(e) {
-    if (e.offsetX == undefined) // Firefox
-    {
-       xmouse = e.pageX;
-       ymouse = e.pageY;
-    }
-    else // Chrome etc.
-    {
-      xmouse = e.offsetX;
-      ymouse = e.offsetY;
-    }
-}
 
 var min_bottom_padding = 0;
 var gridsize = 19;
@@ -38,6 +10,9 @@ var gridsize = 19;
 var go_bowl = 999;
 
 ext = "http://go-clock.googlecode.com/svn/trunk/"
+
+images = ["white_stone0.png", "white_stone1.png", "white_stone2.png", "white_stone3.png",
+    "black_stone1.png", "goban_1200.jpg", "goban_400.jpg", "goban_200.jpg"];
 
 var white_stone0 = new Image();
 white_stone0.src = ext + "white_stone0.png";
@@ -60,13 +35,6 @@ var goban_400 = new Image();
 goban_400.src = ext + "goban_400.jpg";
 var goban_200 = new Image();
 goban_200.src = ext + "goban_200.jpg";
-
-backgrounds = ['black.png', 'wood1.jpg', 'wood2.jpg', 'stone1.jpg', 'mosaic1.jpg'];
-var backgroundImages = [];
-for (var i = 0; i < backgrounds.length; ++i) {
-    backgroundImages.push(new Image())
-    backgroundImages[i].src = ext + backgrounds[i];
-}
 
 var white = 1;
 var black = 3;
@@ -138,7 +106,13 @@ function eraseCookie(name) {
 }
 
 
-function GoClock(){
+function GoClock(mainCanvas, backgroundImage){
+    this.mainCanvas = mainCanvas;
+    this.mainContext = this.mainCanvas.getContext("2d");
+
+    this.backgroundImage = new Image();
+    this.backgroundImage.src = backgroundImage;
+
     this.stones = []; // The current (desired) state
     this.stones_shown = []; // The stones last drawn
     this.stone_queue = []; // Prioritise putting these stones on the board, in this order.
@@ -149,9 +123,7 @@ function GoClock(){
     this.stone_colour = white;
     this.stone_pos = [0, 0, 0, 0]; // Pixel position of last drawn moving stone: x, y, w, h
 
-    this.view = 0;
-    this.background = 1;
-
+    this.view = 0; // The clock type
     this.setup = true; // if true we're doing the first drawing of the clock
 
     this.bufferCanvas = document.createElement('canvas');
@@ -172,15 +144,21 @@ function GoClock(){
         this.stones_shown.push(0); // empty space
     }
 
+    this.setBackground = function(image) {
+        this.backgroundImage = new Image();
+        this.backgroundImage.src = backgroundImage;
+
+    }
+
     // Draw the underlying board (i.e. everything except any moving stones)
     this.draw = function(width, height) {
         this.goban_width = width * 0.90; // Some padding to show background
         this.goban_height = height * 0.90;
-        if (this.background == 0) {
+/*        if (this.background == 0) {
             // Black border - show board as full screen as possible
             this.goban_height = height * 0.98;
             this.goban_width = width * 0.98;
-        }
+        }*/
         var goban_ratio = 857/800; // Ratio of the goban image
 
         if (this.goban_width*goban_ratio > this.goban_height) {
@@ -194,20 +172,9 @@ function GoClock(){
             this.y_offset = this.goban_height/4;
         }
         this.x_offset = (width - this.goban_width) / 2 | 0;
-        canvas.width = this.bufferCanvas.width = this.emptyBoardCanvas.width = width;
-        canvas.height = this.bufferCanvas.height = this.emptyBoardCanvas.height = height;
-        // This scales for retina etc., but ends it up really slow and crashes Safari...
-/*
-        var scaleFactor = backingScale();
-        if (scaleFactor > 1) {
-            canvas.style.width = canvas.width + 'px';
-            canvas.style.height = canvas.height + 'px';
-            canvas.width = canvas.width * scaleFactor;
-            canvas.height = canvas.height * scaleFactor;
-            // update the context for the new canvas scale
-            context.scale(scaleFactor, scaleFactor);
-        }
-*/
+        this.mainCanvas.width = this.bufferCanvas.width = this.emptyBoardCanvas.width = width;
+        this.mainCanvas.height = this.bufferCanvas.height = this.emptyBoardCanvas.height = height;
+
         this.bufferContext.shadowColor = "rgba( 0, 0, 0, 0.6)";
         var shadowLength = this.goban_width/20;
         this.bufferContext.shadowOffsetX = shadowLength * Math.sin(angle*Math.PI/180);
@@ -222,7 +189,7 @@ function GoClock(){
         if (this.goban_width <= 200) {
             gobanImage = goban_200;
         }
-        var bg = backgroundImages[this.background];
+        var bg = this.backgroundImage;
         // Work out background dimensions to cover everything but not distort the image
         var ratio = this.bufferCanvas.width/this.bufferCanvas.height;
         if (bg.width/bg.height >= ratio) {
@@ -246,11 +213,11 @@ function GoClock(){
                 }
             }
         }
-        context.shadowOffsetX = 0;
-        context.shadowOffsetY = 0;
-        context.shadowBlur = 0;
-        context.clearRect(0, 0, canvas.width, canvas.height);
-        context.drawImage(this.bufferCanvas, 0, 0);
+        this.mainContext.shadowOffsetX = 0;
+        this.mainContext.shadowOffsetY = 0;
+        this.mainContext.shadowBlur = 0;
+        this.mainContext.clearRect(0, 0, this.mainCanvas.width, this.mainCanvas.height);
+        this.mainContext.drawImage(this.bufferCanvas, 0, 0);
     };
 
     this.drawNumber = function(number, x_offset, y_offset, small, colour) {
@@ -305,7 +272,7 @@ function GoClock(){
         this.bufferContext.shadowOffsetX = this.bufferContext.shadowOffsetY = 0;
         this.bufferContext.shadowBlur = 0;
         this.bufferContext.drawImage(this.emptyBoardCanvas, p[0], p[1], p[2], p[3], p[0], p[1], p[2], p[3]);
-        context.drawImage(this.bufferCanvas, p[0], p[1], p[2], p[3], p[0], p[1], p[2], p[3]);
+        this.mainContext.drawImage(this.bufferCanvas, p[0], p[1], p[2], p[3], p[0], p[1], p[2], p[3]);
     };
 
     // Update the desired state of the clock
@@ -416,13 +383,13 @@ function GoClock(){
             }
             if (this.stone_percent != 0) {
                 // Erase previous moving stone
-                context.shadowColor = "rgba(80, 80, 80, 0)";
+                this.mainContext.shadowColor = "rgba(80, 80, 80, 0)";
                 var xpos = this.stone_pos[0];
                 var ypos = this.stone_pos[1];
                 var w = this.stone_pos[2];
                 var h = this.stone_pos[3];
                 // We erase 4* the area to make sure we get the shadow. Bit of a hack.
-                context.drawImage(this.bufferCanvas, xpos, ypos, w*2, h*2, xpos, ypos, w*2, h*2);
+                this.mainContext.drawImage(this.bufferCanvas, xpos, ypos, w*2, h*2, xpos, ypos, w*2, h*2);
             }
 
             this.stone_percent += this.setup ? 20 : 10; // Goes faster when first putting down stones
@@ -431,7 +398,7 @@ function GoClock(){
                     // add stone to board and draw on buffer and shown context
                     this.stones_shown[this.stone_to[0] + gridsize*this.stone_to[1]] = this.stone_colour;
                     this.drawStone(this.bufferContext, this.stone_to, this.stone_colour, 0);
-                    this.drawStone(context, this.stone_to, this.stone_colour, 0);
+                    this.drawStone(this.mainContext, this.stone_to, this.stone_colour, 0);
                 }
                 else if (this.stone_to[0] == go_bowl) {
                     // stone removed from board
@@ -444,11 +411,11 @@ function GoClock(){
 
             if (this.stone_from[0] == go_bowl) {
                 // Stone being added
-                this.stone_pos = this.drawStone(context, this.stone_to, this.stone_colour, 10*(1 - this.stone_percent/100));
+                this.stone_pos = this.drawStone(this.mainContext, this.stone_to, this.stone_colour, 10*(1 - this.stone_percent/100));
             }
             else if (this.stone_to[0] == go_bowl) {
                 // Stone being removed
-                this.stone_pos = this.drawStone(context, this.stone_from, this.stone_colour, 10*this.stone_percent/100);
+                this.stone_pos = this.drawStone(this.mainContext, this.stone_from, this.stone_colour, 10*this.stone_percent/100);
             }
             else {
                 // Scale percentage to get more natural movement
@@ -457,7 +424,7 @@ function GoClock(){
 
                 var x = this.stone_from[0] + p*(this.stone_to[0] - this.stone_from[0]);
                 var y = this.stone_from[1] + p*(this.stone_to[1] - this.stone_from[1]);
-                this.stone_pos = this.drawStone(context, [x, y], this.stone_colour, 0);
+                this.stone_pos = this.drawStone(this.mainContext, [x, y], this.stone_colour, 0);
             }
             return;
         }
@@ -647,78 +614,4 @@ function backingScale() {
     }
     return 1;
 }
-
-$(document).ready(function(){
-    $("#splash_screen").show();
-    var now = new Date();
-    var time = now.getTime();
-    time /= 1000*60*60*24; // convert from milliseconds to days
-    time |= 0;
-    current_tip = time % tips_of_the_day.length;
-    $('#tip_of_the_day').html(tips_of_the_day[current_tip]);
-});
-
-
-// This runs after the DOM *and* images have loaded
-$(window).load(function() {
-    $("#splash_screen").hide();
-    canvas = document.getElementById('goCanvas');
-    context = canvas.getContext("2d");
-
-    var goClock = new GoClock();
-    var storedView = readCookie('goban_view');
-    if (storedView) {
-        goClock.view = parseInt(storedView);
-    }
-    var storedBackground = readCookie('goban_background');
-    if (storedBackground) {
-        goClock.background = parseInt(storedBackground);
-        goClock.background %= backgrounds.length;
-    }
-    $("#goban").click(function() {
-        if ($('#about').is(':visible')) {
-            $("#about").fadeOut();
-            return;
-        }
-        var top_left = goClock.stonePosition(0, 0, 0);
-        var bottom_right = goClock.stonePosition(18, 18, 0);
-        if (xmouse < top_left[0] || (xmouse > bottom_right[0] + bottom_right[2]) ||
-            ymouse < top_left[1] || (ymouse > bottom_right[1] + bottom_right[3])) {
-            goClock.background += 1;
-            if (goClock.background == backgrounds.length) {
-                goClock.background = 0;
-            }
-            goClock.draw(window.innerWidth, window.innerHeight - min_bottom_padding);
-            createCookie('goban_background', goClock.background, 100);
-        }
-        else {
-            goClock.view += 1;
-            goClock.stone_queue = [];
-            createCookie('goban_view', goClock.view, 100);
-        }
-        goClock.update();
-    });
-
-    $("#help_icon").click(function() {
-        $("#help_icon").fadeOut();
-        $("#about").fadeIn();
-    });
-
-    $('#next_tip').click(function() {
-        current_tip += 1;
-        current_tip %= tips_of_the_day.length;
-        $('#tip_of_the_day').html(tips_of_the_day[current_tip]);
-    });
-
-
-    window.onresize = function() {goClock.draw(window.innerWidth, window.innerHeight - min_bottom_padding)};
-    window.onresize();
-    goClock.update();
-    goClock.setup = true;
-    setInterval(function() {goClock.update()}, 1000);
-    setInterval(function() {goClock.transform()}, 20);
-
-    showHelpIcon(10000);
-});
-
 
