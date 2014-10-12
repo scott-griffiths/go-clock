@@ -13,12 +13,25 @@
         <canvas width=410 height=425 id="goCanvas"></canvas>
     </div>
     <script>
-        var goClock = new GoClock(document.getElementById('goCanvas'));
-        goClock.view = 3;
-        goClock.draw(410, 425);
-        setInterval(function() {goClock.update()}, 1000);
-        setInterval(function() {goClock.transform()}, 20);
-
+        // Load in a background image for the clock
+        var background = new Image();
+        background.src = 'http://go-clock.googlecode.com/svn/trunk/wood2.jpg';
+        $(window).load(function() {
+            // Create the Go Clock object with the canvas and background
+            var goClock = new GoClock(document.getElementById('goCanvas'), background);
+            // Set the type of clock you want
+            goClock.view = 3;
+            // Draw the clock. Typically the width and height will be the same as your canvas.
+            goClock.draw(410, 425);
+            // Now set some timers. The update function is how often the time is updated. Once a second should be enough.
+            setInterval(function () {
+                goClock.update()
+            }, 1000);
+            // The transform function is how often the clock is drawn. 20 ms gives smooth animation.
+            setInterval(function () {
+                goClock.transform()
+            }, 20);
+        });
     </script>
 </div>
 </body>
