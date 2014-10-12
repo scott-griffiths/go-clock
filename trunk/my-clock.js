@@ -42,8 +42,8 @@ $(window).load(function() {
     backgrounds = ['black.png', 'wood1.jpg', 'wood2.jpg', 'stone1.jpg', 'mosaic1.jpg'];
     var backgroundImages = [];
     for (var i = 0; i < backgrounds.length; ++i) {
-        backgroundImages.push("http://go-clock.googlecode.com/svn/trunk/" + backgrounds[i]);
-//        backgroundImages[i].src = "http://go-clock.googlecode.com/svn/trunk/" + backgrounds[i];
+        backgroundImages.push(new Image());
+        backgroundImages[i].src = "http://go-clock.googlecode.com/svn/trunk/" + backgrounds[i];
     }
     var background = 0;
     var storedBackground = readCookie('goban_background');
@@ -52,7 +52,7 @@ $(window).load(function() {
         background %= backgrounds.length;
     }
 
-    var goClock = new GoClock(document.getElementById('goCanvas'), 'http://go-clock.googlecode.com/svn/trunk/wood2.jpg');
+    var goClock = new GoClock(document.getElementById('goCanvas'), backgroundImages[background]);
     var storedView = readCookie('goban_view');
     if (storedView) {
         goClock.view = parseInt(storedView);

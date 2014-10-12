@@ -110,8 +110,7 @@ function GoClock(mainCanvas, backgroundImage){
     this.mainCanvas = mainCanvas;
     this.mainContext = this.mainCanvas.getContext("2d");
 
-    this.backgroundImage = new Image();
-    this.backgroundImage.src = backgroundImage;
+    this.backgroundImage = backgroundImage;
 
     this.stones = []; // The current (desired) state
     this.stones_shown = []; // The stones last drawn
@@ -142,12 +141,6 @@ function GoClock(mainCanvas, backgroundImage){
     this.clear();
     for (var i = 0; i < gridsize*gridsize; ++i){
         this.stones_shown.push(0); // empty space
-    }
-
-    this.setBackground = function(image) {
-        this.backgroundImage = new Image();
-        this.backgroundImage.src = backgroundImage;
-
     }
 
     // Draw the underlying board (i.e. everything except any moving stones)
