@@ -9,7 +9,7 @@ var gridsize = 19;
 
 var go_bowl = 999;
 
-ext = "http://go-clock.googlecode.com/svn/trunk/"
+ext = "images/"
 
 images = ["white_stone0.png", "white_stone1.png", "white_stone2.png", "white_stone3.png",
     "black_stone1.png", "goban_1200.jpg", "goban_400.jpg", "goban_200.jpg"];
@@ -25,9 +25,6 @@ white_stone3.src = ext + "white_stone3.png";
 
 var black_stone = new Image();
 black_stone.src = ext + "black_stone1.png";
-
-var help_icon = new Image();
-help_icon.src = ext + "white_stone0.png";
 
 var goban_1200 = new Image();
 goban_1200.src = ext + "goban_1200.jpg";
@@ -131,6 +128,8 @@ function GoClock(mainCanvas, backgroundImage){
     this.emptyBoardCanvas = document.createElement('canvas');
     this.emptyBoardContext = this.emptyBoardCanvas.getContext('2d');
 
+    this.speed = 10;
+
     this.clear = function() {
         this.stones = [];
         for (var i = 0; i < gridsize*gridsize; ++i){
@@ -147,11 +146,6 @@ function GoClock(mainCanvas, backgroundImage){
     this.draw = function(width, height) {
         this.goban_width = width * 0.90; // Some padding to show background
         this.goban_height = height * 0.90;
-/*        if (this.background == 0) {
-            // Black border - show board as full screen as possible
-            this.goban_height = height * 0.98;
-            this.goban_width = width * 0.98;
-        }*/
         var goban_ratio = 857/800; // Ratio of the goban image
 
         if (this.goban_width*goban_ratio > this.goban_height) {
@@ -277,7 +271,7 @@ function GoClock(mainCanvas, backgroundImage){
         seconds = typeof seconds !== 'undefined' ? seconds : now.getSeconds();
         days = typeof days !== 'undefined' ? days : 0;
 
-        var views = 4;
+        var views = 5;
         this.view %= views;
         this.clear();
         if (this.view == 0) {
@@ -344,7 +338,17 @@ function GoClock(mainCanvas, backgroundImage){
             for (var i=0; i < hand_stones.length; ++i) {
                 this.addStoneToQueue(hand_stones[i][0], hand_stones[i][1], white);
             }
-
+        }
+        else if (this.view == 4) {
+            var u = days%10;
+            var t = (days - u)/10;
+            this.drawNumber((t - t%10)/10, 1, 1, true, black);
+            this.drawNumber(t%10, 5, 1, true, black);
+            this.drawNumber(u, 9, 1, true, black);
+            this.drawNumber((hours - hours%10)/10, 5, 7, true, white);
+            this.drawNumber(hours%10, 9, 7, true, white);
+            this.drawNumber((minutes - minutes%10)/10, 5, 13, true, black);
+            this.drawNumber(minutes%10, 9, 13, true, black);
         }
     };
 
@@ -385,7 +389,7 @@ function GoClock(mainCanvas, backgroundImage){
                 this.mainContext.drawImage(this.bufferCanvas, xpos, ypos, w*2, h*2, xpos, ypos, w*2, h*2);
             }
 
-            this.stone_percent += this.setup ? 20 : 10; // Goes faster when first putting down stones
+            this.stone_percent += this.setup ? this.speed*2 : this.speed; // Goes faster when first putting down stones
             if (this.stone_percent >= 100) {
                 if (this.stone_to[1] >= 0 && this.stone_to[1] < gridsize && this.stone_to[0] >= 0 && this.stone_to[0] < gridsize) {
                     // add stone to board and draw on buffer and shown context

@@ -2,15 +2,6 @@
 var xmouse;
 var ymouse;
 
-var timeOut;
-function showHelpIcon(time) {
-    clearTimeout(timeOut);
-    if (!$("#about").is(":visible")) {
-        $("#help_icon").fadeIn(1000);
-    }
-    timeOut = setTimeout(function(){$("#help_icon").fadeOut()}, time);
-}
-
 document.onmousemove = function(e) {
     if (e.offsetX == undefined) // Firefox
     {
@@ -30,7 +21,7 @@ $(document).ready(function(){
     var time = now.getTime();
     time /= 1000*60*60*24; // convert from milliseconds to days
     time |= 0;
-    current_tip = time % tips_of_the_day.length;
+    var current_tip = time % tips_of_the_day.length;
     $('#tip_of_the_day').html(tips_of_the_day[current_tip]);
 });
 
@@ -39,11 +30,11 @@ $(document).ready(function(){
 $(window).load(function() {
     $("#splash_screen").hide();
 
-    backgrounds = ['black.png', 'wood1.jpg', 'wood2.jpg', 'stone1.jpg', 'mosaic1.jpg'];
+    backgrounds = ['wood1.jpg', 'wood2.jpg', 'stone1.jpg', 'mosaic1.jpg'];
     var backgroundImages = [];
     for (var i = 0; i < backgrounds.length; ++i) {
         backgroundImages.push(new Image());
-        backgroundImages[i].src = "http://go-clock.googlecode.com/svn/trunk/" + backgrounds[i];
+        backgroundImages[i].src = 'images/' + backgrounds[i];
     }
     var background = 0;
     var storedBackground = readCookie('goban_background');
@@ -51,7 +42,6 @@ $(window).load(function() {
         background = parseInt(storedBackground);
         background %= backgrounds.length;
     }
-
     var goClock = new GoClock(document.getElementById('goCanvas'), backgroundImages[background]);
     var storedView = readCookie('goban_view');
     if (storedView) {
@@ -100,8 +90,6 @@ $(window).load(function() {
     goClock.setup = true;
     setInterval(function() {goClock.update()}, 1000);
     setInterval(function() {goClock.transform()}, 20);
-
-    showHelpIcon(10000);
 });
 
 
