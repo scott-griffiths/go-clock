@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <script src="http://go-clock.googlecode.com/svn/trunk/jquery-1.11.1.js"></script>
+    <script src="go-clock.js"></script>
+    <title>Go Clock Example</title>
+</head>
+<body>
+<p>This is a very simple example on how to use the the Go Clock.</p>
+<p>First of all include the relevant JavaScript files as above.</p>
+<div>
+    <canvas width=820 height=850 id="goCanvas"></canvas>
+</div>
+<script>
+    var goClock = new GoClock(document.getElementById('goCanvas'), 'http://go-clock.googlecode.com/svn/trunk/wood2.jpg');
+    goClock.update();
+    goClock.setup = true;
+    setInterval(function() {goClock.update()}, 1000);
+    setInterval(function() {goClock.transform()}, 20);
+    setInterval(function() {goClock.})
+</script>
+
+</body>
+</html>
