@@ -15,11 +15,20 @@ document.onmousemove = function(e) {
     }
 }
 
+var tips_of_the_day = [];
+tips_of_the_day.push("Why not download as a web app on the new iPad Air and then nail or glue it to your living room wall?");
+tips_of_the_day.push("To use as an alarm clock simply employ a small child to watch the Go Clock and tell them to wake you when it shows the right time.");
+tips_of_the_day.push("For extra accuracy when timing sporting events, use the view with the second counter.");
+tips_of_the_day.push("Use the Go Clock on an iPhone sellotaped to your wrist and your friend(s) will think you have an iWatch!");
+tips_of_the_day.push("If you need more than one clock, why not also try the <a href='https://itunes.apple.com/gb/app/shogi-clock/id538427388?mt=8'>Shogi Clock</a> on the iPad? (I didn't write that one, but I think it's really cool.)");
+
+var current_tip;
+
+
 var backgrounds = ['wood1.jpg', 'wood2.jpg', 'stone1.jpg', 'mosaic1.jpg'];
 var backgroundImages = [];
 
 $(document).ready(function(){
-    $("#splash_screen").show();
     var now = new Date();
     var time = now.getTime();
     time /= 1000*60*60*24; // convert from milliseconds to days
@@ -35,8 +44,9 @@ $(document).ready(function(){
 
 // This runs after the DOM *and* images have loaded
 $(window).load(function() {
-    $("#splash_screen").hide();
-
+    setTimeout(function() {
+        $('#menu').fadeIn();
+    }, 3000);
     var background = 0;
     var storedBackground = readCookie('goban_background');
     if (storedBackground) {
@@ -54,22 +64,22 @@ $(window).load(function() {
     if (storedView) {
         goClock.view = parseInt(storedView);
     }
+    var fade_menu_timer;
     $("#goban").click(function() {
-        if ($('#about').is(':visible')) {
-            $("#about").fadeOut();
+        if ($('#about_box').is(':visible')) {
+            $("#about_box").fadeOut();
             return;
         }
+        $('#menu').fadeIn();
+        clearTimeout(fade_menu_timer);
+        fade_menu_timer = setTimeout(function() {
+            $('#menu').fadeOut();
+        }, 3000);
         var top_left = goClock.stonePosition(0, 0, 0);
         var bottom_right = goClock.stonePosition(18, 18, 0);
         if (xmouse < top_left[0] || (xmouse > bottom_right[0] + bottom_right[2]) ||
             ymouse < top_left[1] || (ymouse > bottom_right[1] + bottom_right[3])) {
-            background += 1;
-            if (background == backgrounds.length) {
-                background = 0;
-            }
-            goClock.backgroundImage = backgroundImages[background];
-            goClock.draw(window.innerWidth, window.innerHeight - min_bottom_padding);
-            createCookie('goban_background', goClock.background, 100);
+            // Click not on the goban
         }
         else {
             goClock.view += 1;
@@ -93,6 +103,9 @@ $(window).load(function() {
         goClock.backgroundImage = backgroundImages[background];
         goClock.draw(window.innerWidth, window.innerHeight - min_bottom_padding);
         createCookie('goban_background', goClock.background, 100);
+    });
+    $('#about').click(function() {
+        $('#about_box').show();
     });
 
 

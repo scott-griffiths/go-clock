@@ -63,14 +63,6 @@ s9 = [[1, 2], [0, 2], [0, 1], [0, 0], [1, 0], [2, 0], [2, 1], [2, 2], [2, 3], [2
 
 var tiny_num = [s0, s1, s2, s3, s4, s5, s6, s7, s8, s9];
 
-var tips_of_the_day = [];
-tips_of_the_day.push("Why not download as a web app on the new iPad Air and then nail or glue it to your living room wall?");
-tips_of_the_day.push("To use as an alarm clock simply employ a small child to watch the Go Clock and tell them to wake you when it shows the right time.");
-tips_of_the_day.push("For extra accuracy when timing sporting events, use the view with the second counter.");
-tips_of_the_day.push("Use the Go Clock on an iPhone sellotaped to your wrist and your friend(s) will think you have an iWatch!");
-tips_of_the_day.push("If you need more than one clock, why not also try the <a href='https://itunes.apple.com/gb/app/shogi-clock/id538427388?mt=8'>Shogi Clock</a> on the iPad? (I didn't write that one, but I think it's really cool.)");
-
-var current_tip;
 // Prevent scrolling in iOS
 //document.ontouchstart = function(e){
 //    e.preventDefault();
@@ -271,7 +263,7 @@ function GoClock(mainCanvas, backgroundImage){
         seconds = typeof seconds !== 'undefined' ? seconds : now.getSeconds();
         days = typeof days !== 'undefined' ? days : 0;
 
-        var views = 5;
+        var views = 4;
         this.view %= views;
         this.clear();
         if (this.view == 0) {
