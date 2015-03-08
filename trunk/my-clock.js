@@ -15,6 +15,9 @@ document.onmousemove = function(e) {
     }
 }
 
+var backgrounds = ['wood1.jpg', 'wood2.jpg', 'stone1.jpg', 'mosaic1.jpg'];
+var backgroundImages = [];
+
 $(document).ready(function(){
     $("#splash_screen").show();
     var now = new Date();
@@ -23,25 +26,29 @@ $(document).ready(function(){
     time |= 0;
     var current_tip = time % tips_of_the_day.length;
     $('#tip_of_the_day').html(tips_of_the_day[current_tip]);
+    $.slidebars();
+    for (var i = 0; i < backgrounds.length; ++i) {
+        backgroundImages.push(new Image());
+        backgroundImages[i].src = 'images/' + backgrounds[i];
+    }
 });
-
 
 // This runs after the DOM *and* images have loaded
 $(window).load(function() {
     $("#splash_screen").hide();
 
-    backgrounds = ['wood1.jpg', 'wood2.jpg', 'stone1.jpg', 'mosaic1.jpg'];
-    var backgroundImages = [];
-    for (var i = 0; i < backgrounds.length; ++i) {
-        backgroundImages.push(new Image());
-        backgroundImages[i].src = 'images/' + backgrounds[i];
-    }
     var background = 0;
     var storedBackground = readCookie('goban_background');
     if (storedBackground) {
         background = parseInt(storedBackground);
         background %= backgrounds.length;
     }
+    if (background === parseInt(background, 10)) {
+    } else {
+        background = 0;
+    }
+
+
     var goClock = new GoClock(document.getElementById('goCanvas'), backgroundImages[background]);
     var storedView = readCookie('goban_view');
     if (storedView) {
@@ -60,7 +67,7 @@ $(window).load(function() {
             if (background == backgrounds.length) {
                 background = 0;
             }
-            goClock.setBackground(backgroundImages[background]);
+            goClock.backgroundImage = backgroundImages[background];
             goClock.draw(window.innerWidth, window.innerHeight - min_bottom_padding);
             createCookie('goban_background', goClock.background, 100);
         }
@@ -72,15 +79,20 @@ $(window).load(function() {
         goClock.update();
     });
 
-    $("#help_icon").click(function() {
-        $("#help_icon").fadeOut();
-        $("#about").fadeIn();
-    });
-
     $('#next_tip').click(function() {
         current_tip += 1;
         current_tip %= tips_of_the_day.length;
         $('#tip_of_the_day').html(tips_of_the_day[current_tip]);
+    });
+
+    $('#change_background').click(function() {
+        background += 1;
+        if (background == backgrounds.length) {
+            background = 0;
+        }
+        goClock.backgroundImage = backgroundImages[background];
+        goClock.draw(window.innerWidth, window.innerHeight - min_bottom_padding);
+        createCookie('goban_background', goClock.background, 100);
     });
 
 

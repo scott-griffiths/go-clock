@@ -128,7 +128,7 @@ function GoClock(mainCanvas, backgroundImage){
     this.emptyBoardCanvas = document.createElement('canvas');
     this.emptyBoardContext = this.emptyBoardCanvas.getContext('2d');
 
-    this.speed = 10;
+    this.speed = 9;
 
     this.clear = function() {
         this.stones = [];
