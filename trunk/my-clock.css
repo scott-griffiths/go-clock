@@ -44,16 +44,50 @@ html, body {
     text-align: center;
     font-size: 60px;
     z-index: 2;
-    color: rgb(249, 255, 182);
+    color: white;
 }
 
 #sidebar {
     background-color: rgb(51, 85, 105);
-    padding: 20px 20px 0px 20px;
 }
 
 #sidebar img {
     margin-left: auto;
     margin-right: auto;
     padding-bottom: 30px;
+}
+
+.sb-menu {
+	padding: 0;
+	margin: 0;
+	list-style-type: none;
+}
+
+.sb-menu li {
+	width: 100%;
+	padding: 0;
+	margin: 0;
+	border-top: 1px solid rgba(255, 255, 255, 0.1);
+	border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.sb-menu > li:first-child {
+	border-top: none;
+}
+
+.sb-menu > li:last-child {
+	border-bottom: none;
+}
+
+.sb-menu li a {
+	width: 100%; /* Makes links full width. */
+	display: inline-block;
+	padding: 1em; /* Creates an even padding the same size as your font. */
+	color: #f2f2f2;
+    cursor: pointer;
+}
+
+.sb-menu li a:hover {
+    text-decoration: none;
+    background-color: rgba(255, 255, 255, 0.1);
 }
