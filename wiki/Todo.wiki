@@ -1,0 +1,8 @@
+#summary All-purpose todo list
+
+  * Add sounds for adding, removing and moving stones.
+  * Allow multiple white stone images (need to track the individual stones)
+  * Reveal menu by sliding main screen, not just by pressing the menu button.
+  * Full screen (or near full screen) about page that works better on small screens.
+  * Fix jerkyness at start and end of stone movement.
+  * Make a Go-clock logo.
