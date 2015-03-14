@@ -100,7 +100,7 @@ $(window).load(function() {
     $('#clock_face').text('Clock face: ' + views[view]);
 
     var fade_menu_timer;
-    $('#sb-site').click(function() {
+    $('#about_box').click(function() {
         if ($('#about_box').is(':visible')) {
             $("#about_box").fadeOut();
         }
