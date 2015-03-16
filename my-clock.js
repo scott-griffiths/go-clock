@@ -55,7 +55,7 @@ var current_tip;
 var backgrounds = ['wood1.jpg', 'wood2.jpg', 'stone1.jpg', 'mosaic1.jpg'];
 var backgroundImages = [];
 
-var views = ['view1', 'view2', 'view3', 'view4'];
+var views = {0 : 'analogue', 1 : 'jump hour', 2 : 'digital', 3 : 'hybrid'};
 
 var stone_speeds = [['torpid', 2], ['slow', 5], ['normal', 9], ['fast', 18], ['insane!', 50]];
 
@@ -66,7 +66,7 @@ $(document).ready(function(){
     time |= 0;
     var current_tip = time % tips_of_the_day.length;
     $('#tip_of_the_day').html(tips_of_the_day[current_tip]);
-    $.slidebars();
+//    $.slidebars();
     for (var i = 0; i < backgrounds.length; ++i) {
         backgroundImages.push(new Image());
         backgroundImages[i].src = 'images/' + backgrounds[i];
@@ -75,6 +75,7 @@ $(document).ready(function(){
 
 // This runs after the DOM *and* images have loaded
 $(window).load(function() {
+    var mySlidebars = new $.slidebars();
     $('#menu').fadeIn();
     var background = 0;
     var storedBackground = readCookie('goban_background');
@@ -94,33 +95,39 @@ $(window).load(function() {
     var view = 0;
     var storedView = readCookie('goban_view');
     if (isInt(storedView)) {
-        view = parseInt(storedView) % views.length;
+        view = parseInt(storedView) % 4;
     }
-    goClock.view = view;
-    $('#clock_face').text('Clock face: ' + views[view]);
+
+    function setView(v) {
+        v %= 4;
+        goClock.view = v;
+        $('#clock_face').text('Clock face: ' + views[v]);
+        createCookie('goban_view', goClock.view, 100);
+    }
+    setView(view);
 
     var fade_menu_timer;
-    $('#about_box').click(function() {
+    $('#about_box, #goban').click(function() {
         if ($('#about_box').is(':visible')) {
             $("#about_box").fadeOut();
         }
     });
     $("#goban").click(function() {
-        $('#menu').fadeIn();
-        clearTimeout(fade_menu_timer);
-        fade_menu_timer = setTimeout(function() {
-            $('#menu').fadeOut();
-        }, 3000);
+//        $('#menu').fadeIn();
+//        clearTimeout(fade_menu_timer);
+//        fade_menu_timer = setTimeout(function() {
+//            $('#menu').fadeOut();
+//        }, 3000);
         var top_left = goClock.stonePosition(0, 0, 0);
         var bottom_right = goClock.stonePosition(18, 18, 0);
         if (xmouse < top_left[0] || (xmouse > bottom_right[0] + bottom_right[2]) ||
             ymouse < top_left[1] || (ymouse > bottom_right[1] + bottom_right[3])) {
             // Click not on the goban
         }
-        else {
-            goClock.view += 1;
+        else if (!mySlidebars.slidebars.active('left')) {
+            // Clicked on the goban when sidebar not active
+            setView(goClock.view + 1);
             goClock.stone_queue = [];
-            createCookie('goban_view', goClock.view, 100);
         }
         goClock.update();
     });
@@ -132,12 +139,7 @@ $(window).load(function() {
     });
 
     $('#clock_face').click(function() {
-        view += 1;
-        view %= views.length;
-        goClock.view = view;
-        goClock.stone_queue = [];
-        createCookie('goban_view', goClock.view, 100);
-        $('#clock_face').text('Clock face: ' + views[view]);
+        setView(goClock.view + 1);
     });
 
     $('#change_background').click(function() {
