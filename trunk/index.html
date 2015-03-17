@@ -18,11 +18,11 @@
     <body>
         <link rel="apple-touch-icon" href="touch-icon.png">
         <div id="about_box">
-            <p style="font-weight: bold; font-size: large; text-align: center">About</p>
+            <p style="font-weight: bold; font-size: larger; text-align: center">About</p>
             <p>The Go Clock is a virtual Goban where the stones are used to tell you the time, saving you from the effort of
                 setting up and continually updating your own Go board.</p>
             <p>Use the menu in the top left to configure it, or just tap the board to change the clock type.</p>
-            <p><span style="font-weight: bold;">Tip of the day:</span> <span id="tip_of_the_day"></span> <a href="#" id="next_tip"> See next tip.</a></p>
+            <p><span style="font-weight: bold;">Tip of the day:</span> <span id="tip_of_the_day"></span></p>
             <p style="font-size: small">&copy; Broken Symmetry/Scott Griffiths, and released as open source under the MIT licence.
                 See <a href="http://code.google.com/p/go-clock/">Google code</a> for more information.</p>
         </div>
@@ -36,13 +36,13 @@
                 </div>
             </div>
         </div>
-        <div id="sidebar" class="sb-slidebar sb-left sb-momentum-scrolling sb-width-custom" data-sb-width="200px"">
+        <div id="sidebar" class="sb-slidebar sb-left sb-momentum-scrolling sb-width-custom" data-sb-width="250px"">
             <div id="menu-title">Go Clock</div>
             <nav>
                 <ul class="sb-menu">
-                    <li><a id="clock_face"></a></li>
-                    <li><a id="change_background">Change background</a></li>
-                    <li><a id="stone_speed"></a></li>
+                    <li><a>Clock face: <span id="clock_face"></span></a></li>
+                    <li><a>Background: <span id="change_background"></span></a></li>
+                    <li><a>Speed: <span id="stone_speed"></span></a></li>
                     <li class="sb-close"><a id="about">About</a></li>
                 </ul>
             </nav>
