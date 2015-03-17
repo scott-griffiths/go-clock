@@ -338,57 +338,69 @@ function GoClock(mainCanvas, backgroundImage){
         return [xpos - diameter/2 + this.x_offset | 0, ypos - diameter/2 + this.y_offset | 0, diameter, diameter];
     };
 
+    this.move_stone = function() {
+        if (this.stone_percent == 0 && this.stone_from[0] != go_bowl) {
+            this.eraseStone(this.stone_from);
+        }
+        if (this.stone_percent != 0) {
+            // Erase previous moving stone
+            this.mainContext.shadowColor = "rgba(80, 80, 80, 0)";
+            var xpos = this.stone_pos[0];
+            var ypos = this.stone_pos[1];
+            var w = this.stone_pos[2];
+            var h = this.stone_pos[3];
+            // We erase 4* the area to make sure we get the shadow. Bit of a hack.
+            this.mainContext.drawImage(this.bufferCanvas, xpos, ypos, w*2, h*2, xpos, ypos, w*2, h*2);
+        }
+
+        this.stone_percent += this.setup ? this.speed*2 : this.speed; // Goes faster when first putting down stones
+        if (this.stone_percent >= 100) {
+            if (this.stone_to[1] >= 0 && this.stone_to[1] < gridsize && this.stone_to[0] >= 0 && this.stone_to[0] < gridsize) {
+                // add stone to board and draw on buffer and shown context
+                this.stones_shown[this.stone_to[0] + gridsize*this.stone_to[1]] = this.stone_colour;
+                this.drawStone(this.bufferContext, this.stone_to, this.stone_colour, 0);
+                this.drawStone(this.mainContext, this.stone_to, this.stone_colour, 0);
+            }
+            else if (this.stone_to[0] == go_bowl) {
+                // stone removed from board
+                this.eraseStone(this.stone_from);
+            }
+            this.moving_stone = false;
+            this.stone_percent = 0;
+            return;
+        }
+
+        if (this.stone_from[0] == go_bowl) {
+            // Stone being added
+            this.stone_pos = this.drawStone(this.mainContext, this.stone_to, this.stone_colour, 10*(1 - this.stone_percent/100));
+        }
+        else if (this.stone_to[0] == go_bowl) {
+            // Stone being removed
+            this.stone_pos = this.drawStone(this.mainContext, this.stone_from, this.stone_colour, 10*this.stone_percent/100);
+        }
+        else {
+            // In/out quadratic easing to get more natural movement
+            var t = this.stone_percent;
+            var x, y;
+            t /= 50;
+            if (t < 1) {
+                x = this.stone_from[0] + (this.stone_to[0] - this.stone_from[0])/2*t*t;
+                y = this.stone_from[1] + (this.stone_to[1] - this.stone_from[1])/2*t*t;
+            } else {
+                t -= 1;
+                x = this.stone_from[0] - (this.stone_to[0] - this.stone_from[0])/2*(t*(t - 2) - 1);
+                y = this.stone_from[1] - (this.stone_to[1] - this.stone_from[1])/2*(t*(t - 2) - 1);
+            }
+            this.stone_pos = this.drawStone(this.mainContext, [x, y], this.stone_colour, 0);
+        }
+        return;
+
+    }
+
     // Incrementally change the displayed goban to the desired configuration
     this.transform = function() {
         if (this.moving_stone == true) {
-            if (this.stone_percent == 0 && this.stone_from[0] != go_bowl) {
-                this.eraseStone(this.stone_from);
-            }
-            if (this.stone_percent != 0) {
-                // Erase previous moving stone
-                this.mainContext.shadowColor = "rgba(80, 80, 80, 0)";
-                var xpos = this.stone_pos[0];
-                var ypos = this.stone_pos[1];
-                var w = this.stone_pos[2];
-                var h = this.stone_pos[3];
-                // We erase 4* the area to make sure we get the shadow. Bit of a hack.
-                this.mainContext.drawImage(this.bufferCanvas, xpos, ypos, w*2, h*2, xpos, ypos, w*2, h*2);
-            }
-
-            this.stone_percent += this.setup ? this.speed*2 : this.speed; // Goes faster when first putting down stones
-            if (this.stone_percent >= 100) {
-                if (this.stone_to[1] >= 0 && this.stone_to[1] < gridsize && this.stone_to[0] >= 0 && this.stone_to[0] < gridsize) {
-                    // add stone to board and draw on buffer and shown context
-                    this.stones_shown[this.stone_to[0] + gridsize*this.stone_to[1]] = this.stone_colour;
-                    this.drawStone(this.bufferContext, this.stone_to, this.stone_colour, 0);
-                    this.drawStone(this.mainContext, this.stone_to, this.stone_colour, 0);
-                }
-                else if (this.stone_to[0] == go_bowl) {
-                    // stone removed from board
-                    this.eraseStone(this.stone_from);
-                }
-                this.moving_stone = false;
-                this.stone_percent = 0;
-                return;
-            }
-
-            if (this.stone_from[0] == go_bowl) {
-                // Stone being added
-                this.stone_pos = this.drawStone(this.mainContext, this.stone_to, this.stone_colour, 10*(1 - this.stone_percent/100));
-            }
-            else if (this.stone_to[0] == go_bowl) {
-                // Stone being removed
-                this.stone_pos = this.drawStone(this.mainContext, this.stone_from, this.stone_colour, 10*this.stone_percent/100);
-            }
-            else {
-                // Scale percentage to get more natural movement
-                var p = this.stone_percent/100*6 - 3; // convert to -3 to 3 range
-                p = 1/(1 + Math.exp(-p)); // now in 0 to 1 range
-
-                var x = this.stone_from[0] + p*(this.stone_to[0] - this.stone_from[0]);
-                var y = this.stone_from[1] + p*(this.stone_to[1] - this.stone_from[1]);
-                this.stone_pos = this.drawStone(this.mainContext, [x, y], this.stone_colour, 0);
-            }
+            this.move_stone();
             return;
         }
         // No moving stones, so work out what, if anything, needs to change
