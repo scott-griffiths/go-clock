@@ -27,7 +27,8 @@ html, body {
     left: 0%;
     margin-left: 3%;
     top: 5%;
-    background-color: rgba(249, 255, 182, 0.95);
+    font-size: large;
+    background-color: white;
     border: 2px solid black;
     padding: 2%;
 }
@@ -95,7 +96,11 @@ html, body {
 #menu-title {
     padding: 20px;
     text-align: center;
-    font-size: 35px;
+    font-size: 40px;
     color: rgb(51, 85, 105);
     background-color: white;
+}
+
+#clock_face, #stone_speed, #change_background{
+    color: rgb(247, 255, 201);
 }
