@@ -1,9 +1,12 @@
-# go-clock
+# Go Clock
 Have you ever wanted to use your goban and stones to tell the time? No? Well now you can with the Go Clock.
 
 Go is an ancient boardgame that originated in China about 3000 years ago (it's also commonly known as
-Igo, weiqi and baduk).
+Igo, Weiqi and Baduk).
 For millenia is has been impractical to use the game equipment to accurately tell the time, but the advent
-of modern computers has given our team of highly skilled engineers, physicists and Go enthusiasts enough
-free time to finally make the dream reality.
+of modern computers and advances in robotics have given our team of highly skilled engineers, physicists and Go enthusiasts enough free time to finally make the dream reality.
+
+----
+
+A working version might just be available on my [Broken Symmetry](www.brokensymmetry.co.uk) site. The general idea is that it will be made into an app for iOS (and other platforms if demand is there, so probably just iOS).
 
