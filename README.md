@@ -8,5 +8,5 @@ of modern computers and advances in robotics have given our team of highly skill
 
 ----
 
-A working version might just be available on my [Broken Symmetry](www.brokensymmetry.co.uk) site. The general idea is that it will be made into an app for iOS (and other platforms if demand is there, so probably just iOS).
+A working version might just be available on my [Broken Symmetry](http://www.brokensymmetry.co.uk) site. The general idea is that it will be made into an app for iOS (and other platforms if demand is there, so probably just iOS).
 
