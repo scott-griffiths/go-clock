@@ -52,7 +52,7 @@ tips_of_the_day.push("For extra accuracy when timing sporting events, use the vi
 tips_of_the_day.push("Use the Go Clock on an iPhone sellotaped to your wrist and your friend(s) will think you have an Apple Watch!");
 var current_tip;
 
-var backgrounds = [['wood1.jpg', "Dark wood"], ['wood2.jpg', "Light wood"], ['stone1.jpg', "Stone"], ['mosaic1.jpg', "Mosaic"]];
+var backgrounds = [['wood1.jpg', "Dark wood"], ['wood2.jpg', "Light wood"], ['stone1.jpg', "Stone"], ['mosaic1.jpg', "Mosaic"], ['tatami.jpg', "Tatami"]];
 var backgroundImages = [];
 
 var views = {0 : 'Analogue', 1 : 'Jumping hour', 2 : 'Digital', 3 : 'Hybrid'};
