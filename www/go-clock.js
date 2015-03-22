@@ -9,7 +9,7 @@ var gridsize = 19;
 
 var go_bowl = 999;
 
-ext = "images/"
+ext = "images/";
 
 images = ["white_stone0.png", "white_stone1.png", "white_stone2.png", "white_stone3.png",
     "black_stone1.png", "goban_1200.jpg", "goban_400.jpg", "goban_200.jpg"];
@@ -95,6 +95,7 @@ function GoClock(mainCanvas, backgroundImage){
     this.emptyBoardContext = this.emptyBoardCanvas.getContext('2d');
 
     this.speed = 9;
+    this.sounds = 1;
 
     this.clear = function() {
         this.stones = [];
@@ -339,6 +340,7 @@ function GoClock(mainCanvas, backgroundImage){
     };
 
     this.move_stone = function() {
+        var start_of_movement = this.stone_percent == 0;
         if (this.stone_percent == 0 && this.stone_from[0] != go_bowl) {
             this.eraseStone(this.stone_from);
         }
@@ -360,6 +362,10 @@ function GoClock(mainCanvas, backgroundImage){
                 this.stones_shown[this.stone_to[0] + gridsize*this.stone_to[1]] = this.stone_colour;
                 this.drawStone(this.bufferContext, this.stone_to, this.stone_colour, 0);
                 this.drawStone(this.mainContext, this.stone_to, this.stone_colour, 0);
+                if (this.stone_from[0] == go_bowl && this.sounds) {
+                    var click_sound = new Audio("sounds/click_x.wav");
+                    click_sound.play();
+                }
             }
             else if (this.stone_to[0] == go_bowl) {
                 // stone removed from board
@@ -376,9 +382,18 @@ function GoClock(mainCanvas, backgroundImage){
         }
         else if (this.stone_to[0] == go_bowl) {
             // Stone being removed
+            if (start_of_movement && this.sounds) {
+                var removal_sound = new Audio("sounds/bottle_x.wav");
+                removal_sound.play();
+            }
             this.stone_pos = this.drawStone(this.mainContext, this.stone_from, this.stone_colour, 10*this.stone_percent/100);
         }
         else {
+            if (start_of_movement && this.sounds) {
+                var dragging_sound = new Audio("sounds/baseball_hit.wav");
+                dragging_sound.play();
+            }
+
             // In/out quadratic easing to get more natural movement
             var t = this.stone_percent;
             var x, y;
@@ -395,7 +410,7 @@ function GoClock(mainCanvas, backgroundImage){
         }
         return;
 
-    }
+    };
 
     // Incrementally change the displayed goban to the desired configuration
     this.transform = function() {
@@ -484,7 +499,6 @@ function GoClock(mainCanvas, backgroundImage){
                 this.stone_colour = this.stones_shown[i];
                 this.stone_to = [go_bowl, go_bowl];
                 this.stones_shown[i] = 0;
-                removed = true;
             }
             else {
                 // Finally do some adding

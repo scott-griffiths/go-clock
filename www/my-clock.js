@@ -13,7 +13,7 @@ document.onmousemove = function(e) {
       xmouse = e.offsetX;
       ymouse = e.offsetY;
     }
-}
+};
 
 function isInt(value) {
   var x = parseFloat(value);
@@ -50,7 +50,6 @@ tips_of_the_day.push("Why not download as a web app on the new iPad Air 2 and th
 tips_of_the_day.push("To use as an alarm clock simply employ a small child to watch the Go Clock and tell them to wake you when it shows the right time.");
 tips_of_the_day.push("For extra accuracy when timing sporting events, use the view with the second counter.");
 tips_of_the_day.push("Use the Go Clock on an iPhone sellotaped to your wrist and your friend(s) will think you have an Apple Watch!");
-var current_tip;
 
 var backgrounds = [['wood1.jpg', "Dark wood"], ['wood2.jpg', "Light wood"], ['stone1.jpg', "Stone"], ['mosaic1.jpg', "Mosaic"], ['tatami.jpg', "Tatami"]];
 var backgroundImages = [];
@@ -95,11 +94,26 @@ $(window).load(function() {
         view = parseInt(storedView) % 4;
     }
 
+    var sounds = 1;
+    var storedSound = readCookie('stone_sound');
+    if (isInt(storedSound)) {
+        setAudio(parseInt(storedSound));
+    } else {
+        setAudio(1);
+    }
+
     function setClockSpeed(s) {
         s %= stone_speeds.length;
         goClock.speed = stone_speeds[s][1];
         $('#stone_speed').text(stone_speeds[s][0]);
         createCookie('stone_speed', goClock.speed, 100);
+    }
+
+    function setAudio(a) {
+        sounds = a;
+        goClock.sounds = a;
+        $('#stone_sound').text(a ? 'On' : 'Off');
+        createCookie('stone_sound', a ? '1' : '0');
     }
 
     function setView(v) {
@@ -158,6 +172,10 @@ $(window).load(function() {
     $('#stone_speed').closest('a').click(function() {
         stone_speed += 1;
         setClockSpeed(stone_speed);
+    });
+    $('#stone_sound').closest('a').click(function() {
+        sounds = 1 - sounds;
+        setAudio(sounds);
     });
 
     $('#about').click(function() {
