@@ -225,12 +225,8 @@ function GoClock(mainCanvas, backgroundImage){
 
     // Remove a stone from the buffered board
     this.eraseStone = function(coords) {
+        // For now we just redraw the whole board.
         this.draw();
-/*        var p = this.stonePosition(coords[0], coords[1], 0);
-        this.bufferContext.shadowOffsetX = this.bufferContext.shadowOffsetY = 0;
-        this.bufferContext.shadowBlur = 0;
-        this.bufferContext.drawImage(this.emptyBoardCanvas, p[0], p[1], p[2], p[3], p[0], p[1], p[2], p[3]);
-        this.mainContext.drawImage(this.bufferCanvas, p[0], p[1], p[2], p[3], p[0], p[1], p[2], p[3]);*/
     };
 
     // Update the desired state of the clock
@@ -355,8 +351,8 @@ function GoClock(mainCanvas, backgroundImage){
             var ypos = this.stone_pos[1];
             var w = this.stone_pos[2];
             var h = this.stone_pos[3];
-            // We erase 4* the area to make sure we get the shadow. Bit of a hack.
-            this.mainContext.drawImage(this.bufferCanvas, xpos, ypos, w*2, h*2, xpos, ypos, w*2, h*2);
+            // We erase extra area to make sure we get the shadow.
+            this.mainContext.drawImage(this.bufferCanvas, xpos - w/2, ypos - h/2, w*3, h*3, xpos - w/2, ypos - h/2, w*3, h*3);
         }
 
         this.stone_percent += this.setup ? this.speed*2 : this.speed; // Goes faster when first putting down stones
