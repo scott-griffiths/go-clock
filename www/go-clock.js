@@ -64,15 +64,16 @@ s9 = [[1, 2], [0, 2], [0, 1], [0, 0], [1, 0], [2, 0], [2, 1], [2, 2], [2, 3], [2
 var tiny_num = [s0, s1, s2, s3, s4, s5, s6, s7, s8, s9];
 
 // Prevent scrolling in iOS
-//document.ontouchstart = function(e){
-//    e.preventDefault();
-//}
+/*document.ontouchstart = function(e){
+    e.preventDefault();
+}*/
 
 
 function GoClock(mainCanvas, backgroundImage){
     this.mainCanvas = mainCanvas;
     this.mainContext = this.mainCanvas.getContext("2d");
-
+    
+    this.mainContext.scale(10, 10);
     this.backgroundImage = backgroundImage;
 
     this.stones = []; // The current (desired) state
@@ -111,24 +112,26 @@ function GoClock(mainCanvas, backgroundImage){
 
     // Draw the underlying board (i.e. everything except any moving stones)
     this.draw = function(width, height) {
-        this.goban_width = width * 0.90; // Some padding to show background
-        this.goban_height = height * 0.90;
-        var goban_ratio = 857/800; // Ratio of the goban image
-
-        if (this.goban_width*goban_ratio > this.goban_height) {
-            // clip to height
-            this.goban_width = this.goban_height/goban_ratio | 0;
-        } else {
-            this.goban_height = this.goban_width*goban_ratio | 0;
+        var refreshing = false;
+        if (typeof width === 'undefined' || typeof height === 'undefined') {
+            refreshing = true;
         }
-        this.y_offset = (height - this.goban_height) / 2 | 0;
-        if (this.y_offset > this.goban_height/4) {
-            this.y_offset = this.goban_height/4;
-        }
-        this.x_offset = (width - this.goban_width) / 2 | 0;
-        this.mainCanvas.width = this.bufferCanvas.width = this.emptyBoardCanvas.width = width;
-        this.mainCanvas.height = this.bufferCanvas.height = this.emptyBoardCanvas.height = height;
+        if (!refreshing) {
+            this.goban_width = width * 0.90; // Some padding to show background
+            this.goban_height = height * 0.90;
+            var goban_ratio = 857/800; // Ratio of the goban image
 
+            if (this.goban_width*goban_ratio > this.goban_height) {
+                // clip to height
+                this.goban_width = this.goban_height/goban_ratio | 0;
+            } else {
+                this.goban_height = this.goban_width*goban_ratio | 0;
+            }
+            this.y_offset = (height - this.goban_height) / 2 | 0;
+            this.x_offset = (width - this.goban_width) / 2 | 0;
+            this.mainCanvas.width = this.bufferCanvas.width = this.emptyBoardCanvas.width = width;
+            this.mainCanvas.height = this.bufferCanvas.height = this.emptyBoardCanvas.height = height;
+        }
         this.bufferContext.shadowColor = "rgba( 0, 0, 0, 0.6)";
         var shadowLength = this.goban_width/20;
         this.bufferContext.shadowOffsetX = shadowLength * Math.sin(angle*Math.PI/180);
@@ -200,10 +203,10 @@ function GoClock(mainCanvas, backgroundImage){
             ctx.shadowBlur = shadowSize;
             ctx.globalAlpha = height < 3 ? 1 : 1 - (height - 3)/8;
         } else {
-/*            ctx.shadowOffsetX = 0;
-            ctx.shadowOffsetY = 0;
+            ctx.shadowOffsetX = this.goban_width/800;
+            ctx.shadowOffsetY = this.goban_width/400;
             ctx.shadowColor = "rgba(0, 0, 0, 0.6)";
-            ctx.shadowBlur = 5;*/
+            ctx.shadowBlur = this.goban_width/100;
         }
         if (colour == white) {
             // TODO: This just picks a white stone randomly - looks silly when they move!
@@ -222,11 +225,12 @@ function GoClock(mainCanvas, backgroundImage){
 
     // Remove a stone from the buffered board
     this.eraseStone = function(coords) {
-        var p = this.stonePosition(coords[0], coords[1], 0);
+        this.draw();
+/*        var p = this.stonePosition(coords[0], coords[1], 0);
         this.bufferContext.shadowOffsetX = this.bufferContext.shadowOffsetY = 0;
         this.bufferContext.shadowBlur = 0;
         this.bufferContext.drawImage(this.emptyBoardCanvas, p[0], p[1], p[2], p[3], p[0], p[1], p[2], p[3]);
-        this.mainContext.drawImage(this.bufferCanvas, p[0], p[1], p[2], p[3], p[0], p[1], p[2], p[3]);
+        this.mainContext.drawImage(this.bufferCanvas, p[0], p[1], p[2], p[3], p[0], p[1], p[2], p[3]);*/
     };
 
     // Update the desired state of the clock
@@ -341,7 +345,7 @@ function GoClock(mainCanvas, backgroundImage){
 
     this.move_stone = function() {
         var start_of_movement = this.stone_percent == 0;
-        if (this.stone_percent == 0 && this.stone_from[0] != go_bowl) {
+        if (start_of_movement && this.stone_from[0] != go_bowl) {
             this.eraseStone(this.stone_from);
         }
         if (this.stone_percent != 0) {

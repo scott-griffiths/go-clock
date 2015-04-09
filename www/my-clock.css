@@ -36,12 +36,8 @@ html, body {
     display: none;
     font-family: 'Arial';
     position: absolute;
-    top: 10px;
     left: 10px;
-    width: 80px;
-    height: 80px;
     cursor: pointer;
-    text-align: center;
     font-size: 40px;
     z-index: 2;
     color: white;
