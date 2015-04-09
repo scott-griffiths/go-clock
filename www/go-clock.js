@@ -406,7 +406,8 @@ function GoClock(mainCanvas, backgroundImage){
                 x = this.stone_from[0] - (this.stone_to[0] - this.stone_from[0])/2*(t*(t - 2) - 1);
                 y = this.stone_from[1] - (this.stone_to[1] - this.stone_from[1])/2*(t*(t - 2) - 1);
             }
-            this.stone_pos = this.drawStone(this.mainContext, [x, y], this.stone_colour, 0);
+            var max_height = 3;
+            this.stone_pos = this.drawStone(this.mainContext, [x, y], this.stone_colour, max_height - max_height*Math.abs(this.stone_percent - 50)/50);
         }
         return;
 
