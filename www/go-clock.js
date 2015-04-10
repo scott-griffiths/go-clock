@@ -86,6 +86,8 @@ function GoClock(mainCanvas, backgroundImage){
     this.stone_colour = white;
     this.stone_pos = [0, 0, 0, 0]; // Pixel position of last drawn moving stone: x, y, w, h
 
+    this.offsets = []; // The small offsets of each stone position to make it less regular-looking
+
     this.view = 0; // The clock type
     this.setup = true; // if true we're doing the first drawing of the clock
 
@@ -105,9 +107,22 @@ function GoClock(mainCanvas, backgroundImage){
         }
     };
 
+    this.reset_offsets = function() {
+        this.offsets = [];
+        for (var i = 0; i < gridsize*gridsize; ++i){
+            this.offsets.push([Math.random()*4 - 2, Math.random()*4 - 2]);
+        }
+    };
+
     this.clear();
+    this.reset_offsets();
+
     for (var i = 0; i < gridsize*gridsize; ++i){
         this.stones_shown.push(0); // empty space
+    }
+    // The coordinates of a point with a given index
+    this.get_coords = function(p) {
+        return [p%gridsize + this.offsets[p][0]/50, (p - p%gridsize)/gridsize + this.offsets[p][1]/50];
     }
 
     // Draw the underlying board (i.e. everything except any moving stones)
@@ -162,12 +177,10 @@ function GoClock(mainCanvas, backgroundImage){
         this.emptyBoardContext.drawImage(this.bufferCanvas, 0, 0);
 
         this.bufferContext.shadowColor = "rgba( 0, 0, 0, 0.0)";
-        for (var i = 0; i < gridsize; ++i){
-            for (var j = 0; j < gridsize; ++j){
-                var p = this.stones_shown[i*gridsize + j];
-                if (p != 0) {
-                    this.drawStone(this.bufferContext, [j, i], p, 0);
-                }
+        for (var i = 0; i < gridsize*gridsize; ++i) {
+            var p = this.stones_shown[i];
+            if (p != 0) {
+                this.drawStone(this.bufferContext, this.get_coords(i), p, 0);
             }
         }
         this.mainContext.shadowOffsetX = 0;
@@ -194,13 +207,15 @@ function GoClock(mainCanvas, backgroundImage){
         if (coords[0] < 0 || coords[0] > gridsize - 1 || coords[1] < 0 || coords[1] > gridsize - 1) {
             return;
         }
+//        var temp = coords[1]*gridsize + coords[0];
+//        var offset_coords = [coords[0] + this.offsets[temp][0]/50, coords[1] + this.offsets[temp][1]/50];
         var p = this.stonePosition(coords[0], coords[1], height);
         if (height != 0) {
             var shadowSize = height*this.goban_width/800;
             ctx.shadowOffsetX = shadowSize;
             ctx.shadowOffsetY = 5*shadowSize;
             ctx.shadowColor = "rgba(0, 0, 0, " + (0.5 - height/20) + ")";
-            ctx.shadowBlur = shadowSize;
+            ctx.shadowBlur = shadowSize*5;
             ctx.globalAlpha = height < 3 ? 1 : 1 - (height - 3)/8;
         } else {
             ctx.shadowOffsetX = this.goban_width/800;
@@ -354,22 +369,27 @@ function GoClock(mainCanvas, backgroundImage){
             // We erase extra area to make sure we get the shadow.
             this.mainContext.drawImage(this.bufferCanvas, xpos - w/2, ypos - h/2, w*3, h*3, xpos - w/2, ypos - h/2, w*3, h*3);
         }
-
-        this.stone_percent += this.setup ? this.speed*2 : this.speed; // Goes faster when first putting down stones
+        if (this.stone_to[0] == go_bowl || this.stone_from[0] == go_bowl) {
+            this.stone_percent += this.setup ? this.speed*2 : this.speed; // Goes faster when first putting down stones
+        } else {
+            var xdist = this.stone_to[0] - this.stone_from[0];
+            var ydist = this.stone_to[1] - this.stone_from[1];
+            var distance = Math.sqrt(xdist*xdist + ydist*ydist);
+            this.stone_percent += this.speed/Math.sqrt(distance);
+        }
         if (this.stone_percent >= 100) {
-            if (this.stone_to[1] >= 0 && this.stone_to[1] < gridsize && this.stone_to[0] >= 0 && this.stone_to[0] < gridsize) {
+            if (this.stone_to[0] == go_bowl) {
+                // stone removed from board
+                this.eraseStone(this.stone_from);
+            } else {
                 // add stone to board and draw on buffer and shown context
-                this.stones_shown[this.stone_to[0] + gridsize*this.stone_to[1]] = this.stone_colour;
+                this.stones_shown[Math.round(this.stone_to[0]) + gridsize*Math.round(this.stone_to[1])] = this.stone_colour;
                 this.drawStone(this.bufferContext, this.stone_to, this.stone_colour, 0);
                 this.drawStone(this.mainContext, this.stone_to, this.stone_colour, 0);
                 if (this.stone_from[0] == go_bowl && this.sounds) {
                     var click_sound = new Audio("sounds/click_x.wav");
                     click_sound.play();
                 }
-            }
-            else if (this.stone_to[0] == go_bowl) {
-                // stone removed from board
-                this.eraseStone(this.stone_from);
             }
             this.moving_stone = false;
             this.stone_percent = 0;
@@ -463,8 +483,8 @@ function GoClock(mainCanvas, backgroundImage){
         if (best_j != -1) {
             // Move stone from best_j to best_i
             this.moving_stone = true;
-            this.stone_from = coords(best_j);
-            this.stone_to = coords(best_i);
+            this.stone_from = this.get_coords(best_j);
+            this.stone_to = this.get_coords(best_i);
             this.stone_colour = this.stones_shown[best_j];
             this.stones_shown[best_j] = 0;
             removed = true;
@@ -496,7 +516,7 @@ function GoClock(mainCanvas, backgroundImage){
             }
             if (i != -1) {
                 this.moving_stone = true;
-                this.stone_from = coords(i);
+                this.stone_from = this.get_coords(i);
                 this.stone_colour = this.stones_shown[i];
                 this.stone_to = [go_bowl, go_bowl];
                 this.stones_shown[i] = 0;
@@ -506,12 +526,13 @@ function GoClock(mainCanvas, backgroundImage){
                 var added = false;
                 while (this.stone_queue.length != 0) {
                     var new_stone = this.stone_queue.shift();
-                    if (this.stones_shown[new_stone[0] + gridsize * new_stone[1]] == 0 &&
-                        this.stones[new_stone[0] + gridsize * new_stone[1]] == new_stone[2]) {
+                    var i = new_stone[0] + gridsize * new_stone[1];
+                    if (this.stones_shown[i] == 0 && this.stones[i] == new_stone[2]) {
                         this.moving_stone = true;
                         this.stone_colour = new_stone[2];
                         this.stone_from = [go_bowl, go_bowl];
-                        this.stone_to = [new_stone[0], new_stone[1]];
+                        this.stone_to = this.get_coords(i);
+//                        this.stone_to = [new_stone[0], new_stone[1]];
                         added = true;
                         break;
                     }
@@ -523,7 +544,7 @@ function GoClock(mainCanvas, backgroundImage){
                         this.moving_stone = true;
                         this.stone_colour = -diff[i];
                         this.stone_from = [go_bowl, go_bowl];
-                        this.stone_to = coords(i);
+                        this.stone_to = this.get_coords(i);
                     }
                 }
             }
@@ -589,11 +610,6 @@ function dist(i, j) {
     var xj = j % gridsize;
     var yj = (j - xj)/gridsize;
     return Math.sqrt((xi - xj)*(xi - xj) + (yi - yj)*(yi - yj));
-}
-
-// The coordinates of a point with a given index
-function coords(p) {
-    return [p%gridsize, (p - p%gridsize)/gridsize];
 }
 
 function backingScale() {
