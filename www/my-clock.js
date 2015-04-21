@@ -106,7 +106,7 @@ $(window).load(function() {
         s %= stone_speeds.length;
         goClock.speed = stone_speeds[s][1];
         $('#stone_speed').text(stone_speeds[s][0]);
-        createCookie('stone_speed', goClock.speed, 100);
+        createCookie('stone_speed', s, 100);
     }
 
     function setAudio(a) {
@@ -188,7 +188,7 @@ $(window).load(function() {
     goClock.update();
     goClock.setup = true;
     setInterval(function() {goClock.update()}, 1000);
-    setInterval(function() {goClock.transform()}, 20);
+    setInterval(function() {goClock.transform()}, 25);
 });
 
 
