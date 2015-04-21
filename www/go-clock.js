@@ -109,8 +109,9 @@ function GoClock(mainCanvas, backgroundImage){
 
     this.reset_offsets = function() {
         this.offsets = [];
+        var messiness = 5;
         for (var i = 0; i < gridsize*gridsize; ++i){
-            this.offsets.push([Math.random()*4 - 2, Math.random()*4 - 2]);
+            this.offsets.push([Math.random()*messiness - messiness/2, Math.random()*messiness - messiness/2]);
         }
     };
 
@@ -204,7 +205,7 @@ function GoClock(mainCanvas, backgroundImage){
         this.addStone(x, y, colour);
     };
     this.drawStone = function(ctx, coords, colour, height) {
-        if (coords[0] < 0 || coords[0] > gridsize - 1 || coords[1] < 0 || coords[1] > gridsize - 1) {
+        if (coords[0] <= -0.5 || coords[0] >= gridsize - 0.5 || coords[1] <= -0.5 || coords[1] >= gridsize - 0.5) {
             return;
         }
 //        var temp = coords[1]*gridsize + coords[0];
@@ -336,7 +337,7 @@ function GoClock(mainCanvas, backgroundImage){
 
     // Given board coordinates and a height, return the stone's pixel x, y, w, h
     this.stonePosition = function(x, y, height) {
-        if (x < 0 || x > gridsize - 1 || y < 0 || y > gridsize - 1) {
+        if (x <= -0.5 || x >= gridsize - 0.5 || y <= -0.5 || y >= gridsize - 0.5) {
             return;
         }
         // These give the relative positions of the sides of the goban grid as a proportion of the goban image
