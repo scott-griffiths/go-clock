@@ -125,6 +125,10 @@ function GoClock(mainCanvas, backgroundImage){
     this.get_coords = function(p) {
         return [p%gridsize + this.offsets[p][0]/50, (p - p%gridsize)/gridsize + this.offsets[p][1]/50];
     }
+    // The reverse operation: Get index of point from coordinates
+    this.get_index = function(p) {
+        return Math.round(p[0]) + gridsize*Math.round(p[1]);
+    }
 
     // Draw the underlying board (i.e. everything except any moving stones)
     this.draw = function(width, height) {
@@ -208,32 +212,36 @@ function GoClock(mainCanvas, backgroundImage){
         if (coords[0] <= -0.5 || coords[0] >= gridsize - 0.5 || coords[1] <= -0.5 || coords[1] >= gridsize - 0.5) {
             return;
         }
-//        var temp = coords[1]*gridsize + coords[0];
-//        var offset_coords = [coords[0] + this.offsets[temp][0]/50, coords[1] + this.offsets[temp][1]/50];
         var p = this.stonePosition(coords[0], coords[1], height);
-        if (height != 0) {
-            var shadowSize = height*this.goban_width/800;
-            ctx.shadowOffsetX = shadowSize;
-            ctx.shadowOffsetY = 5*shadowSize;
-            ctx.shadowColor = "rgba(0, 0, 0, " + (0.5 - height/20) + ")";
-            ctx.shadowBlur = shadowSize*5;
-            ctx.globalAlpha = height < 3 ? 1 : 1 - (height - 3)/8;
-        } else {
-            ctx.shadowOffsetX = this.goban_width/800;
-            ctx.shadowOffsetY = this.goban_width/400;
-            ctx.shadowColor = "rgba(0, 0, 0, 0.6)";
-            ctx.shadowBlur = this.goban_width/100;
-        }
-        if (colour == white) {
-            // TODO: This just picks a white stone randomly - looks silly when they move!
-            var r = (Math.random()*6 | 0) - 2;
-            var s = white_stone0;
-//            if (r == 1) s = white_stone1;
-//            if (r == 2) s = white_stone2;
-//            if (r == 3) s = white_stone3;
-            ctx.drawImage(s, p[0], p[1], p[2], p[3]);
-        } else {
-            ctx.drawImage(black_stone, p[0], p[1], p[2], p[3]);
+        // Draw it twice to get two shadows :)
+        for (var s = 0; s < 2; ++s) {
+            if (s == 0) {
+                var shadowSize = height * this.goban_width / 800;
+                ctx.shadowOffsetX = shadowSize + this.goban_width / 400;
+                ctx.shadowOffsetY = 3 * ctx.shadowOffsetX;
+                ctx.shadowColor = "rgba(0, 0, 0, " + (0.4 - height / 20) + ")";
+                ctx.shadowBlur = shadowSize * 5 + this.goban_width / 80;
+                ctx.globalAlpha = height < 3 ? 1 : 1 - (height - 3) / 8;
+            } else {
+                var shadowSize = height * this.goban_width / 800;
+                ctx.shadowOffsetX = - shadowSize - this.goban_width / 150;
+                ctx.shadowOffsetY = -0.5 * ctx.shadowOffsetX;
+                ctx.shadowColor = "rgba(0, 0, 0, " + (0.2 - height / 20) + ")";
+                ctx.shadowBlur = shadowSize * 5 + this.goban_width / 80;
+                ctx.globalAlpha = height < 3 ? 1 : 1 - (height - 3) / 8;
+            }
+
+            if (colour == white) {
+                // TODO: This just picks a white stone randomly - looks silly when they move!
+                var r = (Math.random() * 6 | 0) - 2;
+                var s = white_stone0;
+                //            if (r == 1) s = white_stone1;
+                //            if (r == 2) s = white_stone2;
+                //            if (r == 3) s = white_stone3;
+                ctx.drawImage(s, p[0], p[1], p[2], p[3]);
+            } else {
+                ctx.drawImage(black_stone, p[0], p[1], p[2], p[3]);
+            }
         }
         ctx.globalAlpha = 1;
         return p;
@@ -357,6 +365,12 @@ function GoClock(mainCanvas, backgroundImage){
 
     this.move_stone = function() {
         var start_of_movement = this.stone_percent == 0;
+        if (start_of_movement && this.stone_to[0] != go_bowl) {
+            // Update the messiness depending on how fast we're going
+            var messiness = Math.sqrt(this.speed);
+            this.offsets[this.get_index(this.stone_to)] = [Math.random()*messiness - messiness/2, Math.random()*messiness - messiness/2];
+            this.stone_to = this.get_coords(this.get_index(this.stone_to));
+        }
         if (start_of_movement && this.stone_from[0] != go_bowl) {
             this.eraseStone(this.stone_from);
         }
