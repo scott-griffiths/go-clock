@@ -82,6 +82,7 @@ function GoClock(mainCanvas, backgroundImage){
     this.moving_stone = false;
     this.stone_from = [0, 0]; // Board coordinates
     this.stone_to = [0, 0]; // Board coordinates
+    this.clear_route = true; // Is the route from stone_from to stone_to clear of obstacles?
     this.stone_percent = 0; // Percentage stone is between the from and to
     this.stone_colour = white;
     this.stone_pos = [0, 0, 0, 0]; // Pixel position of last drawn moving stone: x, y, w, h
@@ -442,7 +443,8 @@ function GoClock(mainCanvas, backgroundImage){
                 y = this.stone_from[1] - (this.stone_to[1] - this.stone_from[1])/2*(t*(t - 2) - 1);
             }
             var max_height = 3;
-            this.stone_pos = this.drawStone(this.mainContext, [x, y], this.stone_colour, max_height - max_height*Math.abs(this.stone_percent - 50)/50);
+            var height = this.clear_route == true ? 0 : max_height - max_height*Math.abs(this.stone_percent - 50)/50;
+            this.stone_pos = this.drawStone(this.mainContext, [x, y], this.stone_colour, height);
         }
         return;
 
@@ -503,6 +505,18 @@ function GoClock(mainCanvas, backgroundImage){
             this.stone_colour = this.stones_shown[best_j];
             this.stones_shown[best_j] = 0;
             removed = true;
+            // Should we lift the stone or drag it?
+            // See if there are any other stones on the route.
+            var points = line(Math.round(this.stone_from[0]), Math.round(this.stone_to[0]),
+                              Math.round(this.stone_from[1]), Math.round(this.stone_to[1]));
+            this.clear_route = true;
+            for (var i=0; i < points.length; ++i) {
+                if (this.stones_shown[points[i][0] + gridsize*points[i][1]] != 0) {
+                    this.clear_route = false;
+                    break;
+                }
+            }
+
         }
 
         if (removed == false) {
