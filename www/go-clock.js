@@ -3,6 +3,8 @@
  */
 
 var angle = 30;
+var xFactor = Math.sin(angle*Math.PI/180);
+var yFactor = Math.cos(angle*Math.PI/180);
 
 var min_bottom_padding = 0;
 var gridsize = 19;
@@ -68,12 +70,10 @@ var tiny_num = [s0, s1, s2, s3, s4, s5, s6, s7, s8, s9];
     e.preventDefault();
 }*/
 
-
 function GoClock(mainCanvas, backgroundImage){
     this.mainCanvas = mainCanvas;
     this.mainContext = this.mainCanvas.getContext("2d");
     
-    this.mainContext.scale(10, 10);
     this.backgroundImage = backgroundImage;
 
     this.stones = []; // The current (desired) state
@@ -94,9 +94,6 @@ function GoClock(mainCanvas, backgroundImage){
 
     this.bufferCanvas = document.createElement('canvas');
     this.bufferContext = this.bufferCanvas.getContext('2d');
-
-    this.emptyBoardCanvas = document.createElement('canvas');
-    this.emptyBoardContext = this.emptyBoardCanvas.getContext('2d');
 
     this.speed = 9;
     this.sounds = 1;
@@ -150,13 +147,13 @@ function GoClock(mainCanvas, backgroundImage){
             }
             this.y_offset = (height - this.goban_height) / 2 | 0;
             this.x_offset = (width - this.goban_width) / 2 | 0;
-            this.mainCanvas.width = this.bufferCanvas.width = this.emptyBoardCanvas.width = width;
-            this.mainCanvas.height = this.bufferCanvas.height = this.emptyBoardCanvas.height = height;
+            this.mainCanvas.width = this.bufferCanvas.width = width;
+            this.mainCanvas.height = this.bufferCanvas.height = height;
         }
         this.bufferContext.shadowColor = "rgba( 0, 0, 0, 0.6)";
         var shadowLength = this.goban_width/20;
-        this.bufferContext.shadowOffsetX = shadowLength * Math.sin(angle*Math.PI/180);
-        this.bufferContext.shadowOffsetY = shadowLength * Math.cos(angle*Math.PI/180);
+        this.bufferContext.shadowOffsetX = shadowLength * xFactor;
+        this.bufferContext.shadowOffsetY = shadowLength * yFactor;
         this.bufferContext.shadowBlur = this.goban_width/50;
         // We choose the goban image based on the display size as the canvas
         // isn't very good at resizing and keeping the board line detail
@@ -180,7 +177,6 @@ function GoClock(mainCanvas, backgroundImage){
         }
 
         this.bufferContext.drawImage(gobanImage, this.x_offset, this.y_offset, this.goban_width, this.goban_height);
-        this.emptyBoardContext.drawImage(this.bufferCanvas, 0, 0);
 
         this.bufferContext.shadowColor = "rgba( 0, 0, 0, 0.0)";
         for (var i = 0; i < gridsize*gridsize; ++i) {
@@ -215,21 +211,21 @@ function GoClock(mainCanvas, backgroundImage){
         }
         var p = this.stonePosition(coords[0], coords[1], height);
         // Draw it twice to get two shadows :)
-        for (var s = 0; s < 2; ++s) {
-            if (s == 0) {
+        for (var i = 0; i < 2; ++i) {
+            if (i == 0) {
                 var shadowSize = height * this.goban_width / 800;
-                ctx.shadowOffsetX = shadowSize + this.goban_width / 400;
-                ctx.shadowOffsetY = 3 * ctx.shadowOffsetX;
+                ctx.shadowOffsetX = (shadowSize + this.goban_width / 200) * xFactor;
+                ctx.shadowOffsetY = ctx.shadowOffsetX * yFactor / xFactor;
                 ctx.shadowColor = "rgba(0, 0, 0, " + (0.4 - height / 20) + ")";
                 ctx.shadowBlur = shadowSize * 5 + this.goban_width / 80;
                 ctx.globalAlpha = height < 3 ? 1 : 1 - (height - 3) / 8;
-            } else {
+/*            } else {
                 var shadowSize = height * this.goban_width / 800;
-                ctx.shadowOffsetX = - shadowSize - this.goban_width / 150;
-                ctx.shadowOffsetY = -0.5 * ctx.shadowOffsetX;
+                ctx.shadowOffsetX = (- shadowSize - this.goban_width / 75)*xFactor;
+                ctx.shadowOffsetY = ctx.shadowOffsetX * yFactor / xFactor;
                 ctx.shadowColor = "rgba(0, 0, 0, " + (0.2 - height / 20) + ")";
-                ctx.shadowBlur = shadowSize * 5 + this.goban_width / 80;
-                ctx.globalAlpha = height < 3 ? 1 : 1 - (height - 3) / 8;
+                ctx.shadowBlur = 0;//shadowSize * 5 + this.goban_width / 80;
+                ctx.globalAlpha = height < 3 ? 1 : 1 - (height - 3) / 8;*/
             }
 
             if (colour == white) {
@@ -402,7 +398,7 @@ function GoClock(mainCanvas, backgroundImage){
                 this.stones_shown[Math.round(this.stone_to[0]) + gridsize*Math.round(this.stone_to[1])] = this.stone_colour;
                 this.drawStone(this.bufferContext, this.stone_to, this.stone_colour, 0);
                 this.drawStone(this.mainContext, this.stone_to, this.stone_colour, 0);
-                if (this.stone_from[0] == go_bowl && this.sounds) {
+                if ((this.stone_from[0] == go_bowl || !this.clear_route) && this.sounds) {
                     var click_sound = new Audio("sounds/click_x.wav");
                     click_sound.play();
                 }
@@ -426,8 +422,13 @@ function GoClock(mainCanvas, backgroundImage){
         }
         else {
             if (start_of_movement && this.sounds) {
-                var dragging_sound = new Audio("sounds/baseball_hit.wav");
-                dragging_sound.play();
+                if (this.clear_route) {
+                    var dragging_sound = new Audio("sounds/baseball_hit.wav");
+                    dragging_sound.play();
+                } else {
+                    var removal_sound = new Audio("sounds/bottle_x.wav");
+                    removal_sound.play();
+                }
             }
 
             // In/out quadratic easing to get more natural movement
