@@ -510,6 +510,14 @@ function GoClock(mainCanvas, backgroundImage){
             // See if there are any other stones on the route.
             var points = line(Math.round(this.stone_from[0]), Math.round(this.stone_to[0]),
                               Math.round(this.stone_from[1]), Math.round(this.stone_to[1]));
+            var num_points = points.length;
+            for (var i=0; i < num_points - 1; ++i) {
+                if (points[i][0] != points[i+1][0] && points[i][1] != points[i+1][1]) {
+                    // Both x and y have changed, so add in the corner points
+                    points.push([points[i][0], points[i+1][1]]);
+                    points.push([points[i+1][0], points[i][1]]);
+                }
+            }
             this.clear_route = true;
             for (var i=0; i < points.length; ++i) {
                 if (this.stones_shown[points[i][0] + gridsize*points[i][1]] != 0) {
@@ -650,4 +658,3 @@ function backingScale() {
     }
     return 1;
 }
-
