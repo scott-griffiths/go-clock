@@ -70,11 +70,9 @@ var tiny_num = [s0, s1, s2, s3, s4, s5, s6, s7, s8, s9];
     e.preventDefault();
 }*/
 
-function GoClock(mainCanvas, backgroundImage){
+function GoClock(mainCanvas){
     this.mainCanvas = mainCanvas;
     this.mainContext = this.mainCanvas.getContext("2d");
-    
-    this.backgroundImage = backgroundImage;
 
     this.stones = []; // The current (desired) state
     this.stones_shown = []; // The stones last drawn
@@ -88,12 +86,16 @@ function GoClock(mainCanvas, backgroundImage){
     this.stone_pos = [0, 0, 0, 0]; // Pixel position of last drawn moving stone: x, y, w, h
 
     this.offsets = []; // The small offsets of each stone position to make it less regular-looking
+    this.white_stone = []; // Which white stone to use in each position (if a white stone is there!)
 
     this.view = 0; // The clock type
     this.setup = true; // if true we're doing the first drawing of the clock
 
     this.bufferCanvas = document.createElement('canvas');
     this.bufferContext = this.bufferCanvas.getContext('2d');
+
+    this.emptyBoardCanvas = document.createElement('canvas');
+    this.emptyBoardContext = this.emptyBoardCanvas.getContext('2d');
 
     this.speed = 9;
     this.sounds = 1;
@@ -102,6 +104,8 @@ function GoClock(mainCanvas, backgroundImage){
         this.stones = [];
         for (var i = 0; i < gridsize*gridsize; ++i){
             this.stones.push(0); // empty space
+            var r = (Math.random() * 6 | 0) - 2;
+            this.white_stone.push((r > 0 && r < 4) ? r : 0); // Make half of them the all white stone
         }
     };
 
@@ -147,8 +151,8 @@ function GoClock(mainCanvas, backgroundImage){
             }
             this.y_offset = (height - this.goban_height) / 2 | 0;
             this.x_offset = (width - this.goban_width) / 2 | 0;
-            this.mainCanvas.width = this.bufferCanvas.width = width;
-            this.mainCanvas.height = this.bufferCanvas.height = height;
+            this.mainCanvas.width = this.bufferCanvas.width = this.emptyBoardCanvas.width = width;
+            this.mainCanvas.height = this.bufferCanvas.height = this.emptyBoardCanvas.height = height;
         }
         this.bufferContext.shadowColor = "rgba( 0, 0, 0, 0.6)";
         var shadowLength = this.goban_width/20;
@@ -164,19 +168,9 @@ function GoClock(mainCanvas, backgroundImage){
         if (this.goban_width <= 200) {
             gobanImage = goban_200;
         }
-        var bg = this.backgroundImage;
-        // Work out background dimensions to cover everything but not distort the image
-        var ratio = this.bufferCanvas.width/this.bufferCanvas.height;
-        if (bg.width/bg.height >= ratio) {
-            // Show background full height and trim width
-            this.bufferContext.drawImage(bg, (bg.width - bg.height*ratio)/2, 0, bg.height*ratio, bg.height, 0, 0, this.bufferCanvas.width, this.bufferCanvas.height);
-
-        } else {
-            // show full width and trim height
-            this.bufferContext.drawImage(bg, 0, (bg.height - bg.width/ratio)/2, bg.width, bg.width/ratio, 0, 0, this.bufferCanvas.width, this.bufferCanvas.height);
-        }
 
         this.bufferContext.drawImage(gobanImage, this.x_offset, this.y_offset, this.goban_width, this.goban_height);
+        this.emptyBoardContext.drawImage(this.bufferCanvas, 0, 0);
 
         this.bufferContext.shadowColor = "rgba( 0, 0, 0, 0.0)";
         for (var i = 0; i < gridsize*gridsize; ++i) {
@@ -210,44 +204,42 @@ function GoClock(mainCanvas, backgroundImage){
             return;
         }
         var p = this.stonePosition(coords[0], coords[1], height);
-        // Draw it twice to get two shadows :)
-        for (var i = 0; i < 2; ++i) {
-            if (i == 0) {
-                var shadowSize = height * this.goban_width / 800;
-                ctx.shadowOffsetX = (shadowSize + this.goban_width / 200) * xFactor;
-                ctx.shadowOffsetY = ctx.shadowOffsetX * yFactor / xFactor;
-                ctx.shadowColor = "rgba(0, 0, 0, " + (0.4 - height / 20) + ")";
-                ctx.shadowBlur = shadowSize * 5 + this.goban_width / 80;
-                ctx.globalAlpha = height < 3 ? 1 : 1 - (height - 3) / 8;
-/*            } else {
-                var shadowSize = height * this.goban_width / 800;
-                ctx.shadowOffsetX = (- shadowSize - this.goban_width / 75)*xFactor;
-                ctx.shadowOffsetY = ctx.shadowOffsetX * yFactor / xFactor;
-                ctx.shadowColor = "rgba(0, 0, 0, " + (0.2 - height / 20) + ")";
-                ctx.shadowBlur = 0;//shadowSize * 5 + this.goban_width / 80;
-                ctx.globalAlpha = height < 3 ? 1 : 1 - (height - 3) / 8;*/
-            }
+        var shadowSize = height * this.goban_width / 800;
+        ctx.save();
+/*        ctx.shadowOffsetX = (shadowSize + this.goban_width / 200) * xFactor;
+        ctx.shadowOffsetY = ctx.shadowOffsetX * yFactor / xFactor;
+        ctx.shadowColor = "rgba(0, 0, 0, " + (0.4 - height / 20) + ")";
+        ctx.shadowBlur = shadowSize * 5 + this.goban_width / 80;*/
+        ctx.globalAlpha = height < 4 ? 1 : 1 - (height - 4) / 8;
 
-            if (colour == white) {
-                // TODO: This just picks a white stone randomly - looks silly when they move!
-                var r = (Math.random() * 6 | 0) - 2;
-                var s = white_stone0;
-                //            if (r == 1) s = white_stone1;
-                //            if (r == 2) s = white_stone2;
-                //            if (r == 3) s = white_stone3;
-                ctx.drawImage(s, p[0], p[1], p[2], p[3]);
-            } else {
-                ctx.drawImage(black_stone, p[0], p[1], p[2], p[3]);
-            }
+        if (colour == white) {
+            var r = this.white_stone[this.get_index(coords)]
+            var s = white_stone0;
+            if (r == 1) s = white_stone1;
+            if (r == 2) s = white_stone2;
+            if (r == 3) s = white_stone3;
+            ctx.drawImage(s, p[0], p[1], p[2], p[3]);
+        } else {
+            ctx.drawImage(black_stone, p[0], p[1], p[2], p[3]);
         }
-        ctx.globalAlpha = 1;
+        ctx.restore();
         return p;
     };
 
     // Remove a stone from the buffered board
     this.eraseStone = function(coords) {
-        // For now we just redraw the whole board.
-        this.draw();
+        var p = this.stonePosition(coords[0], coords[1], 0);
+        this.bufferContext.shadowOffsetX = this.bufferContext.shadowOffsetY = 0;
+        this.bufferContext.shadowBlur = 0;
+        var x = p[0];
+        var y = p[1];
+        var w = p[2];
+        var h = p[3];
+        // We erase extra area to make sure we get the shadow.
+
+        this.bufferContext.drawImage(this.emptyBoardCanvas, x, y, w, h, x, y, w, h);
+        this.mainContext.drawImage(this.bufferCanvas, x, y, w, h, x, y, w, h);
+
     };
 
     // Update the desired state of the clock
@@ -364,8 +356,8 @@ function GoClock(mainCanvas, backgroundImage){
         var start_of_movement = this.stone_percent == 0;
         if (start_of_movement && this.stone_to[0] != go_bowl) {
             // Update the messiness depending on how fast we're going
-            var messiness = Math.sqrt(this.speed);
-            this.offsets[this.get_index(this.stone_to)] = [Math.random()*messiness - messiness/2, Math.random()*messiness - messiness/2];
+            var messiness = 0.5*Math.sqrt(this.speed);
+            this.offsets[this.get_index(this.stone_to)] = [0, Math.random()*messiness - messiness/2];
             this.stone_to = this.get_coords(this.get_index(this.stone_to));
         }
         if (start_of_movement && this.stone_from[0] != go_bowl) {
@@ -379,7 +371,7 @@ function GoClock(mainCanvas, backgroundImage){
             var w = this.stone_pos[2];
             var h = this.stone_pos[3];
             // We erase extra area to make sure we get the shadow.
-            this.mainContext.drawImage(this.bufferCanvas, xpos - w/2, ypos - h/2, w*3, h*3, xpos - w/2, ypos - h/2, w*3, h*3);
+            this.mainContext.drawImage(this.bufferCanvas, xpos - w/2, ypos - h/2, w*2, h*2, xpos - w/2, ypos - h/2, w*2, h*2);
         }
         if (this.stone_to[0] == go_bowl || this.stone_from[0] == go_bowl) {
             this.stone_percent += this.setup ? this.speed*2 : this.speed; // Goes faster when first putting down stones
@@ -443,7 +435,7 @@ function GoClock(mainCanvas, backgroundImage){
                 x = this.stone_from[0] - (this.stone_to[0] - this.stone_from[0])/2*(t*(t - 2) - 1);
                 y = this.stone_from[1] - (this.stone_to[1] - this.stone_from[1])/2*(t*(t - 2) - 1);
             }
-            var max_height = 3;
+            var max_height = 4;
             var height = this.clear_route == true ? 0 : max_height - max_height*Math.abs(this.stone_percent - 50)/50;
             this.stone_pos = this.drawStone(this.mainContext, [x, y], this.stone_colour, height);
         }
