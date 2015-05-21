@@ -81,7 +81,7 @@ $(window).load(function() {
         background = parseInt(storedBackground) % backgrounds.length;
     }
     var goClock = new GoClock(document.getElementById('goCanvas'));
-    $('#goban').css('background-image', "url('images/" + backgrounds[background][0] + "')");
+    setBackground(background);
     var stone_speed = 2;
     var storedSpeed = readCookie('stone_speed');
     if (isInt(storedSpeed)) {
@@ -126,7 +126,7 @@ $(window).load(function() {
     function setBackground(b) {
         b %= backgrounds.length;
         $('#goban').css('background-image', "url('images/" + backgrounds[b][0] + "')");
-
+        $('#goban').css('background-size', 'cover');
         $('#change_background').text(backgrounds[b][1]);
         createCookie('goban_background', b, 100);
     }
@@ -188,7 +188,7 @@ $(window).load(function() {
     goClock.update();
     goClock.setup = true;
     setInterval(function() {goClock.update()}, 1000);
-    setInterval(function() {goClock.transform()}, 40);
+    setInterval(function() {goClock.transform()}, 25);
 });
 
 

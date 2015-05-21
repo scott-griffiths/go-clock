@@ -71,8 +71,8 @@ var tiny_num = [s0, s1, s2, s3, s4, s5, s6, s7, s8, s9];
 }*/
 
 function GoClock(mainCanvas){
-    this.mainCanvas = mainCanvas;
-    this.mainContext = this.mainCanvas.getContext("2d");
+    this.bufferCanvas = mainCanvas;
+    this.bufferContext = this.bufferCanvas.getContext("2d");
 
     this.stones = []; // The current (desired) state
     this.stones_shown = []; // The stones last drawn
@@ -91,11 +91,8 @@ function GoClock(mainCanvas){
     this.view = 0; // The clock type
     this.setup = true; // if true we're doing the first drawing of the clock
 
-    this.bufferCanvas = document.createElement('canvas');
-    this.bufferContext = this.bufferCanvas.getContext('2d');
-
-    this.emptyBoardCanvas = document.createElement('canvas');
-    this.emptyBoardContext = this.emptyBoardCanvas.getContext('2d');
+    this.mainCanvas = document.createElement('canvas');
+    this.mainContext = this.mainCanvas.getContext('2d');
 
     this.speed = 9;
     this.sounds = 1;
@@ -151,14 +148,15 @@ function GoClock(mainCanvas){
             }
             this.y_offset = (height - this.goban_height) / 2 | 0;
             this.x_offset = (width - this.goban_width) / 2 | 0;
-            this.mainCanvas.width = this.bufferCanvas.width = this.emptyBoardCanvas.width = width;
-            this.mainCanvas.height = this.bufferCanvas.height = this.emptyBoardCanvas.height = height;
+            this.mainCanvas.width = this.bufferCanvas.width = width;
+            this.mainCanvas.height = this.bufferCanvas.height = height;
         }
-        this.bufferContext.shadowColor = "rgba( 0, 0, 0, 0.6)";
+/*        this.bufferContext.shadowColor = "rgba( 0, 0, 0, 0.6)";
         var shadowLength = this.goban_width/20;
         this.bufferContext.shadowOffsetX = shadowLength * xFactor;
         this.bufferContext.shadowOffsetY = shadowLength * yFactor;
-        this.bufferContext.shadowBlur = this.goban_width/50;
+        this.bufferContext.shadowBlur = this.goban_width/50;*/
+
         // We choose the goban image based on the display size as the canvas
         // isn't very good at resizing and keeping the board line detail
         var gobanImage = goban_1200;
@@ -169,8 +167,13 @@ function GoClock(mainCanvas){
             gobanImage = goban_200;
         }
 
+        $('#goban-image').replaceWith(gobanImage);
+        $('#goban img').width(this.goban_width).height(this.goban_height);
+        var padding = (height - this.goban_height) / 2;
+        $('#goban img').css('padding-top', padding);
+        $('#goban img').css('padding-bottom', padding);
+
         this.bufferContext.drawImage(gobanImage, this.x_offset, this.y_offset, this.goban_width, this.goban_height);
-        this.emptyBoardContext.drawImage(this.bufferCanvas, 0, 0);
 
         this.bufferContext.shadowColor = "rgba( 0, 0, 0, 0.0)";
         for (var i = 0; i < gridsize*gridsize; ++i) {
@@ -200,16 +203,18 @@ function GoClock(mainCanvas){
         this.addStone(x, y, colour);
     };
     this.drawStone = function(ctx, coords, colour, height) {
+        ctx.globalCompositeOperation = "source-over";
+
         if (coords[0] <= -0.5 || coords[0] >= gridsize - 0.5 || coords[1] <= -0.5 || coords[1] >= gridsize - 0.5) {
             return;
         }
         var p = this.stonePosition(coords[0], coords[1], height);
         var shadowSize = height * this.goban_width / 800;
         ctx.save();
-/*        ctx.shadowOffsetX = (shadowSize + this.goban_width / 200) * xFactor;
+        ctx.shadowOffsetX = (shadowSize + this.goban_width / 200) * xFactor;
         ctx.shadowOffsetY = ctx.shadowOffsetX * yFactor / xFactor;
         ctx.shadowColor = "rgba(0, 0, 0, " + (0.4 - height / 20) + ")";
-        ctx.shadowBlur = shadowSize * 5 + this.goban_width / 80;*/
+        ctx.shadowBlur = shadowSize * 5 + this.goban_width / 80;
         ctx.globalAlpha = height < 4 ? 1 : 1 - (height - 4) / 8;
 
         if (colour == white) {
@@ -236,9 +241,9 @@ function GoClock(mainCanvas){
         var w = p[2];
         var h = p[3];
         // We erase extra area to make sure we get the shadow.
+                    //this.mainContext.clearRect(xpos - w/2, ypos - h/2, w*2, h*2);
 
-        this.bufferContext.drawImage(this.emptyBoardCanvas, x, y, w, h, x, y, w, h);
-        this.mainContext.drawImage(this.bufferCanvas, x, y, w, h, x, y, w, h);
+       // this.mainContext.drawImage(this.bufferCanvas, x, y, w, h, x, y, w, h);
 
     };
 
@@ -371,6 +376,9 @@ function GoClock(mainCanvas){
             var w = this.stone_pos[2];
             var h = this.stone_pos[3];
             // We erase extra area to make sure we get the shadow.
+//            this.mainContext.clearRect(xpos - w/2, ypos - h/2, w*2, h*2);
+//
+            this.mainContext.globalCompositeOperation = "destination-out";
             this.mainContext.drawImage(this.bufferCanvas, xpos - w/2, ypos - h/2, w*2, h*2, xpos - w/2, ypos - h/2, w*2, h*2);
         }
         if (this.stone_to[0] == go_bowl || this.stone_from[0] == go_bowl) {
@@ -388,6 +396,7 @@ function GoClock(mainCanvas){
             } else {
                 // add stone to board and draw on buffer and shown context
                 this.stones_shown[Math.round(this.stone_to[0]) + gridsize*Math.round(this.stone_to[1])] = this.stone_colour;
+                this.mainContext.globalCompositeOperation = "source-over";
                 this.drawStone(this.bufferContext, this.stone_to, this.stone_colour, 0);
                 this.drawStone(this.mainContext, this.stone_to, this.stone_colour, 0);
                 if ((this.stone_from[0] == go_bowl || !this.clear_route) && this.sounds) {
