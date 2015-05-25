@@ -108,7 +108,7 @@ function GoClock(overlayCanvas, mainCanvas){
 
     this.reset_offsets = function() {
         this.offsets = [];
-        var messiness = 5;
+        var messiness = 0;
         for (var i = 0; i < gridsize*gridsize; ++i){
             this.offsets.push([Math.random()*messiness - messiness/2, Math.random()*messiness - messiness/2]);
         }
@@ -123,11 +123,11 @@ function GoClock(overlayCanvas, mainCanvas){
     // The coordinates of a point with a given index
     this.get_coords = function(p) {
         return [p%gridsize + this.offsets[p][0]/50, (p - p%gridsize)/gridsize + this.offsets[p][1]/50];
-    }
+    };
     // The reverse operation: Get index of point from coordinates
     this.get_index = function(p) {
         return Math.round(p[0]) + gridsize*Math.round(p[1]);
-    }
+    };
 
     // Draw the underlying board (i.e. everything except any moving stones)
     this.draw = function(width, height) {
@@ -177,14 +177,12 @@ function GoClock(overlayCanvas, mainCanvas){
         for (var i = 0; i < gridsize*gridsize; ++i) {
             var p = this.stones_shown[i];
             if (p != 0) {
-                this.drawStone(this.overlayContext, this.get_coords(i), p, 0);
                 this.drawStone(this.mainContext, this.get_coords(i), p, 0);
             }
         }
         this.overlayContext.shadowOffsetX = 0;
         this.overlayContext.shadowOffsetY = 0;
         this.overlayContext.shadowBlur = 0;
-//        this.overlayContext.drawImage(this.mainCanvas, 0, 0);
     };
 
     this.drawNumber = function(number, x_offset, y_offset, small, colour) {
@@ -201,30 +199,28 @@ function GoClock(overlayCanvas, mainCanvas){
         this.addStone(x, y, colour);
     };
     this.drawStone = function(ctx, coords, colour, height) {
-        ctx.globalCompositeOperation = "source-over";
-
         if (coords[0] <= -0.5 || coords[0] >= gridsize - 0.5 || coords[1] <= -0.5 || coords[1] >= gridsize - 0.5) {
             return;
         }
         var p = this.stonePosition(coords[0], coords[1], height);
         var shadowSize = height * this.goban_width / 800;
         ctx.save();
-/*        ctx.shadowOffsetX = (shadowSize + this.goban_width / 200) * xFactor;
-        ctx.shadowOffsetY = ctx.shadowOffsetX * yFactor / xFactor;
-        ctx.shadowColor = "rgba(0, 0, 0, " + (0.4 - height / 20) + ")";
-        ctx.shadowBlur = shadowSize * 5 + this.goban_width / 80;*/
-        ctx.globalAlpha = height < 4 ? 1 : 1 - (height - 4) / 8;
-
+        if (height >= 0) {
+            ctx.shadowOffsetX = (shadowSize + this.goban_width / 200) * xFactor;
+            ctx.shadowOffsetY = ctx.shadowOffsetX * yFactor / xFactor;
+            ctx.shadowColor = "rgba(0, 0, 0, " + (0.4 - height / 20) + ")";
+            ctx.shadowBlur = 0;//shadowSize * 5 + this.goban_width / 80;
+            ctx.globalAlpha = height < 4 ? 1 : 1 - (height - 4) / 8;
+        }
+        var s = black_stone;
         if (colour == white) {
-            var r = this.white_stone[this.get_index(coords)]
-            var s = white_stone0;
+            var r = this.white_stone[this.get_index(coords)];
+            if (r == 0) s = white_stone0;
             if (r == 1) s = white_stone1;
             if (r == 2) s = white_stone2;
             if (r == 3) s = white_stone3;
-            ctx.drawImage(s, p[0], p[1], p[2], p[3]);
-        } else {
-            ctx.drawImage(black_stone, p[0], p[1], p[2], p[3]);
         }
+        ctx.drawImage(s, p[0], p[1], p[2], p[3]);
         ctx.restore();
         return p;
     };
@@ -239,7 +235,16 @@ function GoClock(overlayCanvas, mainCanvas){
         var w = p[2];
         var h = p[3];
         // We erase extra area to make sure we get the shadow
-        this.mainContext.clearRect(x, y, w, h);
+        this.mainContext.clearRect(x, y, w*1.2, h*1.2);
+        // Then redraw surround stones just in case we deleted a bit of them
+        var neighbours = [[coords[0] + 1, coords[1]], [coords[0], coords[1] + 1], [coords[0] + 1, coords[1] + 1]];
+        for (var n = 0; n < neighbours.length; ++n) {
+            var colour = this.stones_shown[this.get_index(neighbours[n])];
+            if (colour != 0) {
+                this.drawStone(this.mainContext, neighbours[n], colour, -1);
+            }
+
+        }
     };
 
     // Update the desired state of the clock
@@ -352,15 +357,6 @@ function GoClock(overlayCanvas, mainCanvas){
         return [xpos - diameter/2 + this.x_offset | 0, ypos - diameter/2 + this.y_offset | 0, diameter, diameter];
     };
 
-    this.testFunction = function() {
-        for (var x = 9; x < 12; ++x) {
-            for (var y = 9; y < 12; ++y) {
-                this.drawStone(this.mainContext, [x, y], 1, 0);
-            }
-        }
-        this.eraseStone([10, 10]);
-    };
-
     this.move_stone = function() {
         var start_of_movement = this.stone_percent == 0;
         if (start_of_movement && this.stone_to[0] != go_bowl) {
@@ -399,7 +395,6 @@ function GoClock(overlayCanvas, mainCanvas){
                 this.stones_shown[Math.round(this.stone_to[0]) + gridsize*Math.round(this.stone_to[1])] = this.stone_colour;
                 this.overlayContext.globalCompositeOperation = "source-over";
                 this.drawStone(this.mainContext, this.stone_to, this.stone_colour, 0);
-                this.drawStone(this.overlayContext, this.stone_to, this.stone_colour, 0);
                 if ((this.stone_from[0] == go_bowl || !this.clear_route) && this.sounds) {
                     var click_sound = new Audio("sounds/click_x.wav");
                     click_sound.play();
