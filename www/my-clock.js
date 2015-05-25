@@ -80,7 +80,7 @@ $(window).load(function() {
     if (isInt(storedBackground)) {
         background = parseInt(storedBackground) % backgrounds.length;
     }
-    var goClock = new GoClock(document.getElementById('goCanvas'), document.getElementById('goCanvasBuffer'));
+    var goClock = new GoClock(document.getElementById('goCanvasOverlay'), document.getElementById('goCanvasMain'));
     setBackground(background);
     var stone_speed = 2;
     var storedSpeed = readCookie('stone_speed');

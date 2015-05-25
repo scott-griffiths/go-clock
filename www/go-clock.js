@@ -70,9 +70,9 @@ var tiny_num = [s0, s1, s2, s3, s4, s5, s6, s7, s8, s9];
     e.preventDefault();
 }*/
 
-function GoClock(mainCanvas, bufferCanvas){
-    this.mainCanvas = mainCanvas;
-    this.mainContext = this.mainCanvas.getContext("2d");
+function GoClock(overlayCanvas, mainCanvas){
+    this.overlayCanvas = overlayCanvas;
+    this.overlayContext = this.overlayCanvas.getContext("2d");
 
     this.stones = []; // The current (desired) state
     this.stones_shown = []; // The stones last drawn
@@ -91,8 +91,8 @@ function GoClock(mainCanvas, bufferCanvas){
     this.view = 0; // The clock type
     this.setup = true; // if true we're doing the first drawing of the clock
 
-    this.bufferCanvas = bufferCanvas;
-    this.bufferContext = this.bufferCanvas.getContext('2d');
+    this.mainCanvas = mainCanvas;
+    this.mainContext = this.mainCanvas.getContext('2d');
 
     this.speed = 9;
     this.sounds = 1;
@@ -148,14 +148,14 @@ function GoClock(mainCanvas, bufferCanvas){
             }
             this.y_offset = (height - this.goban_height) / 2 | 0;
             this.x_offset = (width - this.goban_width) / 2 | 0;
-            this.mainCanvas.width = this.bufferCanvas.width = width;
-            this.mainCanvas.height = this.bufferCanvas.height = height;
+            this.overlayCanvas.width = this.mainCanvas.width = width;
+            this.overlayCanvas.height = this.mainCanvas.height = height;
         }
-/*        this.bufferContext.shadowColor = "rgba( 0, 0, 0, 0.6)";
+/*        this.mainContext.shadowColor = "rgba( 0, 0, 0, 0.6)";
         var shadowLength = this.goban_width/20;
-        this.bufferContext.shadowOffsetX = shadowLength * xFactor;
-        this.bufferContext.shadowOffsetY = shadowLength * yFactor;
-        this.bufferContext.shadowBlur = this.goban_width/50;*/
+        this.mainContext.shadowOffsetX = shadowLength * xFactor;
+        this.mainContext.shadowOffsetY = shadowLength * yFactor;
+        this.mainContext.shadowBlur = this.goban_width/50;*/
 
         // We choose the goban image based on the display size as the canvas
         // isn't very good at resizing and keeping the board line detail
@@ -173,19 +173,18 @@ function GoClock(mainCanvas, bufferCanvas){
         $('#goban img').css('padding-top', padding);
         $('#goban img').css('padding-bottom', padding);
 
-//        this.bufferContext.drawImage(gobanImage, this.x_offset, this.y_offset, this.goban_width, this.goban_height);
-
-        this.bufferContext.shadowColor = "rgba( 0, 0, 0, 0.0)";
+        this.mainContext.shadowColor = "rgba( 0, 0, 0, 0.0)";
         for (var i = 0; i < gridsize*gridsize; ++i) {
             var p = this.stones_shown[i];
             if (p != 0) {
+                this.drawStone(this.overlayContext, this.get_coords(i), p, 0);
                 this.drawStone(this.mainContext, this.get_coords(i), p, 0);
             }
         }
-        this.mainContext.shadowOffsetX = 0;
-        this.mainContext.shadowOffsetY = 0;
-        this.mainContext.shadowBlur = 0;
-        this.mainContext.drawImage(this.bufferCanvas, 0, 0);
+        this.overlayContext.shadowOffsetX = 0;
+        this.overlayContext.shadowOffsetY = 0;
+        this.overlayContext.shadowBlur = 0;
+//        this.overlayContext.drawImage(this.mainCanvas, 0, 0);
     };
 
     this.drawNumber = function(number, x_offset, y_offset, small, colour) {
@@ -233,14 +232,14 @@ function GoClock(mainCanvas, bufferCanvas){
     // Remove a stone from the buffered board
     this.eraseStone = function(coords) {
         var p = this.stonePosition(coords[0], coords[1], 0);
-        this.bufferContext.shadowOffsetX = this.bufferContext.shadowOffsetY = 0;
-        this.bufferContext.shadowBlur = 0;
+        this.mainContext.shadowOffsetX = this.mainContext.shadowOffsetY = 0;
+        this.mainContext.shadowBlur = 0;
         var x = p[0];
         var y = p[1];
         var w = p[2];
         var h = p[3];
         // We erase extra area to make sure we get the shadow
-        this.bufferContext.clearRect(x, y, w, h);
+        this.mainContext.clearRect(x, y, w, h);
     };
 
     // Update the desired state of the clock
@@ -356,7 +355,7 @@ function GoClock(mainCanvas, bufferCanvas){
     this.testFunction = function() {
         for (var x = 9; x < 12; ++x) {
             for (var y = 9; y < 12; ++y) {
-                this.drawStone(this.bufferContext, [x, y], 1, 0);
+                this.drawStone(this.mainContext, [x, y], 1, 0);
             }
         }
         this.eraseStone([10, 10]);
@@ -375,13 +374,13 @@ function GoClock(mainCanvas, bufferCanvas){
         }
         if (this.stone_percent != 0) {
             // Erase previous moving stone
-            this.mainContext.shadowColor = "rgba(80, 80, 80, 0)";
+            this.overlayContext.shadowColor = "rgba(80, 80, 80, 0)";
             var xpos = this.stone_pos[0];
             var ypos = this.stone_pos[1];
             var w = this.stone_pos[2];
             var h = this.stone_pos[3];
             // We erase extra area to make sure we get the shadow.
-            this.mainContext.clearRect(xpos - w/2, ypos - h/2, w*2, h*2);
+            this.overlayContext.clearRect(xpos - w/2, ypos - h/2, w*2, h*2);
         }
         if (this.stone_to[0] == go_bowl || this.stone_from[0] == go_bowl) {
             this.stone_percent += this.setup ? this.speed*2 : this.speed; // Goes faster when first putting down stones
@@ -398,9 +397,9 @@ function GoClock(mainCanvas, bufferCanvas){
             } else {
                 // add stone to board and draw on buffer and shown context
                 this.stones_shown[Math.round(this.stone_to[0]) + gridsize*Math.round(this.stone_to[1])] = this.stone_colour;
-                this.mainContext.globalCompositeOperation = "source-over";
-                this.drawStone(this.bufferContext, this.stone_to, this.stone_colour, 0);
+                this.overlayContext.globalCompositeOperation = "source-over";
                 this.drawStone(this.mainContext, this.stone_to, this.stone_colour, 0);
+                this.drawStone(this.overlayContext, this.stone_to, this.stone_colour, 0);
                 if ((this.stone_from[0] == go_bowl || !this.clear_route) && this.sounds) {
                     var click_sound = new Audio("sounds/click_x.wav");
                     click_sound.play();
@@ -413,7 +412,7 @@ function GoClock(mainCanvas, bufferCanvas){
 
         if (this.stone_from[0] == go_bowl) {
             // Stone being added
-            this.stone_pos = this.drawStone(this.mainContext, this.stone_to, this.stone_colour, 10*(1 - this.stone_percent/100));
+            this.stone_pos = this.drawStone(this.overlayContext, this.stone_to, this.stone_colour, 10*(1 - this.stone_percent/100));
         }
         else if (this.stone_to[0] == go_bowl) {
             // Stone being removed
@@ -421,7 +420,7 @@ function GoClock(mainCanvas, bufferCanvas){
                 var removal_sound = new Audio("sounds/bottle_x.wav");
                 removal_sound.play();
             }
-            this.stone_pos = this.drawStone(this.mainContext, this.stone_from, this.stone_colour, 10*this.stone_percent/100);
+            this.stone_pos = this.drawStone(this.overlayContext, this.stone_from, this.stone_colour, 10*this.stone_percent/100);
         }
         else {
             if (start_of_movement && this.sounds) {
@@ -448,7 +447,7 @@ function GoClock(mainCanvas, bufferCanvas){
             }
             var max_height = 4;
             var height = this.clear_route == true ? 0 : max_height - max_height*Math.abs(this.stone_percent - 50)/50;
-            this.stone_pos = this.drawStone(this.mainContext, [x, y], this.stone_colour, height);
+            this.stone_pos = this.drawStone(this.overlayContext, [x, y], this.stone_colour, height);
         }
         return;
 
