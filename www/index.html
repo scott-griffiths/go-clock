@@ -34,10 +34,11 @@
                 <img id="goban-image" />
                 <div style="position:absolute; top: 0px; left: 0px;">
                     <canvas width=820 height=850 id="goCanvas"></canvas>
+                    <canvas width=820 height=850 id="goCanvasBuffer" style="position:absolute; top: 0px; z-index: 1;"></canvas>
                 </div>
             </div>
         </div>
-        <div id="sidebar" class="sb-slidebar sb-left sb-momentum-scrolling sb-width-custom" data-sb-width="250px"">
+        <div id="sidebar" class="sb-slidebar sb-left sb-momentum-scrolling sb-width-custom" data-sb-width="250px">
             <div id="menu-title">Go Clock</div>
             <nav>
                 <ul class="sb-menu">

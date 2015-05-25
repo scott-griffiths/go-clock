@@ -70,9 +70,9 @@ var tiny_num = [s0, s1, s2, s3, s4, s5, s6, s7, s8, s9];
     e.preventDefault();
 }*/
 
-function GoClock(mainCanvas){
-    this.bufferCanvas = mainCanvas;
-    this.bufferContext = this.bufferCanvas.getContext("2d");
+function GoClock(mainCanvas, bufferCanvas){
+    this.mainCanvas = mainCanvas;
+    this.mainContext = this.mainCanvas.getContext("2d");
 
     this.stones = []; // The current (desired) state
     this.stones_shown = []; // The stones last drawn
@@ -91,8 +91,8 @@ function GoClock(mainCanvas){
     this.view = 0; // The clock type
     this.setup = true; // if true we're doing the first drawing of the clock
 
-    this.mainCanvas = document.createElement('canvas');
-    this.mainContext = this.mainCanvas.getContext('2d');
+    this.bufferCanvas = bufferCanvas;
+    this.bufferContext = this.bufferCanvas.getContext('2d');
 
     this.speed = 9;
     this.sounds = 1;
@@ -173,19 +173,18 @@ function GoClock(mainCanvas){
         $('#goban img').css('padding-top', padding);
         $('#goban img').css('padding-bottom', padding);
 
-        this.bufferContext.drawImage(gobanImage, this.x_offset, this.y_offset, this.goban_width, this.goban_height);
+//        this.bufferContext.drawImage(gobanImage, this.x_offset, this.y_offset, this.goban_width, this.goban_height);
 
         this.bufferContext.shadowColor = "rgba( 0, 0, 0, 0.0)";
         for (var i = 0; i < gridsize*gridsize; ++i) {
             var p = this.stones_shown[i];
             if (p != 0) {
-                this.drawStone(this.bufferContext, this.get_coords(i), p, 0);
+                this.drawStone(this.mainContext, this.get_coords(i), p, 0);
             }
         }
         this.mainContext.shadowOffsetX = 0;
         this.mainContext.shadowOffsetY = 0;
         this.mainContext.shadowBlur = 0;
-        this.mainContext.clearRect(0, 0, this.mainCanvas.width, this.mainCanvas.height);
         this.mainContext.drawImage(this.bufferCanvas, 0, 0);
     };
 
@@ -211,10 +210,10 @@ function GoClock(mainCanvas){
         var p = this.stonePosition(coords[0], coords[1], height);
         var shadowSize = height * this.goban_width / 800;
         ctx.save();
-        ctx.shadowOffsetX = (shadowSize + this.goban_width / 200) * xFactor;
+/*        ctx.shadowOffsetX = (shadowSize + this.goban_width / 200) * xFactor;
         ctx.shadowOffsetY = ctx.shadowOffsetX * yFactor / xFactor;
         ctx.shadowColor = "rgba(0, 0, 0, " + (0.4 - height / 20) + ")";
-        ctx.shadowBlur = shadowSize * 5 + this.goban_width / 80;
+        ctx.shadowBlur = shadowSize * 5 + this.goban_width / 80;*/
         ctx.globalAlpha = height < 4 ? 1 : 1 - (height - 4) / 8;
 
         if (colour == white) {
@@ -240,11 +239,8 @@ function GoClock(mainCanvas){
         var y = p[1];
         var w = p[2];
         var h = p[3];
-        // We erase extra area to make sure we get the shadow.
-                    //this.mainContext.clearRect(xpos - w/2, ypos - h/2, w*2, h*2);
-
-       // this.mainContext.drawImage(this.bufferCanvas, x, y, w, h, x, y, w, h);
-
+        // We erase extra area to make sure we get the shadow
+        this.bufferContext.clearRect(x, y, w, h);
     };
 
     // Update the desired state of the clock
@@ -357,6 +353,15 @@ function GoClock(mainCanvas){
         return [xpos - diameter/2 + this.x_offset | 0, ypos - diameter/2 + this.y_offset | 0, diameter, diameter];
     };
 
+    this.testFunction = function() {
+        for (var x = 9; x < 12; ++x) {
+            for (var y = 9; y < 12; ++y) {
+                this.drawStone(this.bufferContext, [x, y], 1, 0);
+            }
+        }
+        this.eraseStone([10, 10]);
+    };
+
     this.move_stone = function() {
         var start_of_movement = this.stone_percent == 0;
         if (start_of_movement && this.stone_to[0] != go_bowl) {
@@ -376,10 +381,7 @@ function GoClock(mainCanvas){
             var w = this.stone_pos[2];
             var h = this.stone_pos[3];
             // We erase extra area to make sure we get the shadow.
-//            this.mainContext.clearRect(xpos - w/2, ypos - h/2, w*2, h*2);
-//
-            this.mainContext.globalCompositeOperation = "destination-out";
-            this.mainContext.drawImage(this.bufferCanvas, xpos - w/2, ypos - h/2, w*2, h*2, xpos - w/2, ypos - h/2, w*2, h*2);
+            this.mainContext.clearRect(xpos - w/2, ypos - h/2, w*2, h*2);
         }
         if (this.stone_to[0] == go_bowl || this.stone_from[0] == go_bowl) {
             this.stone_percent += this.setup ? this.speed*2 : this.speed; // Goes faster when first putting down stones

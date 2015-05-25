@@ -80,7 +80,7 @@ $(window).load(function() {
     if (isInt(storedBackground)) {
         background = parseInt(storedBackground) % backgrounds.length;
     }
-    var goClock = new GoClock(document.getElementById('goCanvas'));
+    var goClock = new GoClock(document.getElementById('goCanvas'), document.getElementById('goCanvasBuffer'));
     setBackground(background);
     var stone_speed = 2;
     var storedSpeed = readCookie('stone_speed');
@@ -187,6 +187,7 @@ $(window).load(function() {
     window.onresize();
     goClock.update();
     goClock.setup = true;
+//    goClock.testFunction();
     setInterval(function() {goClock.update()}, 1000);
     setInterval(function() {goClock.transform()}, 25);
 });
