@@ -85,6 +85,8 @@ function GoClock(overlayCanvas, mainCanvas){
     this.stone_colour = white;
     this.stone_pos = [0, 0, 0, 0]; // Pixel position of last drawn moving stone: x, y, w, h
 
+    this.hand_position = 9*19 + 9; // Position of hand that's moving the stones.
+
     this.offsets = []; // The small offsets of each stone position to make it less regular-looking
     this.white_stone = []; // Which white stone to use in each position (if a white stone is there!)
 
@@ -195,7 +197,8 @@ function GoClock(overlayCanvas, mainCanvas){
         this.stones[y*gridsize + x] = colour;
     };
     this.addStoneToQueue = function(x, y, colour) {
-        this.stone_queue.push([x, y, colour]);
+        // Turning off the queue for now...
+        // this.stone_queue.push([x, y, colour]);
         this.addStone(x, y, colour);
     };
     this.drawStone = function(ctx, coords, colour, height) {
@@ -470,7 +473,7 @@ function GoClock(overlayCanvas, mainCanvas){
                 var wanted = (diff[j] == black - white) ? -black : -white;
                 for (var i = 0; i < diff.length; ++i) {
                     if (diff[i] == wanted) {
-                        if (best_j == -1 || dist(j, i) < dist(best_j, best_i)) {
+                        if (best_j == -1 || dist(j, this.hand_position) < dist(best_j, this.hand_position)) {
                             best_i = i;
                             best_j = j;
                         }
@@ -480,14 +483,15 @@ function GoClock(overlayCanvas, mainCanvas){
         }
         if (best_j == -1) {
             for (var i = 0; i < diff.length; ++i) {
-                var p = (i + start) % diff.length;
-                if (diff[p] == -white || diff[p] == -black) {
+                if (diff[i] == -white || diff[i] == -black) {
                     // we want a white or black stone here - search for the nearest excess white or black
                     for (var j = 0; j < diff.length; ++j) {
-                        if (diff[j] == -diff[p]) {
-                            if (best_j == -1 || dist(j, p) < dist(best_j, best_i)) {
+                        if (diff[j] == -diff[i]) {
+                            if (best_j == -1 ||
+                                   dist(this.hand_position, j) + (j, i) < dist(this.hand_position, best_j) + (best_j, best_i)) {
+                                // Shortest distance from hand to stone start to stone end
                                 best_j = j;
-                                best_i = p;
+                                best_i = i;
                             }
                         }
                     }
@@ -500,6 +504,7 @@ function GoClock(overlayCanvas, mainCanvas){
             this.moving_stone = true;
             this.stone_from = this.get_coords(best_j);
             this.stone_to = this.get_coords(best_i);
+            this.hand_position = best_i;
             this.stone_colour = this.stones_shown[best_j];
             this.stones_shown[best_j] = 0;
             removed = true;
@@ -544,16 +549,19 @@ function GoClock(overlayCanvas, mainCanvas){
             }
             var i = -1;
             if (to_remove_first.length != 0) {
-                i = to_remove_first[Math.random() * to_remove_first.length | 0];
+                i = nearest(this.hand_position, to_remove_first);
+//                i = to_remove_first[Math.random() * to_remove_first.length | 0];
             }
             if (i == -1 && to_remove_next.length != 0) {
-                i = to_remove_next[Math.random() * to_remove_next.length | 0];
+                i = nearest(this.hand_position, to_remove_next);
+//                i = to_remove_next[Math.random() * to_remove_next.length | 0];
             }
             if (i != -1) {
                 this.moving_stone = true;
                 this.stone_from = this.get_coords(i);
                 this.stone_colour = this.stones_shown[i];
                 this.stone_to = [go_bowl, go_bowl];
+                this.hand_position = i;
                 this.stones_shown[i] = 0;
             }
             else {
@@ -567,7 +575,6 @@ function GoClock(overlayCanvas, mainCanvas){
                         this.stone_colour = new_stone[2];
                         this.stone_from = [go_bowl, go_bowl];
                         this.stone_to = this.get_coords(i);
-//                        this.stone_to = [new_stone[0], new_stone[1]];
                         added = true;
                         break;
                     }
@@ -575,16 +582,28 @@ function GoClock(overlayCanvas, mainCanvas){
                 if (added == false) {
                     this.setup = false; // We've finished adding the initial set of stones
                     if (to_add.length != 0) {
-                        var i = to_add[Math.random() * to_add.length | 0];
+                        var i = nearest(this.hand_position, to_add);
+//                        var i = to_add[Math.random() * to_add.length | 0];
                         this.moving_stone = true;
                         this.stone_colour = -diff[i];
                         this.stone_from = [go_bowl, go_bowl];
                         this.stone_to = this.get_coords(i);
+                        this.hand_position = i;
                     }
                 }
             }
         }
     }
+}
+
+function nearest(point, points) {
+    var nearest = points[0];
+    for (var i=1; i < points.length; ++i) {
+        if (dist(point, points[i]) < dist(point, nearest)) {
+            nearest = points[i];
+        }
+    }
+    return nearest;
 }
 
 // find integer points that form the line from x0, y0 to x1, y1
