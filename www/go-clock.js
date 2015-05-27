@@ -172,8 +172,11 @@ function GoClock(overlayCanvas, mainCanvas){
         $('#goban-image').replaceWith(gobanImage);
         $('#goban img').width(this.goban_width).height(this.goban_height);
         var padding = (height - this.goban_height) / 2;
-        $('#goban img').css('padding-top', padding);
-        $('#goban img').css('padding-bottom', padding);
+        $('#goban img').css('margin-top', padding);
+        $('#goban img').css('margin-bottom', padding);
+        var s = this.goban_height / 50 | 0;
+        $('#goban img').css('box-shadow', s+'px '+2*s+'px '+2*s+'px '+' 0px rgba(0,0,0,0.6)');
+
 
         this.mainContext.shadowColor = "rgba( 0, 0, 0, 0.0)";
         for (var i = 0; i < gridsize*gridsize; ++i) {
@@ -212,8 +215,8 @@ function GoClock(overlayCanvas, mainCanvas){
             ctx.shadowOffsetX = (shadowSize + this.goban_width / 200) * xFactor;
             ctx.shadowOffsetY = ctx.shadowOffsetX * yFactor / xFactor;
             ctx.shadowColor = "rgba(0, 0, 0, " + (0.4 - height / 20) + ")";
-            ctx.shadowBlur = 0;//shadowSize * 5 + this.goban_width / 80;
-            ctx.globalAlpha = height < 4 ? 1 : 1 - (height - 4) / 8;
+            ctx.shadowBlur = shadowSize * 2 + this.goban_width / 120;
+            ctx.globalAlpha = height < 6 ? 1 : 1 - (height - 6) / 8;
         }
         var s = black_stone;
         if (colour == white) {
@@ -443,7 +446,7 @@ function GoClock(overlayCanvas, mainCanvas){
                 x = this.stone_from[0] - (this.stone_to[0] - this.stone_from[0])/2*(t*(t - 2) - 1);
                 y = this.stone_from[1] - (this.stone_to[1] - this.stone_from[1])/2*(t*(t - 2) - 1);
             }
-            var max_height = 4;
+            var max_height = 6;
             var height = this.clear_route == true ? 0 : max_height - max_height*Math.abs(this.stone_percent - 50)/50;
             this.stone_pos = this.drawStone(this.overlayContext, [x, y], this.stone_colour, height);
         }
@@ -550,11 +553,9 @@ function GoClock(overlayCanvas, mainCanvas){
             var i = -1;
             if (to_remove_first.length != 0) {
                 i = nearest(this.hand_position, to_remove_first);
-//                i = to_remove_first[Math.random() * to_remove_first.length | 0];
             }
             if (i == -1 && to_remove_next.length != 0) {
                 i = nearest(this.hand_position, to_remove_next);
-//                i = to_remove_next[Math.random() * to_remove_next.length | 0];
             }
             if (i != -1) {
                 this.moving_stone = true;
@@ -583,7 +584,6 @@ function GoClock(overlayCanvas, mainCanvas){
                     this.setup = false; // We've finished adding the initial set of stones
                     if (to_add.length != 0) {
                         var i = nearest(this.hand_position, to_add);
-//                        var i = to_add[Math.random() * to_add.length | 0];
                         this.moving_stone = true;
                         this.stone_colour = -diff[i];
                         this.stone_from = [go_bowl, go_bowl];

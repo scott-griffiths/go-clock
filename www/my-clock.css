@@ -10,7 +10,10 @@ html, body {
     overflow: hidden;
     font-family: 'Raleway', sans-serif;
 }
-
+#goban {
+    padding-top: 1px;
+    padding-bottom: 1px;
+}
 #goban img {
     max-height: 100%;
     max-width: 100%;
