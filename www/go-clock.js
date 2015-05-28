@@ -97,7 +97,7 @@ function GoClock(overlayCanvas, mainCanvas){
     this.mainContext = this.mainCanvas.getContext('2d');
 
     this.speed = 9;
-    this.sounds = 1;
+    this.sounds = 0;
 
     this.clear = function() {
         this.stones = [];
@@ -153,11 +153,6 @@ function GoClock(overlayCanvas, mainCanvas){
             this.overlayCanvas.width = this.mainCanvas.width = width;
             this.overlayCanvas.height = this.mainCanvas.height = height;
         }
-/*        this.mainContext.shadowColor = "rgba( 0, 0, 0, 0.6)";
-        var shadowLength = this.goban_width/20;
-        this.mainContext.shadowOffsetX = shadowLength * xFactor;
-        this.mainContext.shadowOffsetY = shadowLength * yFactor;
-        this.mainContext.shadowBlur = this.goban_width/50;*/
 
         // We choose the goban image based on the display size as the canvas
         // isn't very good at resizing and keeping the board line detail
@@ -476,7 +471,7 @@ function GoClock(overlayCanvas, mainCanvas){
                 var wanted = (diff[j] == black - white) ? -black : -white;
                 for (var i = 0; i < diff.length; ++i) {
                     if (diff[i] == wanted) {
-                        if (best_j == -1 || dist(j, this.hand_position) < dist(best_j, this.hand_position)) {
+                        if (best_j == -1 || dist(j, this.hand_position) + dist(j, i) < dist(best_j, this.hand_position) + dist(best_j, best_i)) {
                             best_i = i;
                             best_j = j;
                         }
@@ -491,7 +486,7 @@ function GoClock(overlayCanvas, mainCanvas){
                     for (var j = 0; j < diff.length; ++j) {
                         if (diff[j] == -diff[i]) {
                             if (best_j == -1 ||
-                                   dist(this.hand_position, j) + (j, i) < dist(this.hand_position, best_j) + (best_j, best_i)) {
+                                   dist(this.hand_position, j) + dist(j, i) < dist(this.hand_position, best_j) + dist(best_j, best_i)) {
                                 // Shortest distance from hand to stone start to stone end
                                 best_j = j;
                                 best_i = i;

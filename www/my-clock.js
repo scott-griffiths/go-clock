@@ -93,14 +93,14 @@ $(window).load(function() {
     if (isInt(storedView)) {
         view = parseInt(storedView) % 4;
     }
-
+/*
     var sounds = 1;
     var storedSound = readCookie('stone_sound');
     if (isInt(storedSound)) {
         setAudio(parseInt(storedSound));
     } else {
         setAudio(1);
-    }
+    }*/
 
     function setClockSpeed(s) {
         s %= stone_speeds.length;
@@ -187,7 +187,6 @@ $(window).load(function() {
     window.onresize();
     goClock.update();
     goClock.setup = true;
-//    goClock.testFunction();
     setInterval(function() {goClock.update()}, 1000);
     setInterval(function() {goClock.transform()}, 25);
 });

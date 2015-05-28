@@ -39,9 +39,10 @@ html, body {
     display: none;
     font-family: 'Arial';
     position: absolute;
-    left: 10px;
+    padding-left: 10px;
+    padding-right: 10px;
     cursor: pointer;
-    font-size: 40px;
+    font-size: 50px;
     z-index: 2;
     color: white;
 }
