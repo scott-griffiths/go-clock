@@ -46,7 +46,7 @@ function eraseCookie(name) {
 }
 
 var tips_of_the_day = [];
-tips_of_the_day.push("Why not download as a web app on the new iPad Air 2 and then nail or glue it to your living room wall?");
+tips_of_the_day.push("Why not download on the new iPad Air 2 and then nail or glue it to your living room wall?");
 tips_of_the_day.push("To use as an alarm clock simply employ a small child to watch the Go Clock and tell them to wake you when it shows the right time.");
 tips_of_the_day.push("For extra accuracy when timing sporting events, use the view with the second counter.");
 tips_of_the_day.push("Use the Go Clock on an iPhone sellotaped to your wrist and your friend(s) will think you have an Apple Watch!");
@@ -142,11 +142,11 @@ $(window).load(function() {
         }
     });
     $("#goban").click(function() {
-//        $('#menu').fadeIn();
-//        clearTimeout(fade_menu_timer);
-//        fade_menu_timer = setTimeout(function() {
-//            $('#menu').fadeOut();
-//        }, 3000);
+        $('#menu').fadeTo('slow', 1.0);
+        clearTimeout(fade_menu_timer);
+        fade_menu_timer = setTimeout(function() {
+            $('#menu').fadeTo('slow', 0.3);
+        }, 3000);
         var top_left = goClock.stonePosition(0, 0, 0);
         var bottom_right = goClock.stonePosition(18, 18, 0);
         if (xmouse < top_left[0] || (xmouse > bottom_right[0] + bottom_right[2]) ||
@@ -183,12 +183,18 @@ $(window).load(function() {
     });
 
 
-    window.onresize = function() {goClock.draw(window.innerWidth, window.innerHeight - min_bottom_padding)};
+    window.onresize = function() {
+        goClock.draw(window.innerWidth, window.innerHeight - min_bottom_padding);
+        fade_menu_timer = setTimeout(function() {
+            $('#menu').fadeTo('slow', 0.3);
+        }, 3000);
+
+    };
     window.onresize();
     goClock.update();
     goClock.setup = true;
-    setInterval(function() {goClock.update()}, 1000);
-    setInterval(function() {goClock.transform()}, 25);
+    setInterval(function() {goClock.update()}, 500);
+    setInterval(function() {goClock.transform()}, 20);
 });
 
 

@@ -104,7 +104,9 @@ function GoClock(overlayCanvas, mainCanvas){
         for (var i = 0; i < gridsize*gridsize; ++i){
             this.stones.push(0); // empty space
             var r = (Math.random() * 6 | 0) - 2;
-            this.white_stone.push((r > 0 && r < 4) ? r : 0); // Make half of them the all white stone
+            // Disabled the multiple white stone until we get them moving right
+            //this.white_stone.push((r > 0 && r < 4) ? r : 0); // Make half of them the all white stone
+            this.white_stone.push(0);
         }
     };
 
@@ -207,10 +209,10 @@ function GoClock(overlayCanvas, mainCanvas){
         var shadowSize = height * this.goban_width / 800;
         ctx.save();
         if (height >= 0) {
-            ctx.shadowOffsetX = (shadowSize + this.goban_width / 200) * xFactor;
-            ctx.shadowOffsetY = ctx.shadowOffsetX * yFactor / xFactor;
+            ctx.shadowOffsetX = (shadowSize + this.goban_width / 200) * xFactor | 0;
+            ctx.shadowOffsetY = (shadowSize + this.goban_width / 200) * yFactor | 0;
             ctx.shadowColor = "rgba(0, 0, 0, " + (0.4 - height / 20) + ")";
-            ctx.shadowBlur = shadowSize * 2 + this.goban_width / 120;
+            ctx.shadowBlur = shadowSize * 2;
             ctx.globalAlpha = height < 6 ? 1 : 1 - (height - 6) / 8;
         }
         var s = black_stone;
@@ -236,16 +238,15 @@ function GoClock(overlayCanvas, mainCanvas){
         var w = p[2];
         var h = p[3];
         // We erase extra area to make sure we get the shadow
-        this.mainContext.clearRect(x, y, w*1.2, h*1.2);
+        this.mainContext.clearRect(x, y, w + 1 + this.goban_width / 200 * xFactor | 0, h + 1 + this.goban_width / 200 * yFactor | 0);
         // Then redraw surround stones just in case we deleted a bit of them
-        var neighbours = [[coords[0] + 1, coords[1]], [coords[0], coords[1] + 1], [coords[0] + 1, coords[1] + 1]];
+/*        var neighbours = [[coords[0] + 1, coords[1]], [coords[0], coords[1] + 1], [coords[0] + 1, coords[1] + 1]];
         for (var n = 0; n < neighbours.length; ++n) {
             var colour = this.stones_shown[this.get_index(neighbours[n])];
             if (colour != 0) {
                 this.drawStone(this.mainContext, neighbours[n], colour, -1);
             }
-
-        }
+        }*/
     };
 
     // Update the desired state of the clock
@@ -362,7 +363,7 @@ function GoClock(overlayCanvas, mainCanvas){
         var start_of_movement = this.stone_percent == 0;
         if (start_of_movement && this.stone_to[0] != go_bowl) {
             // Update the messiness depending on how fast we're going
-            var messiness = 0.5*Math.sqrt(this.speed);
+            var messiness = 0;//0.5*Math.sqrt(this.speed);
             this.offsets[this.get_index(this.stone_to)] = [0, Math.random()*messiness - messiness/2];
             this.stone_to = this.get_coords(this.get_index(this.stone_to));
         }
