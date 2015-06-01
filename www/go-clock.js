@@ -76,7 +76,6 @@ function GoClock(overlayCanvas, mainCanvas){
 
     this.stones = []; // The current (desired) state
     this.stones_shown = []; // The stones last drawn
-    this.stone_queue = []; // Prioritise putting these stones on the board, in this order.
     this.moving_stone = false;
     this.stone_from = [0, 0]; // Board coordinates
     this.stone_to = [0, 0]; // Board coordinates
@@ -190,16 +189,11 @@ function GoClock(overlayCanvas, mainCanvas){
     this.drawNumber = function(number, x_offset, y_offset, small, colour) {
         var num = small ? tiny_num[number] : small_num[number];
         for (var i = 0; i < num.length; ++i) {
-            this.addStoneToQueue(num[i][0] + x_offset, num[i][1] + y_offset, colour);
+            this.addStone(num[i][0] + x_offset, num[i][1] + y_offset, colour);
         }
     };
     this.addStone = function(x, y, colour){
         this.stones[y*gridsize + x] = colour;
-    };
-    this.addStoneToQueue = function(x, y, colour) {
-        // Turning off the queue for now...
-        // this.stone_queue.push([x, y, colour]);
-        this.addStone(x, y, colour);
     };
     this.drawStone = function(ctx, coords, colour, height) {
         if (coords[0] <= -0.5 || coords[0] >= gridsize - 0.5 || coords[1] <= -0.5 || coords[1] >= gridsize - 0.5) {
@@ -264,7 +258,7 @@ function GoClock(overlayCanvas, mainCanvas){
         if (this.view == 0) {
             var hour_stones = [[9, 1], [13, 2], [16, 5], [17, 9], [16, 13], [13, 16], [9, 17], [5, 16], [2, 13], [1, 9], [2, 5], [5, 2]];
             for (var i = 0; i < hour_stones.length; ++i) {
-                this.addStoneToQueue(hour_stones[i][0], hour_stones[i][1], black);
+                this.addStone(hour_stones[i][0], hour_stones[i][1], black);
             }
             var min_pos = 60*minutes + seconds;
             var theta = 2*Math.PI*min_pos / 3600;
@@ -273,7 +267,7 @@ function GoClock(overlayCanvas, mainCanvas){
             var endY = Math.round(9 - R*Math.cos(theta));
             var hand_stones = line(9, endX, 9, endY);
             for (var i = 0; i < hand_stones.length; ++i) {
-                this.addStoneToQueue(hand_stones[i][0], hand_stones[i][1], white);
+                this.addStone(hand_stones[i][0], hand_stones[i][1], white);
             }
 
             hours %= 12;
@@ -285,13 +279,13 @@ function GoClock(overlayCanvas, mainCanvas){
             endY = Math.round(9 - R*Math.cos(theta));
             hand_stones = line(9, endX, 9, endY);
             for (var i = 0; i < hand_stones.length; ++i) {
-                this.addStoneToQueue(hand_stones[i][0], hand_stones[i][1], black);
+                this.addStone(hand_stones[i][0], hand_stones[i][1], black);
             }
         }
         else if (this.view == 1) {
             hour_stones = [[9, 1], [13, 2], [16, 5], [17, 9], [16, 13], [13, 16], [9, 17], [5, 16], [2, 13], [1, 9], [2, 5], [5, 2]];
             for (var i = 0; i < hour_stones.length; ++i) {
-                this.addStoneToQueue(hour_stones[i][0], hour_stones[i][1], hours%12 == i ? white : black);
+                this.addStone(hour_stones[i][0], hour_stones[i][1], hours%12 == i ? white : black);
             }
             this.drawNumber((minutes - minutes%10)/10, 6, 4, true, black);
             this.drawNumber(minutes%10, 10, 4, true, black);
@@ -307,14 +301,14 @@ function GoClock(overlayCanvas, mainCanvas){
         else if (this.view == 3) {
             this.drawNumber((hours - hours%10)/10, 1, 1, true, black);
             this.drawNumber(hours%10, 5, 1, true, black);
-            this.addStoneToQueue(9, 2, black);
-            this.addStoneToQueue(9, 4, black);
+            this.addStone(9, 2, black);
+            this.addStone(9, 4, black);
             this.drawNumber((minutes - minutes%10)/10, 11, 1, true, black);
             this.drawNumber(minutes%10, 15, 1, true, black);
 
             var second_stones = [[9, 6], [12, 7], [14, 9], [15, 12], [14, 15], [12, 17], [9, 18], [6, 17], [4, 15], [3, 12], [4, 9], [6, 7]];
             for (var i=0; i < second_stones.length; ++i) {
-                this.addStoneToQueue(second_stones[i][0], second_stones[i][1], i == Math.floor(seconds/5) ? black : white);
+                this.addStone(second_stones[i][0], second_stones[i][1], i == Math.floor(seconds/5) ? black : white);
             }
 
             var theta = 2*Math.PI*seconds / 60;
@@ -323,7 +317,7 @@ function GoClock(overlayCanvas, mainCanvas){
             var endY = Math.round(12 - R*Math.cos(theta));
             var hand_stones = line(9, endX, 12, endY);
             for (var i=0; i < hand_stones.length; ++i) {
-                this.addStoneToQueue(hand_stones[i][0], hand_stones[i][1], white);
+                this.addStone(hand_stones[i][0], hand_stones[i][1], white);
             }
         }
         else if (this.view == 4) {
@@ -563,29 +557,13 @@ function GoClock(overlayCanvas, mainCanvas){
             }
             else {
                 // Finally do some adding
-                var added = false;
-                while (this.stone_queue.length != 0) {
-                    var new_stone = this.stone_queue.shift();
-                    var i = new_stone[0] + gridsize * new_stone[1];
-                    if (this.stones_shown[i] == 0 && this.stones[i] == new_stone[2]) {
-                        this.moving_stone = true;
-                        this.stone_colour = new_stone[2];
-                        this.stone_from = [go_bowl, go_bowl];
-                        this.stone_to = this.get_coords(i);
-                        added = true;
-                        break;
-                    }
-                }
-                if (added == false) {
-                    this.setup = false; // We've finished adding the initial set of stones
-                    if (to_add.length != 0) {
-                        var i = nearest(this.hand_position, to_add);
-                        this.moving_stone = true;
-                        this.stone_colour = -diff[i];
-                        this.stone_from = [go_bowl, go_bowl];
-                        this.stone_to = this.get_coords(i);
-                        this.hand_position = i;
-                    }
+                if (to_add.length != 0) {
+                    var i = nearest(this.hand_position, to_add);
+                    this.moving_stone = true;
+                    this.stone_colour = -diff[i];
+                    this.stone_from = [go_bowl, go_bowl];
+                    this.stone_to = this.get_coords(i);
+                    this.hand_position = i;
                 }
             }
         }
