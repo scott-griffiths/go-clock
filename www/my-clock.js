@@ -93,9 +93,9 @@ $(window).load(function() {
     if (isInt(storedView)) {
         view = parseInt(storedView) % 4;
     }
-/*
-    var sounds = 1;
-    var storedSound = readCookie('stone_sound');
+
+    var sounds = 0;
+/*    var storedSound = readCookie('stone_sound');
     if (isInt(storedSound)) {
         setAudio(parseInt(storedSound));
     } else {
