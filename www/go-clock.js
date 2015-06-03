@@ -2,7 +2,7 @@
  * Created by scott on 15/05/2014.
  */
 
-var angle = 30;
+var angle = 20;
 var xFactor = Math.sin(angle*Math.PI/180);
 var yFactor = Math.cos(angle*Math.PI/180);
 
@@ -90,7 +90,6 @@ function GoClock(overlayCanvas, mainCanvas){
     this.white_stone = []; // Which white stone to use in each position (if a white stone is there!)
 
     this.view = 0; // The clock type
-    this.setup = true; // if true we're doing the first drawing of the clock
 
     this.mainCanvas = mainCanvas;
     this.mainContext = this.mainCanvas.getContext('2d');
@@ -139,8 +138,8 @@ function GoClock(overlayCanvas, mainCanvas){
             refreshing = true;
         }
         if (!refreshing) {
-            this.goban_width = width * 0.90; // Some padding to show background
-            this.goban_height = height * 0.90;
+            this.goban_width = width * 0.95; // Some padding to show background
+            this.goban_height = height * 0.95;
             var goban_ratio = 857/800; // Ratio of the goban image
 
             if (this.goban_width*goban_ratio > this.goban_height) {
@@ -200,13 +199,13 @@ function GoClock(overlayCanvas, mainCanvas){
             return;
         }
         var p = this.stonePosition(coords[0], coords[1], height);
-        var shadowSize = height * this.goban_width / 800;
+        var shadowSize = height * this.goban_width / 200;
         ctx.save();
         if (height >= 0) {
             ctx.shadowOffsetX = (shadowSize + this.goban_width / 200) * xFactor | 0;
             ctx.shadowOffsetY = (shadowSize + this.goban_width / 200) * yFactor | 0;
-            ctx.shadowColor = "rgba(0, 0, 0, " + (0.4 - height / 20) + ")";
-            ctx.shadowBlur = shadowSize * 2;
+            ctx.shadowColor = "rgba(0, 0, 0, " + (0.4) + ")";
+            ctx.shadowBlur = shadowSize;
             ctx.globalAlpha = height < 6 ? 1 : 1 - (height - 6) / 8;
         }
         var s = black_stone;
@@ -372,10 +371,10 @@ function GoClock(overlayCanvas, mainCanvas){
             var w = this.stone_pos[2];
             var h = this.stone_pos[3];
             // We erase extra area to make sure we get the shadow.
-            this.overlayContext.clearRect(xpos - w/2, ypos - h/2, w*2, h*2);
+            this.overlayContext.clearRect(xpos - w/2, ypos - h/2, w*3, h*3);
         }
         if (this.stone_to[0] == go_bowl || this.stone_from[0] == go_bowl) {
-            this.stone_percent += this.setup ? this.speed*2 : this.speed; // Goes faster when first putting down stones
+            this.stone_percent += this.speed;
         } else {
             var xdist = this.stone_to[0] - this.stone_from[0];
             var ydist = this.stone_to[1] - this.stone_from[1];
@@ -402,7 +401,7 @@ function GoClock(overlayCanvas, mainCanvas){
         }
 
         if (this.stone_from[0] == go_bowl) {
-            // Stone being added
+            // Stone being added.
             this.stone_pos = this.drawStone(this.overlayContext, this.stone_to, this.stone_colour, 10*(1 - this.stone_percent/100));
         }
         else if (this.stone_to[0] == go_bowl) {
@@ -455,9 +454,6 @@ function GoClock(overlayCanvas, mainCanvas){
         for (var i = 0; i < this.stones_shown.length; ++i) {
             diff.push(this.stones_shown[i] - this.stones[i]);
         }
-        // Randomise where we start looking
-        var start = Math.random()*diff.length | 0;
-
         var best_i = -1;
         var best_j = -1;
         // First look for stones on a spot where the opposite colour wants to be
