@@ -131,6 +131,27 @@ $(window).load(function() {
         createCookie('goban_background', b, 100);
     }
 
+    function setGobanState(s) {
+        var stones = [];
+        for (var x = 0; x < s.length; ++x) {
+            stones.push(parseInt(s[x]));
+        }
+        goClock.stones_shown = stones;
+    }
+
+    var storeGobanState = function() {
+        var s = "";
+        for (var x = 0; x < 361; ++x) {
+            s += goClock.stones_shown[x];
+        }
+        createCookie('goban_state', s, 100);
+    }
+
+    var storedState = readCookie('goban_state');
+    if (storedState && storedState.length == 361) {
+        setGobanState(storedState);
+    }
+
     setClockSpeed(stone_speed);
     setView(view);
     setBackground(background);
@@ -195,6 +216,7 @@ $(window).load(function() {
     goClock.setup = true;
     setInterval(function() {goClock.update()}, 500);
     setInterval(function() {goClock.transform()}, 20);
+    setInterval(storeGobanState, 2000);
 });
 
 
