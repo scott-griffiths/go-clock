@@ -107,6 +107,6 @@ html, body {
     background-color: white;
 }
 
-#clock_face, #stone_speed, #change_background, #stone_sound{
+#clock_face, #stone_speed, #change_background, #stone_sound, #mode{
     color: rgb(247, 255, 201);
 }

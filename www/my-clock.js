@@ -94,6 +94,10 @@ $(window).load(function() {
         view = parseInt(storedView) % 4;
     }
 
+    var mode = false;
+    var storedMode = readCookie('twenty_four_hour');
+    setMode(storedMode);
+
     var sounds = 0;
 /*    var storedSound = readCookie('stone_sound');
     if (isInt(storedSound)) {
@@ -114,6 +118,12 @@ $(window).load(function() {
         goClock.sounds = a;
         $('#stone_sound').text(a ? 'On' : 'Off');
         createCookie('stone_sound', a ? '1' : '0');
+    }
+
+    function setMode(m) {
+        goClock.twenty_four_hour = m;
+        $('#mode').text(m ? "24-hour" : "12-hour");
+        createCookie('twenty_four_hour', m, 100);
     }
 
     function setView(v) {
@@ -185,7 +195,9 @@ $(window).load(function() {
     $('#clock_face').closest('a').click(function() {
         setView(goClock.view + 1);
     });
-
+    $('#mode').closest('a').click(function() {
+        setMode(!goClock.twenty_four_hour);
+    });
     $('#change_background').closest('a').click(function() {
         background += 1;
         setBackground(background);
@@ -213,7 +225,6 @@ $(window).load(function() {
     };
     window.onresize();
     goClock.update();
-    goClock.setup = true;
     setInterval(function() {goClock.update()}, 500);
     setInterval(function() {goClock.transform()}, 20);
     setInterval(storeGobanState, 2000);

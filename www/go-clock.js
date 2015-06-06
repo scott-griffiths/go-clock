@@ -97,6 +97,20 @@ function GoClock(overlayCanvas, mainCanvas){
     this.speed = 9;
     this.sounds = 0;
 
+    this.twenty_four_hour = true; // 24 hour mode for views that make sense
+
+    var scaleFactor = backingScale(this.mainContext);
+
+    if (scaleFactor > 1) {
+        this.mainCanvas.width = this.mainCanvas.width * scaleFactor;
+        this.mainCanvas.height = this.mainCanvas.height * scaleFactor;
+        this.mainContext = this.mainCanvas.getContext("2d");
+
+        this.overlayCanvas.width = this.overlayCanvas.width * scaleFactor;
+        this.overlayCanvas.height = this.overlayCanvas.height * scaleFactor;
+        this.overlayContext = this.overlayCanvas.getContext("2d");
+    }
+
     this.clear = function() {
         this.stones = [];
         for (var i = 0; i < gridsize*gridsize; ++i){
@@ -201,22 +215,32 @@ function GoClock(overlayCanvas, mainCanvas){
         var p = this.stonePosition(coords[0], coords[1], height);
         var shadowSize = height * this.goban_width / 200;
         ctx.save();
-        if (height >= 0) {
-            ctx.shadowOffsetX = (shadowSize + this.goban_width / 200) * xFactor | 0;
-            ctx.shadowOffsetY = (shadowSize + this.goban_width / 200) * yFactor | 0;
-            ctx.shadowColor = "rgba(0, 0, 0, " + (0.4) + ")";
-            ctx.shadowBlur = shadowSize;
-            ctx.globalAlpha = height < 6 ? 1 : 1 - (height - 6) / 8;
+        for (var shadow = 0; shadow < 2; ++shadow) {
+            if (height >= 0) {
+                if (shadow == 0) {
+                    ctx.shadowOffsetX = (shadowSize + this.goban_width / 200) * xFactor | 0;
+                    ctx.shadowOffsetY = (shadowSize + this.goban_width / 200) * yFactor | 0;
+                    ctx.shadowColor = "rgba(0, 0, 0, " + (0.4) + ")";
+                    ctx.shadowBlur = shadowSize;
+                    ctx.globalAlpha = height < 6 ? 1 : 1 - (height - 6) / 8;
+                } else {
+                    ctx.shadowOffsetX = -(shadowSize + this.goban_width / 200) * xFactor | 0;
+                    ctx.shadowOffsetY = (shadowSize + this.goban_width / 200) * xFactor | 0;
+                    ctx.shadowColor = "rgba(0, 0, 0, " + (0.1) + ")";
+                    ctx.shadowBlur = shadowSize;
+                    ctx.globalAlpha = height < 6 ? 1 : 1 - (height - 6) / 8;
+                }
+            }
+            var s = black_stone;
+            if (colour == white) {
+                var r = this.white_stone[this.get_index(coords)];
+                if (r == 0) s = white_stone0;
+                if (r == 1) s = white_stone1;
+                if (r == 2) s = white_stone2;
+                if (r == 3) s = white_stone3;
+            }
+            ctx.drawImage(s, p[0], p[1], p[2], p[3]);
         }
-        var s = black_stone;
-        if (colour == white) {
-            var r = this.white_stone[this.get_index(coords)];
-            if (r == 0) s = white_stone0;
-            if (r == 1) s = white_stone1;
-            if (r == 2) s = white_stone2;
-            if (r == 3) s = white_stone3;
-        }
-        ctx.drawImage(s, p[0], p[1], p[2], p[3]);
         ctx.restore();
         return p;
     };
@@ -250,6 +274,10 @@ function GoClock(overlayCanvas, mainCanvas){
         minutes = typeof minutes !== 'undefined' ? minutes : now.getMinutes();
         seconds = typeof seconds !== 'undefined' ? seconds : now.getSeconds();
         days = typeof days !== 'undefined' ? days : 0;
+
+        if (!this.twenty_four_hour) {
+            hours %= 12;
+        }
 
         var views = 4;
         this.view %= views;
@@ -292,13 +320,21 @@ function GoClock(overlayCanvas, mainCanvas){
             this.drawNumber(seconds%10, 10, 10, true, white);
         }
         else if (this.view == 2) {
-            this.drawNumber((hours - hours%10)/10, 4, 2, false, black);
-            this.drawNumber(hours%10, 10, 2, false, black);
+            var tensOfHours = (hours - hours%10)/10;
+            if (tensOfHours != 0 || this.twenty_four_hour) {
+                this.drawNumber(tensOfHours, 4, 2, false, black);
+                this.drawNumber(hours % 10, 10, 2, false, black);
+            } else {
+                this.drawNumber(hours % 10, 7, 2, false, black);
+            }
             this.drawNumber((minutes - minutes%10)/10, 4, 10, false, white);
             this.drawNumber(minutes%10, 10, 10, false, white);
         }
         else if (this.view == 3) {
-            this.drawNumber((hours - hours%10)/10, 1, 1, true, black);
+            var tensOfHours = (hours - hours%10)/10;
+            if (tensOfHours != 0) {
+                this.drawNumber((hours - hours%10)/10, 1, 1, true, black);
+            }
             this.drawNumber(hours%10, 5, 1, true, black);
             this.addStone(9, 2, black);
             this.addStone(9, 4, black);
