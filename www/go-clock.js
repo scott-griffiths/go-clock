@@ -215,7 +215,7 @@ function GoClock(overlayCanvas, mainCanvas){
         var p = this.stonePosition(coords[0], coords[1], height);
         var shadowSize = height * this.goban_width / 200;
         ctx.save();
-        for (var shadow = 0; shadow < 2; ++shadow) {
+        for (var shadow = 0; shadow < 1; ++shadow) {
             if (height >= 0) {
                 if (shadow == 0) {
                     ctx.shadowOffsetX = (shadowSize + this.goban_width / 200) * xFactor | 0;

@@ -54,6 +54,18 @@ html, body {
     color: white;
 }
 
+#info {
+    display: none;
+    position: absolute;
+    top: 13px;
+    left: 50px;
+    padding: 5px 15px;
+    background-color: white;
+    border: 1px solid black;
+    border-radius: 5px;
+    z-index: 2;
+}
+
 #sidebar {
     background-color: rgb(51, 85, 105);
 }

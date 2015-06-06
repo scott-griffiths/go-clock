@@ -166,6 +166,14 @@ $(window).load(function() {
     setView(view);
     setBackground(background);
 
+    var info_fade_timer;
+    function setInfo(val) {
+        $('#info').text(val);
+        $('#info').fadeIn();
+        clearTimeout(info_fade_timer);
+        info_fade_timer = setTimeout(function() {$('#info').fadeOut();}, 2000);
+    }
+
     var fade_menu_timer;
     $('#about_box, #goban').click(function() {
         if ($('#about_box').is(':visible')) {
@@ -187,7 +195,7 @@ $(window).load(function() {
         else if (!mySlidebars.slidebars.active('left')) {
             // Clicked on the goban when sidebar not active
             setView(goClock.view + 1);
-            goClock.stone_queue = [];
+            setInfo(views[goClock.view]);
         }
         goClock.update();
     });
