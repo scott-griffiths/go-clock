@@ -11,6 +11,13 @@ var gridsize = 19;
 
 var go_bowl = 999;
 
+// These give the relative positions of the sides of the goban grid as a proportion of the goban image
+var minx = 0.026;
+var maxx = 0.974;
+var miny = 0.03;
+var maxy = 0.972;
+
+
 ext = "images/";
 
 images = ["white_stone0.png", "white_stone1.png", "white_stone2.png", "white_stone3.png",
@@ -213,22 +220,22 @@ function GoClock(overlayCanvas, mainCanvas){
             return;
         }
         var p = this.stonePosition(coords[0], coords[1], height);
-        var shadowSize = height * this.goban_width / 200;
+        var shadowSize = this.goban_width/300 + height * this.goban_width / 200;
         ctx.save();
         for (var shadow = 0; shadow < 1; ++shadow) {
             if (height >= 0) {
                 if (shadow == 0) {
-                    ctx.shadowOffsetX = (shadowSize + this.goban_width / 200) * xFactor | 0;
-                    ctx.shadowOffsetY = (shadowSize + this.goban_width / 200) * yFactor | 0;
-                    ctx.shadowColor = "rgba(0, 0, 0, " + (0.4) + ")";
-                    ctx.shadowBlur = shadowSize;
+                    ctx.shadowOffsetX = (shadowSize) * xFactor | 0;
+                    ctx.shadowOffsetY = (shadowSize) * yFactor | 0;
+                    ctx.shadowColor = "rgba(0, 0, 0, " + (height < 4 ? (6 - height)/12 : 1/6)+ ")";
+                    ctx.shadowBlur = shadowSize / 2;
                     ctx.globalAlpha = height < 6 ? 1 : 1 - (height - 6) / 8;
                 } else {
                     ctx.shadowOffsetX = -(shadowSize + this.goban_width / 200) * xFactor | 0;
                     ctx.shadowOffsetY = (shadowSize + this.goban_width / 200) * xFactor | 0;
                     ctx.shadowColor = "rgba(0, 0, 0, " + (0.1) + ")";
                     ctx.shadowBlur = shadowSize;
-                    ctx.globalAlpha = height < 6 ? 1 : 1 - (height - 6) / 8;
+                    ctx.globalAlpha = height < 2 ? 1 : 1 - (height - 2) / 8;
                 }
             }
             var s = black_stone;
@@ -255,7 +262,11 @@ function GoClock(overlayCanvas, mainCanvas){
         var w = p[2];
         var h = p[3];
         // We erase extra area to make sure we get the shadow
-        this.mainContext.clearRect(x, y, w + 1 + this.goban_width / 200 * xFactor | 0, h + 1 + this.goban_width / 200 * yFactor | 0);
+
+        var diameter = (this.goban_width/20);
+        var xSpacing = (maxx-minx)*this.goban_width/(gridsize - 1);
+        var ySpacing = (maxy-miny)*this.goban_height/(gridsize - 1);
+        this.mainContext.clearRect(x + (diameter - xSpacing)/2 - 0.5, y + (diameter - ySpacing)/2 - 0.5, xSpacing+1, ySpacing+2);
         // Then redraw surround stones just in case we deleted a bit of them
 /*        var neighbours = [[coords[0] + 1, coords[1]], [coords[0], coords[1] + 1], [coords[0] + 1, coords[1] + 1]];
         for (var n = 0; n < neighbours.length; ++n) {
@@ -373,11 +384,6 @@ function GoClock(overlayCanvas, mainCanvas){
         if (x <= -0.5 || x >= gridsize - 0.5 || y <= -0.5 || y >= gridsize - 0.5) {
             return;
         }
-        // These give the relative positions of the sides of the goban grid as a proportion of the goban image
-        var minx = 0.026;
-        var maxx = 0.974;
-        var miny = 0.03;
-        var maxy = 0.972;
 
         var xpos = minx*this.goban_width + x*(maxx-minx)*this.goban_width/(gridsize - 1);
         var ypos = miny*this.goban_height + y*(maxy-miny)*this.goban_height/(gridsize - 1);

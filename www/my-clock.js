@@ -56,7 +56,7 @@ var backgroundImages = [];
 
 var views = {0 : 'Analogue', 1 : 'Jumping hour', 2 : 'Digital', 3 : 'Hybrid'};
 
-var stone_speeds = [['Torpid', 2], ['Slow', 5], ['Normal', 9], ['Fast', 18], ['Insane!', 50]];
+var stone_speeds = [['Torpid', 2], ['Slow', 5], ['Normal', 9], ['Fast', 18], ['Insane!', 40]];
 
 $(document).ready(function(){
     var now = new Date();
@@ -94,9 +94,11 @@ $(window).load(function() {
         view = parseInt(storedView) % 4;
     }
 
-    var mode = false;
-    var storedMode = readCookie('twenty_four_hour');
-    setMode(storedMode);
+    var mode = 0;
+    var storedMode = readCookie('mode');
+    if (isInt(storedMode)) {
+        mode = parseInt(storedMode) % 2;
+    }
 
     var sounds = 0;
 /*    var storedSound = readCookie('stone_sound');
@@ -121,9 +123,9 @@ $(window).load(function() {
     }
 
     function setMode(m) {
-        goClock.twenty_four_hour = m;
-        $('#mode').text(m ? "24-hour" : "12-hour");
-        createCookie('twenty_four_hour', m, 100);
+        goClock.twenty_four_hour = (m == 1);
+        $('#mode').text(goClock.twenty_four_hour ? "24-hour" : "12-hour");
+        createCookie('mode', m, 100);
     }
 
     function setView(v) {
@@ -165,6 +167,7 @@ $(window).load(function() {
     setClockSpeed(stone_speed);
     setView(view);
     setBackground(background);
+    setMode(mode);
 
     var info_fade_timer;
     function setInfo(val) {
@@ -185,7 +188,7 @@ $(window).load(function() {
         clearTimeout(fade_menu_timer);
         fade_menu_timer = setTimeout(function() {
             $('#menu').fadeTo('slow', 0.3);
-        }, 3000);
+        }, 2000);
         var top_left = goClock.stonePosition(0, 0, 0);
         var bottom_right = goClock.stonePosition(18, 18, 0);
         if (xmouse < top_left[0] || (xmouse > bottom_right[0] + bottom_right[2]) ||
@@ -204,7 +207,7 @@ $(window).load(function() {
         setView(goClock.view + 1);
     });
     $('#mode').closest('a').click(function() {
-        setMode(!goClock.twenty_four_hour);
+        setMode(goClock.twenty_four_hour ? 0 : 1);
     });
     $('#change_background').closest('a').click(function() {
         background += 1;
