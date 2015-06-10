@@ -26,7 +26,6 @@ html, body {
     display: block;
     margin-left: auto;
     margin-right: auto;
-    -webkit-filter: saturate(0.8) hue-rotate(-12deg) sepia(0.5)
 }
 
 #about_box {
@@ -119,6 +118,6 @@ html, body {
     background-color: white;
 }
 
-#clock_face, #stone_speed, #change_background, #stone_sound, #mode{
+#clock_face, #stone_speed, #change_background, #stone_sound, #mode, #wood{
     color: rgb(247, 255, 201);
 }

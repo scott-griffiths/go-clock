@@ -106,18 +106,6 @@ function GoClock(overlayCanvas, mainCanvas){
 
     this.twenty_four_hour = true; // 24 hour mode for views that make sense
 
-    var scaleFactor = backingScale(this.mainContext);
-
-    if (scaleFactor > 1) {
-        this.mainCanvas.width = this.mainCanvas.width * scaleFactor;
-        this.mainCanvas.height = this.mainCanvas.height * scaleFactor;
-        this.mainContext = this.mainCanvas.getContext("2d");
-
-        this.overlayCanvas.width = this.overlayCanvas.width * scaleFactor;
-        this.overlayCanvas.height = this.overlayCanvas.height * scaleFactor;
-        this.overlayContext = this.overlayCanvas.getContext("2d");
-    }
-
     this.clear = function() {
         this.stones = [];
         for (var i = 0; i < gridsize*gridsize; ++i){
@@ -262,10 +250,13 @@ function GoClock(overlayCanvas, mainCanvas){
         var w = p[2];
         var h = p[3];
         // We erase extra area to make sure we get the shadow
+//        this.mainContext.clearRect(0, 0, this.mainCanvas.width, this.mainCanvas.height);
+//        this.draw();
 
         var diameter = (this.goban_width/20);
         var xSpacing = (maxx-minx)*this.goban_width/(gridsize - 1);
         var ySpacing = (maxy-miny)*this.goban_height/(gridsize - 1);
+
         this.mainContext.clearRect(x + (diameter - xSpacing)/2 - 0.5, y + (diameter - ySpacing)/2 - 0.5, xSpacing+1, ySpacing+2);
         // Then redraw surround stones just in case we deleted a bit of them
 /*        var neighbours = [[coords[0] + 1, coords[1]], [coords[0], coords[1] + 1], [coords[0] + 1, coords[1] + 1]];
@@ -288,6 +279,9 @@ function GoClock(overlayCanvas, mainCanvas){
 
         if (!this.twenty_four_hour) {
             hours %= 12;
+            if (hours == 0) {
+                hours = 12;
+            }
         }
 
         var views = 4;

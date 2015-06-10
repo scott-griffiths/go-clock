@@ -58,6 +58,10 @@ var views = {0 : 'Analogue', 1 : 'Jumping hour', 2 : 'Digital', 3 : 'Hybrid'};
 
 var stone_speeds = [['Torpid', 2], ['Slow', 5], ['Normal', 9], ['Fast', 18], ['Insane!', 40]];
 
+var woods = [['Oak', 'saturate(0.8) hue-rotate(-12deg) sepia(0.5)'],
+             ['Kaya', 'saturate(1.3) hue-rotate(-7deg)'],
+             ['Bamboo', 'saturate(0.3) contrast(1.4) brightness(1.1) hue-rotate(-6deg)']];
+
 $(document).ready(function(){
     var now = new Date();
     var time = now.getTime();
@@ -100,6 +104,12 @@ $(window).load(function() {
         mode = parseInt(storedMode) % 2;
     }
 
+    var wood = 0;
+    var storedWood = readCookie('wood');
+    if (isInt(storedWood)) {
+        wood = parseInt(storedWood) % woods.length;
+    }
+
     var sounds = 0;
 /*    var storedSound = readCookie('stone_sound');
     if (isInt(storedSound)) {
@@ -126,6 +136,13 @@ $(window).load(function() {
         goClock.twenty_four_hour = (m == 1);
         $('#mode').text(goClock.twenty_four_hour ? "24-hour" : "12-hour");
         createCookie('mode', m, 100);
+    }
+
+    function setWood(w) {
+        w %= woods.length;
+        $('#wood').text(woods[w][0]);
+        $('#goban img').css('-webkit-filter', woods[w][1]);
+        createCookie('wood', w, 100);
     }
 
     function setView(v) {
@@ -209,6 +226,10 @@ $(window).load(function() {
     $('#mode').closest('a').click(function() {
         setMode(goClock.twenty_four_hour ? 0 : 1);
     });
+    $('#wood').closest('a').click(function() {
+        wood += 1;
+        setWood(wood);
+    });
     $('#change_background').closest('a').click(function() {
         background += 1;
         setBackground(background);
@@ -235,7 +256,9 @@ $(window).load(function() {
 
     };
     window.onresize();
+    setWood(wood);
     goClock.update();
+
     setInterval(function() {goClock.update()}, 500);
     setInterval(function() {goClock.transform()}, 20);
     setInterval(storeGobanState, 2000);
