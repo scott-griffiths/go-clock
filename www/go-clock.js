@@ -215,7 +215,7 @@ function GoClock(overlayCanvas, mainCanvas){
                 if (shadow == 0) {
                     ctx.shadowOffsetX = (shadowSize) * xFactor | 0;
                     ctx.shadowOffsetY = (shadowSize) * yFactor | 0;
-                    ctx.shadowColor = "rgba(0, 0, 0, " + (height < 4 ? (6 - height)/12 : 1/6)+ ")";
+                    ctx.shadowColor = "rgba(0, 0, 0, " + (height < 4 ? (6 - height)/8 : 1/4)+ ")";
                     ctx.shadowBlur = shadowSize / 2;
                     ctx.globalAlpha = height < 6 ? 1 : 1 - (height - 6) / 8;
                 } else {
@@ -250,9 +250,6 @@ function GoClock(overlayCanvas, mainCanvas){
         var w = p[2];
         var h = p[3];
         // We erase extra area to make sure we get the shadow
-//        this.mainContext.clearRect(0, 0, this.mainCanvas.width, this.mainCanvas.height);
-//        this.draw();
-
         var diameter = (this.goban_width/20);
         var xSpacing = (maxx-minx)*this.goban_width/(gridsize - 1);
         var ySpacing = (maxy-miny)*this.goban_height/(gridsize - 1);

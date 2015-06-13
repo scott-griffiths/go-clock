@@ -51,7 +51,9 @@ tips_of_the_day.push("To use as an alarm clock simply employ a small child to wa
 tips_of_the_day.push("For extra accuracy when timing sporting events, use the view with the second counter.");
 tips_of_the_day.push("Use the Go Clock on an iPhone sellotaped to your wrist and your friend(s) will think you have an Apple Watch!");
 
-var backgrounds = [['wood1.jpg', "Dark wood"], ['wood2.jpg', "Light wood"], ['stone1.jpg', "Stone"], ['mosaic1.jpg', "Mosaic"], ['tatami.jpg', "Tatami"]];
+var backgrounds = [['wood1.jpg', "Dark wood"], ['wood2.jpg', "Light wood"], ['stone1.jpg', "Stone"],
+                   ['mosaic1.jpg', "Mosaic"], ['tatami.jpg', "Tatami"], ['space.jpg', "Space"], ['grass.jpg', "Grass"], ['droplets.jpg', 'Droplets']];
+//var backgrounds = [['1.jpg', '1'], ['2.jpg', '2'], ['3.jpg', '3'], ['4.jpg', '4'], ['5.jpg', '5'], ['6.jpg', '6'], ['7.jpg', '7'], ['8.jpg', '8'], ['9.jpg', '9'], ['10.jpg', '10']];
 var backgroundImages = [];
 
 var views = {0 : 'Analogue', 1 : 'Jumping hour', 2 : 'Digital', 3 : 'Hybrid'};
@@ -77,6 +79,16 @@ $(document).ready(function(){
 
 // This runs after the DOM *and* images have loaded
 $(window).load(function() {
+
+    var drawEmpty = false;
+    if (drawEmpty) {
+        // Draw empty board
+        var goClock = new GoClock(document.getElementById('goCanvasOverlay'), document.getElementById('goCanvasMain'));
+        setBackground(0);
+        goClock.draw(window.innerWidth, window.innerHeight - min_bottom_padding);
+        $('body').css('-webkit-filter', 'grayscale(0.7) brightness(1.1)');
+    }
+
     var mySlidebars = new $.slidebars();
     $('#menu').fadeIn();
     var background = 0;
@@ -175,10 +187,11 @@ $(window).load(function() {
         }
         createCookie('goban_state', s, 100);
     }
-
-    var storedState = readCookie('goban_state');
-    if (storedState && storedState.length == 361) {
-        setGobanState(storedState);
+    if (!drawEmpty) {
+        var storedState = readCookie('goban_state');
+        if (storedState && storedState.length == 361) {
+            setGobanState(storedState);
+        }
     }
 
     setClockSpeed(stone_speed);
@@ -257,11 +270,15 @@ $(window).load(function() {
     };
     window.onresize();
     setWood(wood);
-    goClock.update();
 
-    setInterval(function() {goClock.update()}, 500);
-    setInterval(function() {goClock.transform()}, 20);
-    setInterval(storeGobanState, 2000);
+    if (!drawEmpty) {
+        goClock.update();
+
+        setInterval(function() {goClock.update()}, 500);
+        setInterval(function() {goClock.transform()}, 20);
+        setInterval(storeGobanState, 2000);
+
+    }
 });
 
 

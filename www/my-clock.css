@@ -67,6 +67,9 @@ html, body {
 
 #sidebar {
     background-color: rgb(51, 85, 105);
+    background-image: url('images/bowl2.jpg');
+    background-size: cover;
+    border-right: 1px solid black;
 }
 
 #sidebar img {
@@ -88,20 +91,20 @@ html, body {
 	border-top: 1px solid rgba(255, 255, 255, 0.1);
 	border-bottom: 1px solid rgba(0, 0, 0, 0.1);
 }
-
+/*
 .sb-menu > li:first-child {
 	border-top: none;
 }
 
 .sb-menu > li:last-child {
-	border-bottom: none;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
-
+*/
 .sb-menu li a {
 	width: 100%; /* Makes links full width. */
 	display: inline-block;
 	padding: 1em; /* Creates an even padding the same size as your font. */
-	color: #f2f2f2;
+	color: #4d1d1d;
     cursor: pointer;
 }
 
@@ -112,12 +115,13 @@ html, body {
 
 #menu-title {
     padding: 20px;
+    padding-top: 0px;
     text-align: center;
-    font-size: 40px;
-    color: rgb(51, 85, 105);
-    background-color: white;
+    font-size: 33px;
+/*    color: rgb(51, 85, 105);
+    background-color: white;*/
 }
 
 #clock_face, #stone_speed, #change_background, #stone_sound, #mode, #wood{
-    color: rgb(247, 255, 201);
+    color: rgb(174, 41, 41);
 }
