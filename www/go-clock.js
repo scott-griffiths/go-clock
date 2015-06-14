@@ -210,32 +210,22 @@ function GoClock(overlayCanvas, mainCanvas){
         var p = this.stonePosition(coords[0], coords[1], height);
         var shadowSize = this.goban_width/300 + height * this.goban_width / 200;
         ctx.save();
-        for (var shadow = 0; shadow < 1; ++shadow) {
-            if (height >= 0) {
-                if (shadow == 0) {
-                    ctx.shadowOffsetX = (shadowSize) * xFactor | 0;
-                    ctx.shadowOffsetY = (shadowSize) * yFactor | 0;
-                    ctx.shadowColor = "rgba(0, 0, 0, " + (height < 4 ? (6 - height)/8 : 1/4)+ ")";
-                    ctx.shadowBlur = shadowSize / 2;
-                    ctx.globalAlpha = height < 6 ? 1 : 1 - (height - 6) / 8;
-                } else {
-                    ctx.shadowOffsetX = -(shadowSize + this.goban_width / 200) * xFactor | 0;
-                    ctx.shadowOffsetY = (shadowSize + this.goban_width / 200) * xFactor | 0;
-                    ctx.shadowColor = "rgba(0, 0, 0, " + (0.1) + ")";
-                    ctx.shadowBlur = shadowSize;
-                    ctx.globalAlpha = height < 2 ? 1 : 1 - (height - 2) / 8;
-                }
-            }
-            var s = black_stone;
-            if (colour == white) {
-                var r = this.white_stone[this.get_index(coords)];
-                if (r == 0) s = white_stone0;
-                if (r == 1) s = white_stone1;
-                if (r == 2) s = white_stone2;
-                if (r == 3) s = white_stone3;
-            }
-            ctx.drawImage(s, p[0], p[1], p[2], p[3]);
+        if (height >= 0) {
+            ctx.shadowOffsetX = (shadowSize) * xFactor | 0;
+            ctx.shadowOffsetY = (shadowSize) * yFactor | 0;
+            ctx.shadowColor = "rgba(0, 0, 0, " + (height < 4 ? (6 - height)/8 : 1/4)+ ")";
+            ctx.shadowBlur = shadowSize / 2;
+            ctx.globalAlpha = height < 6 ? 1 : 1 - (height - 6) / 6;
         }
+        var s = black_stone;
+        if (colour == white) {
+            var r = this.white_stone[this.get_index(coords)];
+            if (r == 0) s = white_stone0;
+            if (r == 1) s = white_stone1;
+            if (r == 2) s = white_stone2;
+            if (r == 3) s = white_stone3;
+        }
+        ctx.drawImage(s, p[0], p[1], p[2], p[3]);
         ctx.restore();
         return p;
     };
@@ -375,12 +365,11 @@ function GoClock(overlayCanvas, mainCanvas){
         if (x <= -0.5 || x >= gridsize - 0.5 || y <= -0.5 || y >= gridsize - 0.5) {
             return;
         }
-
-        var xpos = minx*this.goban_width + x*(maxx-minx)*this.goban_width/(gridsize - 1);
-        var ypos = miny*this.goban_height + y*(maxy-miny)*this.goban_height/(gridsize - 1);
         if (height > 10) {
             height = 10;
         }
+        var xpos = minx*this.goban_width + x*(maxx-minx)*this.goban_width/(gridsize - 1);
+        var ypos = miny*this.goban_height - (height*this.goban_height/600) + y*(maxy-miny)*this.goban_height/(gridsize - 1);
         var diameter = (this.goban_width/20) * (1 + height/20) | 0;
         return [xpos - diameter/2 + this.x_offset | 0, ypos - diameter/2 + this.y_offset | 0, diameter, diameter];
     };
@@ -409,10 +398,8 @@ function GoClock(overlayCanvas, mainCanvas){
         if (this.stone_to[0] == go_bowl || this.stone_from[0] == go_bowl) {
             this.stone_percent += this.speed;
         } else {
-            var xdist = this.stone_to[0] - this.stone_from[0];
-            var ydist = this.stone_to[1] - this.stone_from[1];
-            var distance = Math.sqrt(xdist*xdist + ydist*ydist);
-            this.stone_percent += this.speed/Math.sqrt(distance);
+            this.stone_percent += this.speed/Math.sqrt(dist(this.get_index(this.stone_to),
+                                                            this.get_index(this.stone_from)));
         }
         if (this.stone_percent >= 100) {
             if (this.stone_to[0] == go_bowl) {
@@ -543,6 +530,10 @@ function GoClock(overlayCanvas, mainCanvas){
                 }
             }
             this.clear_route = true;
+            // For long distances always pick up the stone
+            if (dist(best_i, best_j) > 5) {
+                this.clear_route = false;
+            }
             for (var i=0; i < points.length; ++i) {
                 if (this.stones_shown[points[i][0] + gridsize*points[i][1]] != 0) {
                     this.clear_route = false;

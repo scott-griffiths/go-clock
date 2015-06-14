@@ -49,7 +49,7 @@ var tips_of_the_day = [];
 tips_of_the_day.push("Why not download on the new iPad Air 2 and then nail or glue it to your living room wall?");
 tips_of_the_day.push("To use as an alarm clock simply employ a small child to watch the Go Clock and tell them to wake you when it shows the right time.");
 tips_of_the_day.push("For extra accuracy when timing sporting events, use the view with the second counter.");
-tips_of_the_day.push("Use the Go Clock on an iPhone sellotaped to your wrist and your friend(s) will think you have an Apple Watch!");
+tips_of_the_day.push("Use The Go Clock on an iPhone sellotaped to your wrist and your friend(s) will think you have an Apple Watch!");
 
 var backgrounds = [['wood1.jpg', "Dark wood"], ['wood2.jpg', "Light wood"], ['stone1.jpg', "Stone"],
                    ['mosaic1.jpg', "Mosaic"], ['tatami.jpg', "Tatami"], ['space.jpg', "Space"], ['grass.jpg', "Grass"], ['droplets.jpg', 'Droplets']];
@@ -213,7 +213,7 @@ $(window).load(function() {
             $("#about_box").fadeOut();
         }
     });
-    $("#goban").click(function() {
+    $("#goban, #menu").click(function() {
         $('#menu').fadeTo('slow', 1.0);
         clearTimeout(fade_menu_timer);
         fade_menu_timer = setTimeout(function() {
