@@ -2,7 +2,13 @@
 
 @font-face {
   font-family: 'Raleway';
-  src:  url('res/Raleway.woff2') format('woff2');
+  src:  url('./res/Raleway-Regular.tff') format('tff');
+  font-width: normal;
+}
+@font-face {
+  font-family: 'Raleway';
+  src:  url('./res/Raleway-SemiBold.tff') format('tff');
+  font-width: bold;
 }
 
 body {
@@ -51,7 +57,7 @@ html, body {
     font-size: 50px;
     z-index: 2;
     color: white;
-    background-color: rgb(0, 0, 0);
+    background-color: rgba(0, 0, 0, 0.3);
 }
 
 #info {
@@ -115,8 +121,8 @@ html, body {
 }
 
 #menu-title {
-    padding: 20px;
-    padding-top: 0px;
+    padding: 15px;
+    padding-top: 10px;
     text-align: center;
     font-size: 33px;
 /*    color: rgb(51, 85, 105);

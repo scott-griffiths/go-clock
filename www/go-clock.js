@@ -6,7 +6,6 @@ var angle = 20;
 var xFactor = Math.sin(angle*Math.PI/180);
 var yFactor = Math.cos(angle*Math.PI/180);
 
-var min_bottom_padding = 0;
 var gridsize = 19;
 
 var go_bowl = 999;
@@ -162,16 +161,16 @@ function GoClock(overlayCanvas, mainCanvas){
             this.overlayCanvas.width = this.mainCanvas.width = width;
             this.overlayCanvas.height = this.mainCanvas.height = height;
         }
-
+        this.mainContext.clearRect(0, 0, this.mainCanvas.width, this.mainCanvas.height);
         // We choose the goban image based on the display size as the canvas
         // isn't very good at resizing and keeping the board line detail
         var gobanImage = goban_1200;
-        if (this.goban_width <= 400) {
+/*        if (this.goban_width <= 400) {
             gobanImage = goban_400;
         }
         if (this.goban_width <= 200) {
             gobanImage = goban_200;
-        }
+        }*/
 
         $('#goban-image').replaceWith(gobanImage);
         $('#goban img').width(this.goban_width).height(this.goban_height);
@@ -232,6 +231,7 @@ function GoClock(overlayCanvas, mainCanvas){
 
     // Remove a stone from the buffered board
     this.eraseStone = function(coords) {
+
         var p = this.stonePosition(coords[0], coords[1], 0);
         this.mainContext.shadowOffsetX = this.mainContext.shadowOffsetY = 0;
         this.mainContext.shadowBlur = 0;
@@ -243,16 +243,17 @@ function GoClock(overlayCanvas, mainCanvas){
         var diameter = (this.goban_width/20);
         var xSpacing = (maxx-minx)*this.goban_width/(gridsize - 1);
         var ySpacing = (maxy-miny)*this.goban_height/(gridsize - 1);
-
+        var shadowSize = this.goban_width/100 | 0;
         this.mainContext.clearRect(x + (diameter - xSpacing)/2 - 0.5, y + (diameter - ySpacing)/2 - 0.5, xSpacing+1, ySpacing+2);
+
         // Then redraw surround stones just in case we deleted a bit of them
-/*        var neighbours = [[coords[0] + 1, coords[1]], [coords[0], coords[1] + 1], [coords[0] + 1, coords[1] + 1]];
+        var neighbours = [[coords[0] + 1, coords[1]], [coords[0], coords[1] + 1], [coords[0] + 1, coords[1] + 1]];
         for (var n = 0; n < neighbours.length; ++n) {
             var colour = this.stones_shown[this.get_index(neighbours[n])];
             if (colour != 0) {
                 this.drawStone(this.mainContext, neighbours[n], colour, -1);
             }
-        }*/
+        }
     };
 
     // Update the desired state of the clock
@@ -408,8 +409,8 @@ function GoClock(overlayCanvas, mainCanvas){
             } else {
                 // add stone to board and draw on buffer and shown context
                 this.stones_shown[Math.round(this.stone_to[0]) + gridsize*Math.round(this.stone_to[1])] = this.stone_colour;
-                this.overlayContext.globalCompositeOperation = "source-over";
                 this.drawStone(this.mainContext, this.stone_to, this.stone_colour, 0);
+                // TODO: Also draw stone below and to the right, but without a shadow.
                 if ((this.stone_from[0] == go_bowl || !this.clear_route) && this.sounds) {
                     var click_sound = new Audio("sounds/click_x.wav");
                     click_sound.play();

@@ -80,12 +80,14 @@ $(document).ready(function(){
 // This runs after the DOM *and* images have loaded
 $(window).load(function() {
 
+//    window.plugins.insomnia.keepAwake();
+
     var drawEmpty = false;
     if (drawEmpty) {
         // Draw empty board
         var goClock = new GoClock(document.getElementById('goCanvasOverlay'), document.getElementById('goCanvasMain'));
         setBackground(0);
-        goClock.draw(window.innerWidth, window.innerHeight - min_bottom_padding);
+        goClock.draw(window.innerWidth, window.innerHeight);
         $('body').css('-webkit-filter', 'grayscale(0.7) brightness(1.1)');
     }
 
@@ -262,7 +264,7 @@ $(window).load(function() {
 
 
     window.onresize = function() {
-        goClock.draw(window.innerWidth, window.innerHeight - min_bottom_padding);
+        goClock.draw(window.innerWidth, window.innerHeight);
         fade_menu_timer = setTimeout(function() {
             $('#menu').fadeTo('slow', 0.3);
         }, 3000);
