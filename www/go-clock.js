@@ -483,7 +483,7 @@ function GoClock(overlayCanvas, mainCanvas){
                 var wanted = (diff[j] == black - white) ? -black : -white;
                 for (var i = 0; i < diff.length; ++i) {
                     if (diff[i] == wanted) {
-                        if (best_j == -1 || dist(j, this.hand_position) + dist(j, i) < dist(best_j, this.hand_position) + dist(best_j, best_i)) {
+                        if (best_j == -1 || dist(this.hand_position, j) + dist(j, i) < dist(this.hand_position, best_j) + dist(best_j, best_i)) {
                             best_i = i;
                             best_j = j;
                         }
@@ -491,24 +491,21 @@ function GoClock(overlayCanvas, mainCanvas){
                 }
             }
         }
-        if (best_j == -1) {
-            for (var i = 0; i < diff.length; ++i) {
-                if (diff[i] == -white || diff[i] == -black) {
-                    // we want a white or black stone here - search for the nearest excess white or black
-                    for (var j = 0; j < diff.length; ++j) {
-                        if (diff[j] == -diff[i]) {
-                            if (best_j == -1 ||
-                                   dist(this.hand_position, j) + dist(j, i) < dist(this.hand_position, best_j) + dist(best_j, best_i)) {
-                                // Shortest distance from hand to stone start to stone end
-                                best_j = j;
-                                best_i = i;
-                            }
+        for (var i = 0; i < diff.length; ++i) {
+            if (diff[i] == -white || diff[i] == -black) {
+                // we want a white or black stone here - search for the nearest excess white or black
+                for (var j = 0; j < diff.length; ++j) {
+                    if (diff[j] == -diff[i]) {
+                        if (best_j == -1 ||
+                               dist(this.hand_position, j) + dist(j, i) < dist(this.hand_position, best_j) + dist(best_j, best_i)) {
+                            // Shortest distance from hand to stone start to stone end
+                            best_j = j;
+                            best_i = i;
                         }
                     }
                 }
             }
         }
-        var removed = false;
         if (best_j != -1) {
             // Move stone from best_j to best_i
             this.moving_stone = true;
@@ -517,7 +514,6 @@ function GoClock(overlayCanvas, mainCanvas){
             this.hand_position = best_i;
             this.stone_colour = this.stones_shown[best_j];
             this.stones_shown[best_j] = 0;
-            removed = true;
             // Should we lift the stone or drag it?
             // See if there are any other stones on the route.
             var points = line(Math.round(this.stone_from[0]), Math.round(this.stone_to[0]),
@@ -542,49 +538,36 @@ function GoClock(overlayCanvas, mainCanvas){
                 }
             }
 
-        }
-
-        if (removed == false) {
+        } else {
             // No more moving will help. Find stone to remove.
             // Prefer removing stones which are where the opposite colour wants to be
             var to_remove_first = [];
             var to_remove_next = [];
             var to_add = [];
+            var best_i = -1;
             for (var i = 0; i < diff.length; ++i) {
-                if (diff[i] == black - white || diff[i] == white - black) {
-                    to_remove_first.push(i);
-                }
-                else if (diff[i] == black || diff[i] == white) {
-                    to_remove_next.push(i);
-                }
-                else if (diff[i] == -black || diff[i] == -white) {
-                    to_add.push(i);
+                if (diff[i] != 0) {
+                    if (best_i == -1 || dist(this.hand_position, i) < dist(this.hand_position, best_i)) {
+                        best_i = i;
+                    }
                 }
             }
-            var i = -1;
-            if (to_remove_first.length != 0) {
-                i = nearest(this.hand_position, to_remove_first);
-            }
-            if (i == -1 && to_remove_next.length != 0) {
-                i = nearest(this.hand_position, to_remove_next);
-            }
-            if (i != -1) {
-                this.moving_stone = true;
-                this.stone_from = this.get_coords(i);
-                this.stone_colour = this.stones_shown[i];
-                this.stone_to = [go_bowl, go_bowl];
-                this.hand_position = i;
-                this.stones_shown[i] = 0;
-            }
-            else {
-                // Finally do some adding
-                if (to_add.length != 0) {
-                    var i = nearest(this.hand_position, to_add);
+            if (best_i != -1) {
+                if (diff[best_i] != -white && diff[best_i] != -black) {
+                    // Remove a stone
                     this.moving_stone = true;
-                    this.stone_colour = -diff[i];
+                    this.stone_from = this.get_coords(best_i);
+                    this.stone_colour = this.stones_shown[best_i];
+                    this.stone_to = [go_bowl, go_bowl];
+                    this.hand_position = best_i;
+                    this.stones_shown[best_i] = 0;
+                } else {
+                    // Add a stone
+                    this.moving_stone = true;
+                    this.stone_colour = -diff[best_i];
                     this.stone_from = [go_bowl, go_bowl];
-                    this.stone_to = this.get_coords(i);
-                    this.hand_position = i;
+                    this.stone_to = this.get_coords(best_i);
+                    this.hand_position = best_i;
                 }
             }
         }
