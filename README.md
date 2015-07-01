@@ -8,5 +8,8 @@ For millennia it has been impractical to use the game equipment to accurately te
 
 ----
 
-A working version might just be available on my [Broken Symmetry](http://www.brokensymmetry.co.uk) site. It will be available soon as an iOS app.
+Available now for iOS devices. Totally free:
+https://itunes.apple.com/gb/app/the-go-clock/id993440786
+
+A working version might also be available on my [Broken Symmetry](http://www.brokensymmetry.co.uk) site. 
 
