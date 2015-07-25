@@ -44,6 +44,7 @@ goban_200.src = ext + "goban_200.jpg";
 var white = 1;
 var black = 3;
 
+
 // Small numbers, 5x7
 var s0 = [[3, 0], [2, 0], [1, 0], [0, 1], [0, 2], [0, 3], [0, 4], [0, 5], [1, 6], [2, 6], [3, 6], [4, 5], [4, 4], [4, 3], [4, 2], [4, 1]];
 var s1 = [[1, 1], [2, 0], [2, 1], [2, 2], [2, 3], [2, 4], [2, 5], [2, 6], [1, 6], [3, 6]];
@@ -56,6 +57,19 @@ var s7 = [[0, 0], [1, 0], [2, 0], [3, 0], [4, 0], [4, 1], [3, 2], [2, 3], [1, 4]
 var s8 = [[3, 0], [2, 0], [1, 0], [0, 1], [0, 2], [1, 3], [2, 3], [3, 3], [4, 4], [4, 5], [3, 6], [2, 6], [1, 6], [0, 5], [0, 4], [4, 2], [4, 1]];
 var s9 = [[3, 3], [2, 3], [1, 3], [0, 2], [0, 1], [1, 0], [2, 0], [3, 0], [4, 1], [4, 2], [4, 3], [4, 4], [4, 5], [3, 6], [2, 6], [1, 6]];
 var small_num = [s0, s1, s2, s3, s4, s5, s6, s7, s8, s9];
+
+// Big numbers, 6x8
+s0 = [[4, 0], [3, 0], [2, 0], [1, 0], [0, 1], [0, 2], [0, 3], [0, 4], [0, 5], [0, 6], [0, 7], [1, 8], [2, 8], [3, 8], [4, 8], [5, 7], [5, 6], [5, 5], [5, 4], [5, 3], [5, 2], [5, 1]];
+s1 = [[1, 2], [2, 1], [3, 0], [3, 1], [3, 2], [3, 3], [3, 4], [3, 5], [3, 6], [3, 7], [3, 8], [2, 8], [4, 8], [5, 8], [1, 8]];
+s2 = [[0, 1], [1, 0], [2, 0], [3, 0], [4, 0], [5, 1], [5, 2], [5, 3], [4, 4], [3, 4], [2, 4], [1, 4], [0, 5], [0, 6], [0, 7], [0, 8], [1, 8], [2, 8], [3, 8], [4, 8], [5, 8]];
+s3 = [[0, 1], [1, 0], [2, 0], [3, 0], [4, 0], [5, 1], [5, 2], [4, 3], [3, 4], [2, 4], [4, 5], [5, 6], [5, 7], [4, 8], [3, 8], [2, 8], [1, 8], [0, 7]];
+s4 = [[3, 1], [2, 2], [1, 3], [0, 4], [0, 5], [1, 5], [2, 5], [3, 5], [5, 5], [4, 0], [4, 1], [4, 2], [4, 3], [4, 4], [4, 5], [4, 6], [4, 7], [4, 8]];
+s5 = [[5, 0], [4, 0], [3, 0], [2, 0], [1, 0], [0, 0], [0, 1], [0, 2], [0, 3], [1, 3], [2, 3], [3, 3], [4, 3], [5, 4], [5, 5], [5, 6], [5, 7], [4, 8], [3, 8], [2, 8], [1, 8], [0, 7]];
+s6 = [[4, 0], [3, 0], [2, 0], [1, 1], [0, 2], [0, 3], [0, 4], [0, 5], [0, 6], [0, 7], [1, 8], [2, 8], [3, 8], [4, 8], [5, 7], [5, 6], [5, 5], [4, 4], [3, 4], [2, 4], [1, 4]];
+s7 = [[0, 0], [1, 0], [2, 0], [3, 0], [4, 0], [5, 0], [5, 1], [5, 2], [4, 3], [3, 4], [2, 5], [2, 6], [2, 7], [2, 8]];
+s8 = [[4, 0], [3, 0], [2, 0], [1, 0], [0, 1], [0, 2], [5, 1], [5, 2], [5, 6], [5, 7], [0, 6], [0, 7], [1, 8], [2, 8], [3, 8], [4, 8], [1, 3], [4, 3], [2, 4], [3, 4], [1, 5], [4, 5]];
+s9 = [[4, 0], [3, 0], [2, 0], [0, 1], [0, 2], [0, 3], [5, 4], [1, 0], [5, 1], [5, 2], [1, 8], [2, 8], [3, 8], [4, 7], [5, 3], [5, 6], [5, 5], [4, 4], [3, 4], [2, 4], [1, 4]];
+var big_num = [s0, s1, s2, s3, s4, s5, s6, s7, s8, s9];
 
 // Tiny numbers, 5x5
 s0 = [[2, 0], [1, 0], [0, 0], [0, 1], [0, 2], [0, 3], [0, 4], [1, 4], [2, 4], [2, 3], [2, 2], [2, 1]];
@@ -193,8 +207,11 @@ function GoClock(overlayCanvas, mainCanvas){
         this.overlayContext.shadowBlur = 0;
     };
 
-    this.drawNumber = function(number, x_offset, y_offset, small, colour) {
-        var num = small ? tiny_num[number] : small_num[number];
+    this.drawNumber = function(number, x_offset, y_offset, size, colour) {
+        var num;
+        if (size == 1) num = tiny_num[number];
+        if (size == 2) num = small_num[number];
+        if (size == 3) num = big_num[number];
         for (var i = 0; i < num.length; ++i) {
             this.addStone(num[i][0] + x_offset, num[i][1] + y_offset, colour);
         }
@@ -307,32 +324,34 @@ function GoClock(overlayCanvas, mainCanvas){
             for (var i = 0; i < hour_stones.length; ++i) {
                 this.addStone(hour_stones[i][0], hour_stones[i][1], hours%12 == i ? white : black);
             }
-            this.drawNumber((minutes - minutes%10)/10, 6, 4, true, black);
-            this.drawNumber(minutes%10, 10, 4, true, black);
-            this.drawNumber((seconds - seconds%10)/10, 6, 10, true, white);
-            this.drawNumber(seconds%10, 10, 10, true, white);
+            this.drawNumber((minutes - minutes%10)/10, 6, 4, 1, black);
+            this.drawNumber(minutes%10, 10, 4, 1, black);
+            this.drawNumber((seconds - seconds%10)/10, 6, 10, 1, white);
+            this.drawNumber(seconds%10, 10, 10, 1, white);
         }
         else if (this.view == 2) {
             var tensOfHours = (hours - hours%10)/10;
+            hours %= 10;
             if (tensOfHours != 0 || this.twenty_four_hour) {
-                this.drawNumber(tensOfHours, 4, 2, false, black);
-                this.drawNumber(hours % 10, 10, 2, false, black);
+
+                this.drawNumber(tensOfHours, (tensOfHours == 1) ? 3 : 3, 1, 3, black);
+                this.drawNumber(hours, (hours == 1) ? 9 : 10, 1, 3, black);
             } else {
-                this.drawNumber(hours % 10, 7, 2, false, black);
+                this.drawNumber(hours, (hours == 1) ? 6 : 7, 1, 3, black);
             }
-            this.drawNumber((minutes - minutes%10)/10, 4, 10, false, white);
-            this.drawNumber(minutes%10, 10, 10, false, white);
+            this.drawNumber((minutes - minutes%10)/10, 4, 11, 2, white);
+            this.drawNumber(minutes%10, 10, 11, 2, white);
         }
         else if (this.view == 3) {
             var tensOfHours = (hours - hours%10)/10;
             if (tensOfHours != 0) {
-                this.drawNumber((hours - hours%10)/10, 1, 1, true, black);
+                this.drawNumber((hours - hours%10)/10, 1, 1, 1, black);
             }
-            this.drawNumber(hours%10, 5, 1, true, black);
+            this.drawNumber(hours%10, 5, 1, 1, black);
             this.addStone(9, 2, black);
             this.addStone(9, 4, black);
-            this.drawNumber((minutes - minutes%10)/10, 11, 1, true, black);
-            this.drawNumber(minutes%10, 15, 1, true, black);
+            this.drawNumber((minutes - minutes%10)/10, 11, 1, 1, black);
+            this.drawNumber(minutes%10, 15, 1, 1, black);
 
             var second_stones = [[9, 6], [12, 7], [14, 9], [15, 12], [14, 15], [12, 17], [9, 18], [6, 17], [4, 15], [3, 12], [4, 9], [6, 7]];
             for (var i=0; i < second_stones.length; ++i) {
@@ -351,13 +370,13 @@ function GoClock(overlayCanvas, mainCanvas){
         else if (this.view == 4) {
             var u = days%10;
             var t = (days - u)/10;
-            this.drawNumber((t - t%10)/10, 1, 1, true, black);
-            this.drawNumber(t%10, 5, 1, true, black);
-            this.drawNumber(u, 9, 1, true, black);
-            this.drawNumber((hours - hours%10)/10, 5, 7, true, white);
-            this.drawNumber(hours%10, 9, 7, true, white);
-            this.drawNumber((minutes - minutes%10)/10, 5, 13, true, black);
-            this.drawNumber(minutes%10, 9, 13, true, black);
+            this.drawNumber((t - t%10)/10, 1, 1, 1, black);
+            this.drawNumber(t%10, 5, 1, 1, black);
+            this.drawNumber(u, 9, 1, 1, black);
+            this.drawNumber((hours - hours%10)/10, 5, 7, 1, white);
+            this.drawNumber(hours%10, 9, 7, 1, white);
+            this.drawNumber((minutes - minutes%10)/10, 5, 13, 1, black);
+            this.drawNumber(minutes%10, 9, 13, 1, black);
         }
     };
 
@@ -461,7 +480,6 @@ function GoClock(overlayCanvas, mainCanvas){
             this.stone_pos = this.drawStone(this.overlayContext, [x, y], this.stone_colour, height);
         }
         return;
-
     };
 
     // Incrementally change the displayed goban to the desired configuration
