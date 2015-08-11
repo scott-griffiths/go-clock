@@ -25,6 +25,15 @@ html, body {
 #goban {
     padding-top: 1px;
     padding-bottom: 1px;
+    transition: background-image url 1s;
+}
+
+.stone {
+    -webkit-filter: drop-shadow(4px 8px 3px #333);
+}
+
+#goban background-size {
+    transition: none;
 }
 #goban img {
     max-height: 100%;
@@ -108,14 +117,15 @@ html, body {
 }
 */
 .sb-menu li a {
-	width: 100%; /* Makes links full width. */
 	display: inline-block;
-	padding: 1em; /* Creates an even padding the same size as your font. */
+	padding-top: 1em;
+    padding-bottom: 1em;
+    padding-left: 1em;
 	color: #4d1d1d;
     cursor: pointer;
 }
 
-.sb-menu li a:hover {
+.sb-menu li:hover {
     text-decoration: none;
     background-color: rgba(255, 255, 255, 0.1);
 }

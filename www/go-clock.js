@@ -90,10 +90,7 @@ var tiny_num = [s0, s1, s2, s3, s4, s5, s6, s7, s8, s9];
     e.preventDefault();
 }*/
 
-function GoClock(overlayCanvas, mainCanvas){
-    this.overlayCanvas = overlayCanvas;
-    this.overlayContext = this.overlayCanvas.getContext("2d");
-
+function GoClock(){
     this.stones = []; // The current (desired) state
     this.stones_shown = []; // The stones last drawn
     this.moving_stone = false;
@@ -110,9 +107,6 @@ function GoClock(overlayCanvas, mainCanvas){
     this.white_stone = []; // Which white stone to use in each position (if a white stone is there!)
 
     this.view = 0; // The clock type
-
-    this.mainCanvas = mainCanvas;
-    this.mainContext = this.mainCanvas.getContext('2d');
 
     this.speed = 9;
     this.sounds = 0;
@@ -160,8 +154,8 @@ function GoClock(overlayCanvas, mainCanvas){
             refreshing = true;
         }
         if (!refreshing) {
-            this.goban_width = width * 0.95; // Some padding to show background
-            this.goban_height = height * 0.95;
+            this.goban_width = width * 0.95 | 0; // Some padding to show background
+            this.goban_height = height * 0.95 | 0;
             var goban_ratio = 857/800; // Ratio of the goban image
 
             if (this.goban_width*goban_ratio > this.goban_height) {
@@ -172,39 +166,36 @@ function GoClock(overlayCanvas, mainCanvas){
             }
             this.y_offset = (height - this.goban_height) / 2 | 0;
             this.x_offset = (width - this.goban_width) / 2 | 0;
-            this.overlayCanvas.width = this.mainCanvas.width = width;
-            this.overlayCanvas.height = this.mainCanvas.height = height;
         }
-        this.mainContext.clearRect(0, 0, this.mainCanvas.width, this.mainCanvas.height);
-        // We choose the goban image based on the display size as the canvas
-        // isn't very good at resizing and keeping the board line detail
         var gobanImage = goban_1200;
-/*        if (this.goban_width <= 400) {
-            gobanImage = goban_400;
-        }
-        if (this.goban_width <= 200) {
-            gobanImage = goban_200;
-        }*/
-
+        $('#goban').empty();
+        $('#goban').append('<img id="goban-image"/>');
         $('#goban-image').replaceWith(gobanImage);
         $('#goban img').width(this.goban_width).height(this.goban_height);
-        var padding = (height - this.goban_height) / 2;
+        var padding = ((height - this.goban_height) / 2) | 0;
         $('#goban img').css('margin-top', padding);
         $('#goban img').css('margin-bottom', padding);
         var s = this.goban_height / 50 | 0;
         $('#goban img').css('box-shadow', s+'px '+2*s+'px '+2*s+'px '+' 0px rgba(0,0,0,0.6)');
 
 
-        this.mainContext.shadowColor = "rgba( 0, 0, 0, 0.0)";
+        // Set up a div for every stone position
+        for (var i = 0; i < gridsize*gridsize; ++i) {
+            var coords = this.get_coords(i);
+            var p = this.stonePosition(coords[0], coords[1], 0);
+            var stone = "<div id=p" + i + " style='position: absolute; left: " + p[0] + "px; top: " + p[1] + "px; width: " + p[2] + "px; height: " + p[3] + "px;'><img class='stone' src=''></div>";
+            $('#goban').append(stone);
+        }
+        // And a single div for the moving stone
+        $("#goban").append("<div id=moving_stone style='position: absolute'><img class='stone' src=''></div>");
+        $("#moving_stone img").hide();
+
         for (var i = 0; i < gridsize*gridsize; ++i) {
             var p = this.stones_shown[i];
             if (p != 0) {
-                this.drawStone(this.mainContext, this.get_coords(i), p, 0);
+                this.drawStone(this.get_coords(i), p, 0);
             }
         }
-        this.overlayContext.shadowOffsetX = 0;
-        this.overlayContext.shadowOffsetY = 0;
-        this.overlayContext.shadowBlur = 0;
     };
 
     this.drawNumber = function(number, x_offset, y_offset, size, colour) {
@@ -219,58 +210,47 @@ function GoClock(overlayCanvas, mainCanvas){
     this.addStone = function(x, y, colour){
         this.stones[y*gridsize + x] = colour;
     };
-    this.drawStone = function(ctx, coords, colour, height) {
+    this.drawStone = function(coords, colour, height) {
         if (coords[0] <= -0.5 || coords[0] >= gridsize - 0.5 || coords[1] <= -0.5 || coords[1] >= gridsize - 0.5) {
             return;
         }
+
         var p = this.stonePosition(coords[0], coords[1], height);
-        var shadowSize = this.goban_width/300 + height * this.goban_width / 200;
-        ctx.save();
-        if (height >= 0) {
-            ctx.shadowOffsetX = (shadowSize) * xFactor | 0;
-            ctx.shadowOffsetY = (shadowSize) * yFactor | 0;
-            ctx.shadowColor = "rgba(0, 0, 0, " + (height < 4 ? (6 - height)/8 : 1/4)+ ")";
-            ctx.shadowBlur = shadowSize / 2;
-            ctx.globalAlpha = height < 6 ? 1 : 1 - (height - 6) / 6;
-        }
-        var s = black_stone;
-        if (colour == white) {
-            var r = this.white_stone[this.get_index(coords)];
-            if (r == 0) s = white_stone0;
-            if (r == 1) s = white_stone1;
-            if (r == 2) s = white_stone2;
-            if (r == 3) s = white_stone3;
-        }
-        ctx.drawImage(s, p[0], p[1], p[2], p[3]);
-        ctx.restore();
+        var shadowSize = this.goban_width/80 + height * this.goban_width / 200;
+        var shadowX = (shadowSize * xFactor) | 0;
+        var shadowY = (shadowSize * yFactor) | 0;
+        var shadowColour = "rgba(0, 0, 0, " + (height < 4 ? (4 - height)/8 : 1/4) + ")";
+        var shadowBlur = (shadowSize / 4) | 0;
+        
+        var src = colour == white ? white_stone0.src : black_stone.src;
+        var i = this.get_index(coords);
+        var s = $('#p' + i + ' img');
+        s.css('-webkit-filter', 'drop-shadow(' + shadowX + 'px ' + shadowY + 'px ' + shadowBlur + 'px ' + shadowColour + ')');
+        s.attr('src', src).show();
         return p;
-    };
+    }
+    this.drawMovingStone = function(coords, colour, height) {
+        var p = this.stonePosition(coords[0], coords[1], height);
+        var shadowSize = this.goban_width/100 + height * this.goban_width / 200;
+        var shadowX = (shadowSize * xFactor) | 0;
+        var shadowY = (shadowSize * yFactor) | 0;
+        var shadowColour = "rgba(0, 0, 0, " + (height < 4 ? (6 - height)/8 : 1/4) + ")";
+        var shadowBlur = shadowSize / 2;
+        
+        var src = colour == white ? white_stone0.src : black_stone.src;
+        $("#moving_stone").css({'left': p[0]+'px', 'top': p[1]+'px', 'width': p[2]+'px', 'height': p[3]+'px'});
+        $("#moving_stone img").css('-webkit-filter', 'drop-shadow(' + shadowX + 'px ' + shadowY + 'px ' + shadowBlur + 'px ' + shadowColour + ')');
+        $("#moving_stone img").attr('src', src).show();
+        return p;
+        
+    }
 
     // Remove a stone from the buffered board
     this.eraseStone = function(coords) {
-
-        var p = this.stonePosition(coords[0], coords[1], 0);
-        this.mainContext.shadowOffsetX = this.mainContext.shadowOffsetY = 0;
-        this.mainContext.shadowBlur = 0;
-        var x = p[0];
-        var y = p[1];
-        var w = p[2];
-        var h = p[3];
-        // We erase extra area to make sure we get the shadow
-        var diameter = (this.goban_width/20);
-        var xSpacing = (maxx-minx)*this.goban_width/(gridsize - 1);
-        var ySpacing = (maxy-miny)*this.goban_height/(gridsize - 1);
-        var shadowSize = this.goban_width/100 | 0;
-        this.mainContext.clearRect(x + (diameter - xSpacing)/2 - 0.5, y + (diameter - ySpacing)/2 - 0.5, xSpacing+1, ySpacing+2);
-
-        // Then redraw surround stones just in case we deleted a bit of them
-        var neighbours = [[coords[0] + 1, coords[1]], [coords[0], coords[1] + 1], [coords[0] + 1, coords[1] + 1]];
-        for (var n = 0; n < neighbours.length; ++n) {
-            var colour = this.stones_shown[this.get_index(neighbours[n])];
-            if (colour != 0) {
-                this.drawStone(this.mainContext, neighbours[n], colour, -1);
-            }
-        }
+        var i = this.get_index(coords);
+        $('#p' + i + ' img').hide();
+        this.stones_shown[Math.round(coords[0]) + gridsize*Math.round(coords[1])] = 0;
+        return;
     };
 
     // Update the desired state of the clock
@@ -393,6 +373,73 @@ function GoClock(overlayCanvas, mainCanvas){
         var diameter = (this.goban_width/20) * (1 + height/20) | 0;
         return [xpos - diameter/2 + this.x_offset | 0, ypos - diameter/2 + this.y_offset | 0, diameter, diameter];
     };
+    
+    this.move_stone2 = function() {
+        $("#moving_stone").show();
+        if (this.stone_from[0] != go_bowl) {
+            this.eraseStone(this.stone_from);
+        }
+
+        if (this.stone_from[0] == go_bowl) {
+            this.dropStone(this.stone_to, this.stone_colour, 500);
+        }
+        if (this.stone_to[0] == go_bowl) {
+            this.pickupStone(this.stone_from, this.stone_colour, 500);
+        }
+        
+        if (this.stone_from[0] != go_bowl && this.stone_to[0] != go_bowl) {
+            this.slideStone(this.stone_from, this.stone_to, this.stone_colour, 500);
+        }
+    };
+    this.slideStone = function(coords1, coords2, colour, duration) {
+        var p1 = this.stonePosition(coords1[0], coords1[1], 0);
+        var p2 = this.stonePosition(coords2[0], coords2[1], 0);
+        var self = this;
+        var end_tasks = function() {
+            // add stone to board
+            self.stones_shown[Math.round(self.stone_to[0]) + gridsize*Math.round(self.stone_to[1])] = self.stone_colour;
+            $("#moving_stone").hide();
+            self.drawStone(self.stone_to, self.stone_colour, 0);
+            self.transform();
+        };
+        
+        $("#moving_stone").css({'left': p1[0]+'px', 'top': p1[1]+'px', 'width': p1[2]+'px', 'height': p1[3]+'px'});
+        var src = colour == white ? white_stone0.src : black_stone.src;
+        $("#moving_stone img").attr('src', src).show();
+        $("#moving_stone").animate({left: p2[0], top: p2[1]}, duration, end_tasks);
+    };
+    this.dropStone = function(coords, colour, duration) {
+        var p1 = this.stonePosition(coords[0], coords[1], 10);
+        var p2 = this.stonePosition(coords[0], coords[1], 0);
+        var self = this;
+        var end_tasks = function() {
+            // add stone to board
+            self.stones_shown[Math.round(self.stone_to[0]) + gridsize*Math.round(self.stone_to[1])] = self.stone_colour;
+            $("#moving_stone").hide();
+            self.drawStone(self.stone_to, self.stone_colour, 0);
+            self.transform();
+        };
+        
+        $("#moving_stone").css({'left': p1[0]+'px', 'top': p1[1]+'px', 'width': p1[2]+'px', 'height': p1[3]+'px'});
+        var src = colour == white ? white_stone0.src : black_stone.src;
+        $("#moving_stone img").attr('src', src).show();
+        $("#moving_stone").animate({left: p2[0], top: p2[1], width: p2[2], height: p2[3]}, duration, end_tasks);
+    }
+    this.pickupStone = function(coords, colour, duration) {
+        var p1 = this.stonePosition(coords[0], coords[1], 0);
+        var p2 = this.stonePosition(coords[0], coords[1], 10);
+        var self = this;
+        var end_tasks = function() {
+            $("#moving_stone").hide();
+            self.transform();
+        };
+        
+        $("#moving_stone").css({'left': p1[0]+'px', 'top': p1[1]+'px', 'width': p1[2]+'px', 'height': p1[3]+'px'});
+        var src = colour == white ? white_stone0.src : black_stone.src;
+        $("#moving_stone img").attr('src', src).show();
+        $("#moving_stone").animate({left: p2[0], top: p2[1], width: p2[2], height: p2[3]}, duration, end_tasks);
+    
+    };
 
     this.move_stone = function() {
         var start_of_movement = this.stone_percent == 0;
@@ -405,16 +452,6 @@ function GoClock(overlayCanvas, mainCanvas){
         if (start_of_movement && this.stone_from[0] != go_bowl) {
             this.eraseStone(this.stone_from);
         }
-        if (this.stone_percent != 0) {
-            // Erase previous moving stone
-            this.overlayContext.shadowColor = "rgba(80, 80, 80, 0)";
-            var xpos = this.stone_pos[0];
-            var ypos = this.stone_pos[1];
-            var w = this.stone_pos[2];
-            var h = this.stone_pos[3];
-            // We erase extra area to make sure we get the shadow.
-            this.overlayContext.clearRect(xpos - w/2, ypos - h/2, w*3, h*3);
-        }
         if (this.stone_to[0] == go_bowl || this.stone_from[0] == go_bowl) {
             this.stone_percent += this.speed;
         } else {
@@ -426,23 +463,23 @@ function GoClock(overlayCanvas, mainCanvas){
                 // stone removed from board
                 this.eraseStone(this.stone_from);
             } else {
-                // add stone to board and draw on buffer and shown context
+                // add stone to board
                 this.stones_shown[Math.round(this.stone_to[0]) + gridsize*Math.round(this.stone_to[1])] = this.stone_colour;
-                this.drawStone(this.mainContext, this.stone_to, this.stone_colour, 0);
-                // TODO: Also draw stone below and to the right, but without a shadow.
+                this.drawStone(this.stone_to, this.stone_colour, 0);
                 if ((this.stone_from[0] == go_bowl || !this.clear_route) && this.sounds) {
                     var click_sound = new Audio("sounds/click_x.wav");
                     click_sound.play();
                 }
             }
             this.moving_stone = false;
+            $("#moving_stone img").hide();
             this.stone_percent = 0;
             return;
         }
 
         if (this.stone_from[0] == go_bowl) {
             // Stone being added.
-            this.stone_pos = this.drawStone(this.overlayContext, this.stone_to, this.stone_colour, 10*(1 - this.stone_percent/100));
+            this.stone_pos = this.drawMovingStone(this.stone_to, this.stone_colour, 10*(1 - this.stone_percent/100));
         }
         else if (this.stone_to[0] == go_bowl) {
             // Stone being removed
@@ -450,7 +487,7 @@ function GoClock(overlayCanvas, mainCanvas){
                 var removal_sound = new Audio("sounds/bottle_x.wav");
                 removal_sound.play();
             }
-            this.stone_pos = this.drawStone(this.overlayContext, this.stone_from, this.stone_colour, 10*this.stone_percent/100);
+            this.stone_pos = this.drawMovingStone(this.stone_from, this.stone_colour, 10*this.stone_percent/100);
         }
         else {
             if (start_of_movement && this.sounds) {
@@ -477,18 +514,15 @@ function GoClock(overlayCanvas, mainCanvas){
             }
             var max_height = 6;
             var height = this.clear_route == true ? 0 : max_height - max_height*Math.abs(this.stone_percent - 50)/50;
-            this.stone_pos = this.drawStone(this.overlayContext, [x, y], this.stone_colour, height);
+            this.stone_pos = this.drawMovingStone([x, y], this.stone_colour, height);
         }
         return;
     };
 
     // Incrementally change the displayed goban to the desired configuration
     this.transform = function() {
-        if (this.moving_stone == true) {
-            this.move_stone();
-            return;
-        }
-        // No moving stones, so work out what, if anything, needs to change
+        this.update();
+        // Work out what, if anything, needs to change
         var diff = [];
         for (var i = 0; i < this.stones_shown.length; ++i) {
             diff.push(this.stones_shown[i] - this.stones[i]);
@@ -555,7 +589,6 @@ function GoClock(overlayCanvas, mainCanvas){
                     break;
                 }
             }
-
         } else {
             // No more moving will help. Find stone to remove.
             // Prefer removing stones which are where the opposite colour wants to be
@@ -588,6 +621,14 @@ function GoClock(overlayCanvas, mainCanvas){
                     this.hand_position = best_i;
                 }
             }
+        }
+        if (this.moving_stone == true) {
+            this.move_stone2();
+            this.moving_stone = false;// TODO: doesn't need to be class variable?
+        }
+        else {
+            // Wait a little while and check again if anything needs changing
+            this.transform();
         }
     }
 }

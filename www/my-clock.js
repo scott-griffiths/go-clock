@@ -155,7 +155,7 @@ $(window).load(function() {
     function setWood(w) {
         w %= woods.length;
         $('#wood').text(woods[w][0]);
-        $('#goban img').css('-webkit-filter', woods[w][1]);
+        $('#goban img:first').css('-webkit-filter', woods[w][1]);
         createCookie('wood', w, 100);
     }
 
@@ -235,30 +235,30 @@ $(window).load(function() {
         goClock.update();
     });
 
-    $('#clock_face').closest('a').click(function() {
+    $('#clock_face').closest('a').mousedown(function() {
         setView(goClock.view + 1);
     });
-    $('#mode').closest('a').click(function() {
+    $('#mode').closest('a').mousedown(function() {
         setMode(goClock.twenty_four_hour ? 0 : 1);
     });
-    $('#wood').closest('a').click(function() {
+    $('#wood').closest('a').mousedown(function() {
         wood += 1;
         setWood(wood);
     });
-    $('#change_background').closest('a').click(function() {
+    $('#change_background').closest('a').mousedown(function() {
         background += 1;
         setBackground(background);
     });
-    $('#stone_speed').closest('a').click(function() {
+    $('#stone_speed').closest('a').mousedown(function() {
         stone_speed += 1;
         setClockSpeed(stone_speed);
     });
-    $('#stone_sound').closest('a').click(function() {
+    $('#stone_sound').closest('a').mousedown(function() {
         sounds = 1 - sounds;
         setAudio(sounds);
     });
 
-    $('#about').click(function() {
+    $('#about').mousedown(function() {
         $('#about_box').show();
     });
 
@@ -274,10 +274,12 @@ $(window).load(function() {
     setWood(wood);
 
     if (!drawEmpty) {
-        goClock.update();
+//        goClock.update();
 
-        setInterval(function() {goClock.update()}, 500);
-        setInterval(function() {goClock.transform()}, 20);
+//        setInterval(function() {goClock.update()}, 500);
+//        setInterval(function() {goClock.transform()}, 20);
+        goClock.transform();
+//        setTimeout(function() {goClock.move_stone2();}, 2000);
         setInterval(storeGobanState, 2000);
 
     }
