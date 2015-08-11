@@ -277,8 +277,8 @@ $(window).load(function() {
 //        goClock.update();
 
 //        setInterval(function() {goClock.update()}, 500);
-//        setInterval(function() {goClock.transform()}, 20);
-        goClock.transform();
+        setInterval(function() {goClock.transform()}, 20);
+//        goClock.transform();
 //        setTimeout(function() {goClock.move_stone2();}, 2000);
         setInterval(storeGobanState, 2000);
 

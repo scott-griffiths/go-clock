@@ -400,13 +400,13 @@ function GoClock(){
             self.stones_shown[Math.round(self.stone_to[0]) + gridsize*Math.round(self.stone_to[1])] = self.stone_colour;
             $("#moving_stone").hide();
             self.drawStone(self.stone_to, self.stone_colour, 0);
-            self.transform();
+            self.moving_stone = false;
         };
         
         $("#moving_stone").css({'left': p1[0]+'px', 'top': p1[1]+'px', 'width': p1[2]+'px', 'height': p1[3]+'px'});
         var src = colour == white ? white_stone0.src : black_stone.src;
         $("#moving_stone img").attr('src', src).show();
-        $("#moving_stone").animate({left: p2[0], top: p2[1]}, duration, end_tasks);
+        TweenMax.to("#moving_stone", duration/1000, {left: p2[0], top: p2[1], onComplete: end_tasks});
     };
     this.dropStone = function(coords, colour, duration) {
         var p1 = this.stonePosition(coords[0], coords[1], 10);
@@ -417,13 +417,13 @@ function GoClock(){
             self.stones_shown[Math.round(self.stone_to[0]) + gridsize*Math.round(self.stone_to[1])] = self.stone_colour;
             $("#moving_stone").hide();
             self.drawStone(self.stone_to, self.stone_colour, 0);
-            self.transform();
+            self.moving_stone = false;
         };
         
         $("#moving_stone").css({'left': p1[0]+'px', 'top': p1[1]+'px', 'width': p1[2]+'px', 'height': p1[3]+'px'});
         var src = colour == white ? white_stone0.src : black_stone.src;
         $("#moving_stone img").attr('src', src).show();
-        $("#moving_stone").animate({left: p2[0], top: p2[1], width: p2[2], height: p2[3]}, duration, end_tasks);
+        TweenMax.to("#moving_stone", duration/1000, {left: p2[0], top: p2[1], width: p2[2], height: p2[3], onComplete: end_tasks});
     }
     this.pickupStone = function(coords, colour, duration) {
         var p1 = this.stonePosition(coords[0], coords[1], 0);
@@ -431,16 +431,17 @@ function GoClock(){
         var self = this;
         var end_tasks = function() {
             $("#moving_stone").hide();
-            self.transform();
+            self.moving_stone = false;
         };
         
         $("#moving_stone").css({'left': p1[0]+'px', 'top': p1[1]+'px', 'width': p1[2]+'px', 'height': p1[3]+'px'});
         var src = colour == white ? white_stone0.src : black_stone.src;
         $("#moving_stone img").attr('src', src).show();
-        $("#moving_stone").animate({left: p2[0], top: p2[1], width: p2[2], height: p2[3]}, duration, end_tasks);
+//        $("#moving_stone").animate({left: p2[0], top: p2[1], width: p2[2], height: p2[3]}, duration, end_tasks);
+        TweenMax.to("#moving_stone", duration/1000, {left: p2[0], top: p2[1], width: p2[2], height: p2[3], onComplete: end_tasks});
     
     };
-
+/*
     this.move_stone = function() {
         var start_of_movement = this.stone_percent == 0;
         if (start_of_movement && this.stone_to[0] != go_bowl) {
@@ -517,10 +518,13 @@ function GoClock(){
             this.stone_pos = this.drawMovingStone([x, y], this.stone_colour, height);
         }
         return;
-    };
+    };*/
 
     // Incrementally change the displayed goban to the desired configuration
     this.transform = function() {
+        if (this.moving_stone == true) {
+            return;
+        }
         this.update();
         // Work out what, if anything, needs to change
         var diff = [];
@@ -624,11 +628,6 @@ function GoClock(){
         }
         if (this.moving_stone == true) {
             this.move_stone2();
-            this.moving_stone = false;// TODO: doesn't need to be class variable?
-        }
-        else {
-            // Wait a little while and check again if anything needs changing
-            this.transform();
         }
     }
 }
