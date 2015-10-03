@@ -28,9 +28,9 @@ html, body {
     transition: background-image url 1s;
 }
 
-.stone {
+/*.stone {
     -webkit-filter: drop-shadow(4px 8px 3px #333);
-}
+}*/
 
 #goban background-size {
     transition: none;
@@ -54,6 +54,7 @@ html, body {
     background-color: white;
     border: 2px solid black;
     padding: 2%;
+    box-shadow: 10px 16px 10px rgba(0, 0, 0, 0.5);
 }
 
 #menu {
@@ -85,7 +86,7 @@ html, body {
     background-color: rgb(51, 85, 105);
     background-image: url('images/bowl2.jpg');
     background-size: cover;
-    border-right: 1px solid black;
+    box-shadow: 18px 0px 36px rgba(0, 0, 0, 0.5);
 }
 
 #sidebar img {
@@ -122,12 +123,12 @@ html, body {
     padding-bottom: 1em;
     padding-left: 1em;
 	color: #4d1d1d;
-    cursor: pointer;
 }
 
 .sb-menu li:hover {
     text-decoration: none;
     background-color: rgba(255, 255, 255, 0.1);
+    cursor: pointer;
 }
 
 #menu-title {

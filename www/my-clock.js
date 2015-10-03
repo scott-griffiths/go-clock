@@ -1,8 +1,8 @@
 
 var xmouse;
 var ymouse;
-
-document.onmousemove = function(e) {
+/*
+$().mousemove(function(e) {
     if (e.offsetX == undefined) // Firefox
     {
        xmouse = e.pageX;
@@ -13,7 +13,8 @@ document.onmousemove = function(e) {
       xmouse = e.offsetX;
       ymouse = e.offsetY;
     }
-};
+    console.log(xmouse + " : " + ymouse);
+};*/
 
 function isInt(value) {
   var x = parseFloat(value);
@@ -58,7 +59,7 @@ var backgroundImages = [];
 
 var views = {0 : 'Analogue', 1 : 'Jumping hour', 2 : 'Digital', 3 : 'Hybrid'};
 
-var stone_speeds = [['Torpid', 2], ['Slow', 5], ['Normal', 9], ['Fast', 18], ['Insane!', 40]];
+var stone_speeds = [['Torpid', 2], ['Slow', 5], ['Normal', 15], ['Fast', 35], ['Insane!', 80]];
 
 var woods = [['Oak', 'saturate(0.8) hue-rotate(-12deg) sepia(0.5)'],
              ['Kaya', 'saturate(1.3) hue-rotate(-7deg)'],
@@ -80,8 +81,11 @@ $(document).ready(function(){
 // This runs after the DOM *and* images have loaded
 $(window).load(function() {
 
-//    window.plugins.insomnia.keepAwake();
-
+    $().mousemove(function(e){
+        xmouse = e.pageX;
+        ymouse = e.pageY;
+        console.log(xmouse + " : " + ymouse);
+    });
     var drawEmpty = false;
     if (drawEmpty) {
         // Draw empty board

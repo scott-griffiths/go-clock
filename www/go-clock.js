@@ -138,6 +138,7 @@ function GoClock(){
     for (var i = 0; i < gridsize*gridsize; ++i){
         this.stones_shown.push(0); // empty space
     }
+
     // The coordinates of a point with a given index
     this.get_coords = function(p) {
         return [p%gridsize + this.offsets[p][0]/50, (p - p%gridsize)/gridsize + this.offsets[p][1]/50];
@@ -216,33 +217,24 @@ function GoClock(){
         }
 
         var p = this.stonePosition(coords[0], coords[1], height);
+        var src = colour == white ? white_stone0.src : black_stone.src;
+        var i = this.get_index(coords);
+        var s = $('#p' + i + ' img');
+        s.css('-webkit-filter', this.getShadowCss(height));
+        s.attr('src', src).show();
+        return p;
+    };
+    this.getShadow = function(height) {
         var shadowSize = this.goban_width/80 + height * this.goban_width / 200;
         var shadowX = (shadowSize * xFactor) | 0;
         var shadowY = (shadowSize * yFactor) | 0;
         var shadowColour = "rgba(0, 0, 0, " + (height < 4 ? (4 - height)/8 : 1/4) + ")";
-        var shadowBlur = (shadowSize / 4) | 0;
-        
-        var src = colour == white ? white_stone0.src : black_stone.src;
-        var i = this.get_index(coords);
-        var s = $('#p' + i + ' img');
-        s.css('-webkit-filter', 'drop-shadow(' + shadowX + 'px ' + shadowY + 'px ' + shadowBlur + 'px ' + shadowColour + ')');
-        s.attr('src', src).show();
-        return p;
-    }
-    this.drawMovingStone = function(coords, colour, height) {
-        var p = this.stonePosition(coords[0], coords[1], height);
-        var shadowSize = this.goban_width/100 + height * this.goban_width / 200;
-        var shadowX = (shadowSize * xFactor) | 0;
-        var shadowY = (shadowSize * yFactor) | 0;
-        var shadowColour = "rgba(0, 0, 0, " + (height < 4 ? (6 - height)/8 : 1/4) + ")";
-        var shadowBlur = shadowSize / 2;
-        
-        var src = colour == white ? white_stone0.src : black_stone.src;
-        $("#moving_stone").css({'left': p[0]+'px', 'top': p[1]+'px', 'width': p[2]+'px', 'height': p[3]+'px'});
-        $("#moving_stone img").css('-webkit-filter', 'drop-shadow(' + shadowX + 'px ' + shadowY + 'px ' + shadowBlur + 'px ' + shadowColour + ')');
-        $("#moving_stone img").attr('src', src).show();
-        return p;
-        
+        var shadowBlur = shadowSize | 0;
+        return [shadowX, shadowY, shadowBlur, shadowColour];
+    };
+    this.getShadowCss = function(height) {
+        s = this.getShadow(height);
+        return 'drop-shadow(' + s[0] + 'px ' + s[1] + 'px ' + s[2] + 'px ' + s[3] + ')';
     }
 
     // Remove a stone from the buffered board
@@ -374,24 +366,25 @@ function GoClock(){
         return [xpos - diameter/2 + this.x_offset | 0, ypos - diameter/2 + this.y_offset | 0, diameter, diameter];
     };
     
-    this.move_stone2 = function() {
-        $("#moving_stone").show();
+    this.move_stone = function() {
+        $("#moving_stone").css('opacity', '1.0').show();
+        $('#moving_stone').css('-webkit-filter', this.getShadowCss(0));
         if (this.stone_from[0] != go_bowl) {
             this.eraseStone(this.stone_from);
         }
 
         if (this.stone_from[0] == go_bowl) {
-            this.dropStone(this.stone_to, this.stone_colour, 500);
+            this.dropStone(this.stone_to, this.stone_colour, this.speed);
         }
         if (this.stone_to[0] == go_bowl) {
-            this.pickupStone(this.stone_from, this.stone_colour, 500);
+            this.pickupStone(this.stone_from, this.stone_colour, this.speed);
         }
         
         if (this.stone_from[0] != go_bowl && this.stone_to[0] != go_bowl) {
-            this.slideStone(this.stone_from, this.stone_to, this.stone_colour, 500);
+            this.repositionStone(this.stone_from, this.stone_to, this.stone_colour, this.speed);
         }
     };
-    this.slideStone = function(coords1, coords2, colour, duration) {
+    this.repositionStone = function(coords1, coords2, colour, speed) {
         var p1 = this.stonePosition(coords1[0], coords1[1], 0);
         var p2 = this.stonePosition(coords2[0], coords2[1], 0);
         var self = this;
@@ -406,9 +399,44 @@ function GoClock(){
         $("#moving_stone").css({'left': p1[0]+'px', 'top': p1[1]+'px', 'width': p1[2]+'px', 'height': p1[3]+'px'});
         var src = colour == white ? white_stone0.src : black_stone.src;
         $("#moving_stone img").attr('src', src).show();
-        TweenMax.to("#moving_stone", duration/1000, {left: p2[0], top: p2[1], onComplete: end_tasks});
+        var distance = dist(this.get_index(coords1), this.get_index(coords2));
+        var duration = Math.sqrt(distance/speed);
+        if (this.clear_route) {
+            TweenMax.to("#moving_stone", duration, {
+                left: p2[0],
+                top: p2[1],
+                z: 0.0000001, // This makes it a transform, and so works on Safari
+                dropShadowFilteor: {alphdda: 0},
+                onComplete: end_tasks});
+        } else {
+            var max_height = 8 + distance/2;
+            if (max_height > 12) {
+                max_height = 12;
+            }
+            var middle = this.stonePosition((coords1[0] + coords2[0])/2, (coords1[1] + coords2[1])/2, max_height);
+            var shadowMiddle = this.getShadow(max_height);
+            TweenMax.to("#moving_stone", duration/2, {
+                left: middle[0],
+                top: middle[1],
+                z: 0.0000001, // This makes it a transform, and so works on Safari
+                width: middle[2],
+                height: middle[3],
+                ease: Power2.easeIn
+            });
+            TweenMax.to("#moving_stone", duration/2, {
+                left: p2[0],
+                top: p2[1],
+                width: p2[2],
+                z: 0.0000001, // This makes it a transform, and so works on Safari
+                height: p2[3],
+                delay: duration/2,
+                filter: this.getShadowCss(0),
+                ease: Power2.easeOut,
+                onComplete: end_tasks});
+        }
     };
-    this.dropStone = function(coords, colour, duration) {
+    this.dropStone = function(coords, colour, speed) {
+        var duration = 4/speed;
         var p1 = this.stonePosition(coords[0], coords[1], 10);
         var p2 = this.stonePosition(coords[0], coords[1], 0);
         var self = this;
@@ -423,9 +451,20 @@ function GoClock(){
         $("#moving_stone").css({'left': p1[0]+'px', 'top': p1[1]+'px', 'width': p1[2]+'px', 'height': p1[3]+'px'});
         var src = colour == white ? white_stone0.src : black_stone.src;
         $("#moving_stone img").attr('src', src).show();
-        TweenMax.to("#moving_stone", duration/1000, {left: p2[0], top: p2[1], width: p2[2], height: p2[3], onComplete: end_tasks});
+        $("#moving_stone").css('opacity', '0.3');
+        TweenMax.to("#moving_stone", duration, {
+            left: p2[0],
+            top: p2[1],
+            width: p2[2],
+            z: 0.0000001, // This makes it a transform, and so works on Safari
+            height: p2[3],
+            onComplete: end_tasks});
+        TweenMax.to("#moving_stone", duration, {
+            opacity: 1.0,
+            ease: Power3.easeOut});
     }
-    this.pickupStone = function(coords, colour, duration) {
+    this.pickupStone = function(coords, colour, speed) {
+        duration = 4/speed;
         var p1 = this.stonePosition(coords[0], coords[1], 0);
         var p2 = this.stonePosition(coords[0], coords[1], 10);
         var self = this;
@@ -437,88 +476,17 @@ function GoClock(){
         $("#moving_stone").css({'left': p1[0]+'px', 'top': p1[1]+'px', 'width': p1[2]+'px', 'height': p1[3]+'px'});
         var src = colour == white ? white_stone0.src : black_stone.src;
         $("#moving_stone img").attr('src', src).show();
-//        $("#moving_stone").animate({left: p2[0], top: p2[1], width: p2[2], height: p2[3]}, duration, end_tasks);
-        TweenMax.to("#moving_stone", duration/1000, {left: p2[0], top: p2[1], width: p2[2], height: p2[3], onComplete: end_tasks});
-    
+        TweenMax.to("#moving_stone", duration, {
+            left: p2[0],
+            top: p2[1],
+            width: p2[2],
+            z: 0.0000001, // This makes it a transform, and so works on Safari
+            height: p2[3],
+            onComplete: end_tasks});
+        TweenMax.to("#moving_stone", duration, {
+            opacity: 0.3,
+            ease: Power3.easeIn});
     };
-/*
-    this.move_stone = function() {
-        var start_of_movement = this.stone_percent == 0;
-        if (start_of_movement && this.stone_to[0] != go_bowl) {
-            // Update the messiness depending on how fast we're going
-            var messiness = 0;//0.5*Math.sqrt(this.speed);
-            this.offsets[this.get_index(this.stone_to)] = [0, Math.random()*messiness - messiness/2];
-            this.stone_to = this.get_coords(this.get_index(this.stone_to));
-        }
-        if (start_of_movement && this.stone_from[0] != go_bowl) {
-            this.eraseStone(this.stone_from);
-        }
-        if (this.stone_to[0] == go_bowl || this.stone_from[0] == go_bowl) {
-            this.stone_percent += this.speed;
-        } else {
-            this.stone_percent += this.speed/Math.sqrt(dist(this.get_index(this.stone_to),
-                                                            this.get_index(this.stone_from)));
-        }
-        if (this.stone_percent >= 100) {
-            if (this.stone_to[0] == go_bowl) {
-                // stone removed from board
-                this.eraseStone(this.stone_from);
-            } else {
-                // add stone to board
-                this.stones_shown[Math.round(this.stone_to[0]) + gridsize*Math.round(this.stone_to[1])] = this.stone_colour;
-                this.drawStone(this.stone_to, this.stone_colour, 0);
-                if ((this.stone_from[0] == go_bowl || !this.clear_route) && this.sounds) {
-                    var click_sound = new Audio("sounds/click_x.wav");
-                    click_sound.play();
-                }
-            }
-            this.moving_stone = false;
-            $("#moving_stone img").hide();
-            this.stone_percent = 0;
-            return;
-        }
-
-        if (this.stone_from[0] == go_bowl) {
-            // Stone being added.
-            this.stone_pos = this.drawMovingStone(this.stone_to, this.stone_colour, 10*(1 - this.stone_percent/100));
-        }
-        else if (this.stone_to[0] == go_bowl) {
-            // Stone being removed
-            if (start_of_movement && this.sounds) {
-                var removal_sound = new Audio("sounds/bottle_x.wav");
-                removal_sound.play();
-            }
-            this.stone_pos = this.drawMovingStone(this.stone_from, this.stone_colour, 10*this.stone_percent/100);
-        }
-        else {
-            if (start_of_movement && this.sounds) {
-                if (this.clear_route) {
-                    var dragging_sound = new Audio("sounds/baseball_hit.wav");
-                    dragging_sound.play();
-                } else {
-                    var removal_sound = new Audio("sounds/bottle_x.wav");
-                    removal_sound.play();
-                }
-            }
-
-            // In/out quadratic easing to get more natural movement
-            var t = this.stone_percent;
-            var x, y;
-            t /= 50;
-            if (t < 1) {
-                x = this.stone_from[0] + (this.stone_to[0] - this.stone_from[0])/2*t*t;
-                y = this.stone_from[1] + (this.stone_to[1] - this.stone_from[1])/2*t*t;
-            } else {
-                t -= 1;
-                x = this.stone_from[0] - (this.stone_to[0] - this.stone_from[0])/2*(t*(t - 2) - 1);
-                y = this.stone_from[1] - (this.stone_to[1] - this.stone_from[1])/2*(t*(t - 2) - 1);
-            }
-            var max_height = 6;
-            var height = this.clear_route == true ? 0 : max_height - max_height*Math.abs(this.stone_percent - 50)/50;
-            this.stone_pos = this.drawMovingStone([x, y], this.stone_colour, height);
-        }
-        return;
-    };*/
 
     // Incrementally change the displayed goban to the desired configuration
     this.transform = function() {
@@ -627,7 +595,7 @@ function GoClock(){
             }
         }
         if (this.moving_stone == true) {
-            this.move_stone2();
+            this.move_stone();
         }
     }
 }
