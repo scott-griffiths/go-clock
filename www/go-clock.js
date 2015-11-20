@@ -405,7 +405,7 @@ function GoClock(){
             TweenMax.to("#moving_stone", duration, {
                 left: p2[0],
                 top: p2[1],
-                z: 0.0000001, // This makes it a transform, and so works on Safari
+                force3D: true,
                 onComplete: end_tasks});
         } else {
             var max_height = 8 + distance/2;
@@ -417,7 +417,7 @@ function GoClock(){
             TweenMax.to("#moving_stone", duration/2, {
                 left: middle[0],
                 top: middle[1],
-                z: 0.0000001, // This makes it a transform, and so works on Safari
+                force3D: true,
                 width: middle[2],
                 height: middle[3],
                 ease: Power2.easeIn
@@ -426,7 +426,7 @@ function GoClock(){
                 left: p2[0],
                 top: p2[1],
                 width: p2[2],
-                z: 0.0000001, // This makes it a transform, and so works on Safari
+                force3D: true,
                 height: p2[3],
                 delay: duration/2,
                 /*filter: this.getShadowCss(0),*/
@@ -455,7 +455,7 @@ function GoClock(){
             left: p2[0],
             top: p2[1],
             width: p2[2],
-            z: 0.0000001, // This makes it a transform, and so works on Safari
+            force3D: true,
             height: p2[3],
             onComplete: end_tasks});
         TweenMax.to("#moving_stone", duration, {
@@ -479,7 +479,7 @@ function GoClock(){
             left: p2[0],
             top: p2[1],
             width: p2[2],
-            z: 0.0000001, // This makes it a transform, and so works on Safari
+            force3D: true,
             height: p2[3],
             onComplete: end_tasks});
         TweenMax.to("#moving_stone", duration, {
