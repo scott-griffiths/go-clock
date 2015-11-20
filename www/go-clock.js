@@ -225,11 +225,11 @@ function GoClock(){
         return p;
     };
     this.getShadow = function(height) {
-        var shadowSize = this.goban_width/80 + height * this.goban_width / 200;
+        var shadowSize = this.goban_width/80 + height*this.goban_width / 160;
         var shadowX = (shadowSize * xFactor) | 0;
         var shadowY = (shadowSize * yFactor) | 0;
         var shadowColour = "rgba(0, 0, 0, " + (height < 4 ? (4 - height)/8 : 1/4) + ")";
-        var shadowBlur = shadowSize | 0;
+        var shadowBlur = shadowSize / 1 | 0;
         return [shadowX, shadowY, shadowBlur, shadowColour];
     };
     this.getShadowCss = function(height) {
@@ -368,7 +368,7 @@ function GoClock(){
     
     this.move_stone = function() {
         $("#moving_stone").css('opacity', '1.0').show();
-        $('#moving_stone').css('-webkit-filter', this.getShadowCss(0));
+        $('#moving_stone img').css('-webkit-filter', this.getShadowCss(0));
         if (this.stone_from[0] != go_bowl) {
             this.eraseStone(this.stone_from);
         }
@@ -406,7 +406,6 @@ function GoClock(){
                 left: p2[0],
                 top: p2[1],
                 z: 0.0000001, // This makes it a transform, and so works on Safari
-                dropShadowFilteor: {alphdda: 0},
                 onComplete: end_tasks});
         } else {
             var max_height = 8 + distance/2;
@@ -430,13 +429,13 @@ function GoClock(){
                 z: 0.0000001, // This makes it a transform, and so works on Safari
                 height: p2[3],
                 delay: duration/2,
-                filter: this.getShadowCss(0),
+                /*filter: this.getShadowCss(0),*/
                 ease: Power2.easeOut,
                 onComplete: end_tasks});
         }
     };
     this.dropStone = function(coords, colour, speed) {
-        var duration = 4/speed;
+        var duration = Math.sqrt(1/speed);
         var p1 = this.stonePosition(coords[0], coords[1], 10);
         var p2 = this.stonePosition(coords[0], coords[1], 0);
         var self = this;
@@ -464,7 +463,7 @@ function GoClock(){
             ease: Power3.easeOut});
     }
     this.pickupStone = function(coords, colour, speed) {
-        duration = 4/speed;
+        duration = Math.sqrt(1/speed);
         var p1 = this.stonePosition(coords[0], coords[1], 0);
         var p2 = this.stonePosition(coords[0], coords[1], 10);
         var self = this;

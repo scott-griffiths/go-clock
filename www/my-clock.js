@@ -47,19 +47,19 @@ function eraseCookie(name) {
 }
 
 var tips_of_the_day = [];
-tips_of_the_day.push("Why not download on the new iPad Air 2 and then nail or glue it to your living room wall?");
+tips_of_the_day.push("Why not download on the new iPad Pro and then nail or glue it to your living room wall?");
 tips_of_the_day.push("To use as an alarm clock simply employ a small child to watch the Go Clock and tell them to wake you when it shows the right time.");
 tips_of_the_day.push("For extra accuracy when timing sporting events, use the view with the second counter.");
 tips_of_the_day.push("Use The Go Clock on an iPhone sellotaped to your wrist and your friend(s) will think you have an Apple Watch!");
 
 var backgrounds = [['wood1.jpg', "Dark wood"], ['wood2.jpg', "Light wood"], ['stone1.jpg', "Stone"],
                    ['mosaic1.jpg', "Mosaic"], ['tatami.jpg', "Tatami"], ['space.jpg', "Space"], ['grass.jpg', "Grass"], ['droplets.jpg', 'Droplets']];
-//var backgrounds = [['1.jpg', '1'], ['2.jpg', '2'], ['3.jpg', '3'], ['4.jpg', '4'], ['5.jpg', '5'], ['6.jpg', '6'], ['7.jpg', '7'], ['8.jpg', '8'], ['9.jpg', '9'], ['10.jpg', '10']];
+
 var backgroundImages = [];
 
 var views = {0 : 'Analogue', 1 : 'Jumping hour', 2 : 'Digital', 3 : 'Hybrid'};
 
-var stone_speeds = [['Torpid', 2], ['Slow', 5], ['Normal', 15], ['Fast', 35], ['Insane!', 80]];
+var stone_speeds = [['Torpid', 5], ['Slow', 10], ['Normal', 20], ['Fast', 55], ['Insane!', 120]];
 
 var woods = [['Oak', 'saturate(0.8) hue-rotate(-12deg) sepia(0.5)'],
              ['Kaya', 'saturate(1.3) hue-rotate(-7deg)'],
@@ -81,11 +81,11 @@ $(document).ready(function(){
 // This runs after the DOM *and* images have loaded
 $(window).load(function() {
 
-    $().mousemove(function(e){
+/*    $().mousemove(function(e){
         xmouse = e.pageX;
         ymouse = e.pageY;
         console.log(xmouse + " : " + ymouse);
-    });
+    });*/
     var drawEmpty = false;
     if (drawEmpty) {
         // Draw empty board
@@ -96,6 +96,7 @@ $(window).load(function() {
     }
 
     var mySlidebars = new $.slidebars();
+
     $('#menu').fadeIn();
     var background = 0;
     var storedBackground = readCookie('goban_background');
@@ -129,12 +130,12 @@ $(window).load(function() {
     }
 
     var sounds = 0;
-/*    var storedSound = readCookie('stone_sound');
+    var storedSound = readCookie('stone_sound');
     if (isInt(storedSound)) {
         setAudio(parseInt(storedSound));
     } else {
         setAudio(1);
-    }*/
+    }
 
     function setClockSpeed(s) {
         s %= stone_speeds.length;
@@ -217,14 +218,16 @@ $(window).load(function() {
     $('#about_box, #goban').click(function() {
         if ($('#about_box').is(':visible')) {
             $("#about_box").fadeOut();
+//            $('#sb-site').css('-webkit-filter', 'brightness(1.0)');
         }
     });
     $("#goban, #menu").click(function() {
         $('#menu').fadeTo('slow', 1.0);
         clearTimeout(fade_menu_timer);
         fade_menu_timer = setTimeout(function() {
-            $('#menu').fadeTo('slow', 0.3);
+            $('#menu').fadeTo('slow', 0.4);
         }, 2000);
+        /*
         var top_left = goClock.stonePosition(0, 0, 0);
         var bottom_right = goClock.stonePosition(18, 18, 0);
         if (xmouse < top_left[0] || (xmouse > bottom_right[0] + bottom_right[2]) ||
@@ -235,44 +238,80 @@ $(window).load(function() {
             // Clicked on the goban when sidebar not active
             setView(goClock.view + 1);
             setInfo(views[goClock.view]);
-        }
+        }*/
         goClock.update();
     });
+    $('#goban img:first').click(function() {
+        if (!mySlidebars.slidebars.active('left')) {
+            // Clicked on the goban when sidebar not active
+            setView(goClock.view + 1);
+            setInfo(views[goClock.view]);
+        }
+        goClock.update();
+    })
 
-    $('#clock_face').closest('a').mousedown(function() {
+    $('#clock_face').closest('li').mousedown(function() {
         setView(goClock.view + 1);
     });
-    $('#mode').closest('a').mousedown(function() {
+    $('#mode').closest('li').mousedown(function() {
         setMode(goClock.twenty_four_hour ? 0 : 1);
     });
-    $('#wood').closest('a').mousedown(function() {
+    $('#wood').closest('li').mousedown(function() {
         wood += 1;
         setWood(wood);
     });
-    $('#change_background').closest('a').mousedown(function() {
+    $('#change_background').closest('li').mousedown(function() {
         background += 1;
         setBackground(background);
     });
-    $('#stone_speed').closest('a').mousedown(function() {
+    $('#stone_speed').closest('li').mousedown(function() {
         stone_speed += 1;
         setClockSpeed(stone_speed);
     });
-    $('#stone_sound').closest('a').mousedown(function() {
+    $('#stone_sound').closest('li').mousedown(function() {
         sounds = 1 - sounds;
         setAudio(sounds);
     });
 
-    $('#about').mousedown(function() {
-        $('#about_box').show();
+    $('#about').closest('li').mousedown(function() {
+        setTimeout(function() {
+            $('#about_box').fadeIn('slow');
+            //$('#sb-site').css('-webkit-filter', 'brightness(0.8)');
+        }, 500);
     });
+
+    $('#menu').click(function(){
+        // Don't show the startup arrow for a while
+        createCookie('used_menu', 1, 1); // Lasts for a day
+    });
+
+    var usedMenu = readCookie('used_menu');
+    //if (isInt(usedMenu) === false)
+    {
+        $('#welcome_box').show();
+        setTimeout(function() {
+            $('#sb-site').fadeIn('slow');
+        }, 2000)
+        setTimeout(function() {
+            $('#welcome_box').fadeOut('slow');
+        }, 2000)
+        setTimeout(function() {
+            $('#arrow').fadeIn('slow');
+            $('#look_here').fadeIn('slow');
+        }, 4500)
+        setTimeout(function() {
+            $('#arrow').fadeOut('slow');
+            $('#look_here').fadeOut('slow');
+        }, 9000);
+    }
+
+    fade_menu_timer = setTimeout(function() {
+        $('#menu').fadeTo('slow', 0.4);
+    }, 5000);
 
 
     window.onresize = function() {
         goClock.draw(window.innerWidth, window.innerHeight);
-        fade_menu_timer = setTimeout(function() {
-            $('#menu').fadeTo('slow', 0.3);
-        }, 3000);
-
     };
     window.onresize();
     setWood(wood);
