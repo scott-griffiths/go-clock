@@ -216,10 +216,13 @@ $(window).load(function() {
 
     var fade_menu_timer;
     $('#about_box, #goban').click(function() {
-        if ($('#about_box').is(':visible')) {
-            $("#about_box").fadeOut();
-//            $('#sb-site').css('-webkit-filter', 'brightness(1.0)');
-        }
+        TweenMax.to('#about_box', 1, {
+            top: -500,
+            force3D: true,
+            ease: Power2.easeIn
+        });
+
+
     });
     $("#goban, #menu").click(function() {
         $('#menu').fadeTo('slow', 1.0);
@@ -274,10 +277,14 @@ $(window).load(function() {
     });
 
     $('#about').closest('li').mousedown(function() {
-        setTimeout(function() {
-            $('#about_box').fadeIn('slow');
-            //$('#sb-site').css('-webkit-filter', 'brightness(0.8)');
-        }, 500);
+        TweenMax.fromTo('#about_box', 1, {
+            top: -500,
+            opacity: 1.0,
+        }, {
+            top: "5%",
+            opacity: 1.0,
+            ease: Power2.easeOut
+        })
     });
 
     $('#menu').click(function(){
@@ -288,21 +295,43 @@ $(window).load(function() {
     var usedMenu = readCookie('used_menu');
     //if (isInt(usedMenu) === false)
     {
-        $('#welcome_box').show();
+        //$('#welcome_box').fadeIn('slow');
+        TweenMax.fromTo('#welcome_box', 0.8, {
+            force3D: true,
+            opacity: 0.0
+        }, {
+            force3D: true,
+            opacity: 1.0
+        });
+        TweenMax.to('#welcome_box', 1, {
+            y: -500,
+            force3D: true,
+            delay: 2
+        });
+        //$('#sb-site').show();
         setTimeout(function() {
             $('#sb-site').fadeIn('slow');
-        }, 2000)
-        setTimeout(function() {
-            $('#welcome_box').fadeOut('slow');
-        }, 2000)
-        setTimeout(function() {
-            $('#arrow').fadeIn('slow');
-            $('#look_here').fadeIn('slow');
-        }, 4500)
-        setTimeout(function() {
-            $('#arrow').fadeOut('slow');
-            $('#look_here').fadeOut('slow');
-        }, 9000);
+        }, 500)
+        TweenMax.to('#look_here', 1, {
+            top: 18,
+            delay: 3,
+            force3D: true,
+            ease: Bounce.easeOut
+        });
+        TweenMax.to('#look_here', 0.5, {
+            top: -70,
+            force3D: true,
+            delay: 8
+        });
+
+        //setTimeout(function() {
+        //    $('#arrow').fadeIn('slow');
+        //    $('#look_here').fadeIn('slow');
+        //}, 4500)
+        //setTimeout(function() {
+        //    $('#arrow').fadeOut('slow');
+        //    $('#look_here').fadeOut('slow');
+        //}, 9000);
     }
 
     fade_menu_timer = setTimeout(function() {

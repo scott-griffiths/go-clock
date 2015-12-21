@@ -169,15 +169,17 @@ function GoClock(){
             this.x_offset = (width - this.goban_width) / 2 | 0;
         }
         var gobanImage = goban_1200;
-        $('#goban').empty();
-        $('#goban').append('<img id="goban-image"/>');
+        var $goban = $('#goban');
+        $goban.empty();
+        $goban.append('<img id="goban-image"/>');
         $('#goban-image').replaceWith(gobanImage);
-        $('#goban img').width(this.goban_width).height(this.goban_height);
+        var $goban_img = $goban.find('img');
+        $goban_img.width(this.goban_width).height(this.goban_height);
         var padding = ((height - this.goban_height) / 2) | 0;
-        $('#goban img').css('margin-top', padding);
-        $('#goban img').css('margin-bottom', padding);
+        $goban_img.css('margin-top', padding);
+        $goban_img.css('margin-bottom', padding);
         var s = this.goban_height / 50 | 0;
-        $('#goban img').css('box-shadow', s+'px '+2*s+'px '+2*s+'px '+' 0px rgba(0,0,0,0.6)');
+        $goban_img.css('box-shadow', s+'px '+2*s+'px '+2*s+'px '+' 0px rgba(0,0,0,0.6)');
 
 
         // Set up a div for every stone position
@@ -185,16 +187,20 @@ function GoClock(){
             var coords = this.get_coords(i);
             var p = this.stonePosition(coords[0], coords[1], 0);
             var stone = "<div id=p" + i + " style='position: absolute; left: " + p[0] + "px; top: " + p[1] + "px; width: " + p[2] + "px; height: " + p[3] + "px;'><img class='stone' src=''></div>";
-            $('#goban').append(stone);
+            $goban.append(stone);
         }
         // And a single div for the moving stone
-        $("#goban").append("<div id=moving_stone style='position: absolute'><img class='stone' src=''></div>");
+        $goban.append("<div id=moving_stone style='position: absolute'><img class='stone' src=''></div>");
         $("#moving_stone img").hide();
 
         for (var i = 0; i < gridsize*gridsize; ++i) {
             var p = this.stones_shown[i];
             if (p != 0) {
                 this.drawStone(this.get_coords(i), p, 0);
+            } else {
+                // Draw the stone anyway, then hide it
+                this.drawStone(this.get_coords(i), 1, 0);
+                this.eraseStone(this.get_coords(i));
             }
         }
     };

@@ -12,8 +12,8 @@
 }
 
 body {
-    background-color: black;
-    background-image: url('images/paper_texture.jpg');
+    background-color: gray;
+    /*background-image: url('images/paper_texture.jpg');*/
 }
 
 html, body {
@@ -43,11 +43,10 @@ html, body {
 
 #about_box {
     z-index: 3;
-    display: none;
     width: 90%;
     position: absolute;
     left: 3%;
-    top: 5%;
+    top: -500px;
     background-color: white;
     background-image: url('images/paper_texture.jpg');
     padding: 2%;
@@ -57,12 +56,18 @@ html, body {
 
 #welcome_box {
     z-index: 3;
+    background-image: url('images/paper_texture.jpg');
+    padding: 2%;
+    border-radius: 20px;
+    box-shadow: 10px 16px 10px rgba(0, 0, 0, 0.5);
+
     position: absolute;
     width: 240px;
     background-color: rgba(0, 0, 0, 0);
     top: 30%;
     left: 50%;
     margin-left: -120px;
+    opacity: 0;
 }
 
 #menu {
@@ -154,7 +159,7 @@ html, body {
 
 #look_here {
     position: absolute;
-    top: 10px;
+    top: -80px;
     left: 71px;
     padding: 8px;
     border: 2px solid white;
@@ -162,7 +167,7 @@ html, body {
     border-radius: 10px;
     z-index: 2;
     -webkit-filter: drop-shadow(15px 15px 3px rgba(0, 0, 0, 0.4));
-    display: none;
+    /*display: none;*/
 }
 
 #arrow {
