@@ -81,6 +81,11 @@ $(document).ready(function(){
 // This runs after the DOM *and* images have loaded
 $(window).load(function() {
 
+    $(document.body).click(function(evt){
+  var clicked = evt.target;
+  var currentID = clicked.id || "No ID!";
+//  alert(currentID);
+})
 /*    $().mousemove(function(e){
         xmouse = e.pageX;
         ymouse = e.pageY;
@@ -194,11 +199,9 @@ $(window).load(function() {
         }
         createCookie('goban_state', s, 100);
     }
-    if (!drawEmpty) {
-        var storedState = readCookie('goban_state');
-        if (storedState && storedState.length == 361) {
-            setGobanState(storedState);
-        }
+    var storedState = readCookie('goban_state');
+    if (storedState && storedState.length == 361) {
+        setGobanState(storedState);
     }
 
     setClockSpeed(stone_speed);
@@ -219,6 +222,7 @@ $(window).load(function() {
         TweenMax.to('#about_box', 1, {
             top: -500,
             force3D: true,
+            opactity: 0.0,
             ease: Power2.easeIn
         });
 
@@ -230,28 +234,24 @@ $(window).load(function() {
         fade_menu_timer = setTimeout(function() {
             $('#menu').fadeTo('slow', 0.4);
         }, 2000);
-        /*
-        var top_left = goClock.stonePosition(0, 0, 0);
-        var bottom_right = goClock.stonePosition(18, 18, 0);
-        if (xmouse < top_left[0] || (xmouse > bottom_right[0] + bottom_right[2]) ||
-            ymouse < top_left[1] || (ymouse > bottom_right[1] + bottom_right[3])) {
-            // Click not on the goban
-        }
-        else if (!mySlidebars.slidebars.active('left')) {
-            // Clicked on the goban when sidebar not active
-            setView(goClock.view + 1);
-            setInfo(views[goClock.view]);
-        }*/
         goClock.update();
     });
-    $('#goban img:first').click(function() {
-        if (!mySlidebars.slidebars.active('left')) {
-            // Clicked on the goban when sidebar not active
-            setView(goClock.view + 1);
-            setInfo(views[goClock.view]);
+    // Rather convoluted method of getting clicks on the goban
+    var can_change_goban = true;
+    $(document).on('click', ':not(#goban)', function(e){
+        if (can_change_goban) {
+            can_change_goban = false;
+            setTimeout(function() {can_change_goban = true;}, 500);
+            if (e.target.id !== 'goban') { // Yes, I do mean not equal to - long story.
+                if (!mySlidebars.slidebars.active('left')) {
+                    // Clicked on the goban when sidebar not active
+                    setView(goClock.view + 1);
+                    setInfo(views[goClock.view]);
+                }
+                goClock.update();
+            }
         }
-        goClock.update();
-    })
+    });
 
     $('#clock_face').closest('li').mousedown(function() {
         setView(goClock.view + 1);
@@ -277,9 +277,17 @@ $(window).load(function() {
     });
 
     $('#about').closest('li').mousedown(function() {
+        var whole_width = $(window).width();
+        var goban_width = $('#goban img').css('width');
+        var border = ((parseInt(whole_width) - parseInt(goban_width)) / 1.95).toString() + 'px';
+        $('#about_box').css({
+            'left': border,
+            'right': border,
+            'width': 'auto',
+        });
         TweenMax.fromTo('#about_box', 1, {
             top: -500,
-            opacity: 1.0,
+            opacity: 0.0,
         }, {
             top: "5%",
             opacity: 1.0,
@@ -295,7 +303,6 @@ $(window).load(function() {
     var usedMenu = readCookie('used_menu');
     //if (isInt(usedMenu) === false)
     {
-        //$('#welcome_box').fadeIn('slow');
         TweenMax.fromTo('#welcome_box', 0.8, {
             force3D: true,
             opacity: 0.0
@@ -304,14 +311,17 @@ $(window).load(function() {
             opacity: 1.0
         });
         TweenMax.to('#welcome_box', 1, {
-            y: -500,
+            y: -50,
             force3D: true,
+            opacity: 0.0,
             delay: 2
         });
-        //$('#sb-site').show();
+        TweenMax.to('#sb-site', 1, {
+
+        });
         setTimeout(function() {
-            $('#sb-site').fadeIn('slow');
-        }, 500)
+            $('#sb-site').css('-webkit-filter', 'grayscale(0.0) brightness(1.0)');
+        }, 2000)
         TweenMax.to('#look_here', 1, {
             top: 18,
             delay: 3,
@@ -321,17 +331,21 @@ $(window).load(function() {
         TweenMax.to('#look_here', 0.5, {
             top: -70,
             force3D: true,
-            delay: 8
+            opacity: 0.0,
+            delay: 9
         });
-
-        //setTimeout(function() {
-        //    $('#arrow').fadeIn('slow');
-        //    $('#look_here').fadeIn('slow');
-        //}, 4500)
-        //setTimeout(function() {
-        //    $('#arrow').fadeOut('slow');
-        //    $('#look_here').fadeOut('slow');
-        //}, 9000);
+        TweenMax.to('#look_here2', 1, {
+            top: 80,
+            delay: 6,
+            force3D: true,
+            ease: Bounce.easeOut
+        });
+        TweenMax.to('#look_here2', 0.5, {
+            top: -70,
+            force3D: true,
+            opacity: 0.0,
+            delay: 10
+        });
     }
 
     fade_menu_timer = setTimeout(function() {
@@ -344,17 +358,10 @@ $(window).load(function() {
     };
     window.onresize();
     setWood(wood);
+    setInterval(storeGobanState, 2000);
+    goClock.transform();
+    setInterval(function() {goClock.transform()}, 1000);
 
-    if (!drawEmpty) {
-//        goClock.update();
-
-//        setInterval(function() {goClock.update()}, 500);
-        setInterval(function() {goClock.transform()}, 20);
-//        goClock.transform();
-//        setTimeout(function() {goClock.move_stone2();}, 2000);
-        setInterval(storeGobanState, 2000);
-
-    }
 });
 
 

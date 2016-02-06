@@ -83,18 +83,6 @@ html, body {
     background-color: rgba(0, 0, 0, 0.4);
 }
 
-#info {
-    display: none;
-    position: absolute;
-    top: 13px;
-    left: 50px;
-    padding: 5px 15px;
-    background-color: white;
-    border: 1px solid black;
-    border-radius: 5px;
-    z-index: 2;
-}
-
 #sidebar {
     background-color: rgb(51, 85, 105);
     background-image: url('images/bowl2.jpg');
@@ -121,15 +109,7 @@ html, body {
 	border-top: 1px solid rgba(255, 255, 255, 0.1);
 	border-bottom: 1px solid rgba(0, 0, 0, 0.1);
 }
-/*
-.sb-menu > li:first-child {
-	border-top: none;
-}
 
-.sb-menu > li:last-child {
-	border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-*/
 .sb-menu li a {
 	display: inline-block;
 	padding-top: 1em;
@@ -157,7 +137,7 @@ html, body {
     color: rgb(174, 41, 41);
 }
 
-#look_here {
+#look_here, #look_here2 {
     position: absolute;
     top: -80px;
     left: 71px;
@@ -167,8 +147,26 @@ html, body {
     border-radius: 10px;
     z-index: 2;
     -webkit-filter: drop-shadow(15px 15px 3px rgba(0, 0, 0, 0.4));
-    /*display: none;*/
 }
+
+#look_here2 {
+    left: 31px;
+
+}
+
+#info {
+    display: none;
+    position: absolute;
+    top: 13px;
+    left: 60px;
+    padding: 8px;
+    background-color: white;
+    border: 2px solid white;
+    border-radius: 10px;
+    z-index: 2;
+    -webkit-filter: drop-shadow(15px 15px 3px rgba(0, 0, 0, 0.4));
+}
+
 
 #arrow {
     position: absolute;
@@ -183,5 +181,6 @@ html, body {
 }
 
 #sb-site {
-    display: none;
+    -webkit-transition : -webkit-filter 5000ms linear;
+    -webkit-filter: grayscale(0.7) brightness(0.8);
 }

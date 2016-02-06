@@ -16,7 +16,6 @@ var maxx = 0.974;
 var miny = 0.03;
 var maxy = 0.972;
 
-
 ext = "images/";
 
 images = ["white_stone0.png", "white_stone1.png", "white_stone2.png", "white_stone3.png",
@@ -85,11 +84,6 @@ s9 = [[1, 2], [0, 2], [0, 1], [0, 0], [1, 0], [2, 0], [2, 1], [2, 2], [2, 3], [2
 
 var tiny_num = [s0, s1, s2, s3, s4, s5, s6, s7, s8, s9];
 
-// Prevent scrolling in iOS
-/*document.ontouchstart = function(e){
-    e.preventDefault();
-}*/
-
 function GoClock(){
     this.stones = []; // The current (desired) state
     this.stones_shown = []; // The stones last drawn
@@ -117,10 +111,6 @@ function GoClock(){
         this.stones = [];
         for (var i = 0; i < gridsize*gridsize; ++i){
             this.stones.push(0); // empty space
-            var r = (Math.random() * 6 | 0) - 2;
-            // Disabled the multiple white stone until we get them moving right
-            //this.white_stone.push((r > 0 && r < 4) ? r : 0); // Make half of them the all white stone
-            this.white_stone.push(0);
         }
     };
 
@@ -186,7 +176,7 @@ function GoClock(){
         for (var i = 0; i < gridsize*gridsize; ++i) {
             var coords = this.get_coords(i);
             var p = this.stonePosition(coords[0], coords[1], 0);
-            var stone = "<div id=p" + i + " style='position: absolute; left: " + p[0] + "px; top: " + p[1] + "px; width: " + p[2] + "px; height: " + p[3] + "px;'><img class='stone' src=''></div>";
+            var stone = "<div class='board_pos' id=p" + i + " style='position: absolute; left: " + p[0] + "px; top: " + p[1] + "px; width: " + p[2] + "px; height: " + p[3] + "px;'><img class='stone' src=''></div>";
             $goban.append(stone);
         }
         // And a single div for the moving stone
@@ -221,7 +211,6 @@ function GoClock(){
         if (coords[0] <= -0.5 || coords[0] >= gridsize - 0.5 || coords[1] <= -0.5 || coords[1] >= gridsize - 0.5) {
             return;
         }
-
         var p = this.stonePosition(coords[0], coords[1], height);
         var src = colour == white ? white_stone0.src : black_stone.src;
         var i = this.get_index(coords);
@@ -390,6 +379,7 @@ function GoClock(){
             this.repositionStone(this.stone_from, this.stone_to, this.stone_colour, this.speed);
         }
     };
+
     this.repositionStone = function(coords1, coords2, colour, speed) {
         var p1 = this.stonePosition(coords1[0], coords1[1], 0);
         var p2 = this.stonePosition(coords2[0], coords2[1], 0);
@@ -400,6 +390,7 @@ function GoClock(){
             $("#moving_stone").hide();
             self.drawStone(self.stone_to, self.stone_colour, 0);
             self.moving_stone = false;
+            self.transform();
         };
         
         $("#moving_stone").css({'left': p1[0]+'px', 'top': p1[1]+'px', 'width': p1[2]+'px', 'height': p1[3]+'px'});
@@ -420,6 +411,7 @@ function GoClock(){
             }
             var middle = this.stonePosition((coords1[0] + coords2[0])/2, (coords1[1] + coords2[1])/2, max_height);
             var shadowMiddle = this.getShadow(max_height);
+            // TODO: Can't yet get the shadow to tween!
             TweenMax.to("#moving_stone", duration/2, {
                 left: middle[0],
                 top: middle[1],
@@ -451,6 +443,7 @@ function GoClock(){
             $("#moving_stone").hide();
             self.drawStone(self.stone_to, self.stone_colour, 0);
             self.moving_stone = false;
+            self.transform();
         };
         
         $("#moving_stone").css({'left': p1[0]+'px', 'top': p1[1]+'px', 'width': p1[2]+'px', 'height': p1[3]+'px'});
@@ -476,6 +469,7 @@ function GoClock(){
         var end_tasks = function() {
             $("#moving_stone").hide();
             self.moving_stone = false;
+            self.transform();
         };
         
         $("#moving_stone").css({'left': p1[0]+'px', 'top': p1[1]+'px', 'width': p1[2]+'px', 'height': p1[3]+'px'});
@@ -496,6 +490,7 @@ function GoClock(){
     // Incrementally change the displayed goban to the desired configuration
     this.transform = function() {
         if (this.moving_stone == true) {
+            console.log('Shouldnt be moving');
             return;
         }
         this.update();
@@ -601,6 +596,8 @@ function GoClock(){
         }
         if (this.moving_stone == true) {
             this.move_stone();
+        } else {
+            console.log("Not moving");
         }
     }
 }
