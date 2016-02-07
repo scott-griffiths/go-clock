@@ -358,7 +358,7 @@ $(window).load(function() {
     };
     window.onresize();
     setWood(wood);
-    setInterval(storeGobanState, 2000);
+    setInterval(storeGobanState, 10000);
     goClock.transform();
     setInterval(function() {goClock.transform()}, 1000);
 

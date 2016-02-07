@@ -456,10 +456,11 @@ function GoClock(){
             width: p2[2],
             force3D: true,
             height: p2[3],
-            onComplete: end_tasks});
-        TweenMax.to("#moving_stone", duration, {
             opacity: 1.0,
-            ease: Power3.easeOut});
+            onComplete: end_tasks});
+/*        TweenMax.to("#moving_stone", duration, {
+            opacity: 1.0,
+            ease: Power3.easeOut});*/
     }
     this.pickupStone = function(coords, colour, speed) {
         duration = Math.sqrt(1/speed);
@@ -469,6 +470,7 @@ function GoClock(){
         var end_tasks = function() {
             $("#moving_stone").hide();
             self.moving_stone = false;
+            $("#moving_stone").css('opacity', '1.0');
             self.transform();
         };
         
@@ -481,10 +483,8 @@ function GoClock(){
             width: p2[2],
             force3D: true,
             height: p2[3],
-            onComplete: end_tasks});
-        TweenMax.to("#moving_stone", duration, {
             opacity: 0.3,
-            ease: Power3.easeIn});
+            onComplete: end_tasks});
     };
 
     // Incrementally change the displayed goban to the desired configuration
