@@ -1,20 +1,4 @@
 
-var xmouse;
-var ymouse;
-/*
-$().mousemove(function(e) {
-    if (e.offsetX == undefined) // Firefox
-    {
-       xmouse = e.pageX;
-       ymouse = e.pageY;
-    }
-    else // Chrome etc.
-    {
-      xmouse = e.offsetX;
-      ymouse = e.offsetY;
-    }
-    console.log(xmouse + " : " + ymouse);
-};*/
 
 function isInt(value) {
   var x = parseFloat(value);
@@ -80,17 +64,6 @@ $(document).ready(function(){
 
 // This runs after the DOM *and* images have loaded
 $(window).load(function() {
-
-    $(document.body).click(function(evt){
-  var clicked = evt.target;
-  var currentID = clicked.id || "No ID!";
-//  alert(currentID);
-})
-/*    $().mousemove(function(e){
-        xmouse = e.pageX;
-        ymouse = e.pageY;
-        console.log(xmouse + " : " + ymouse);
-    });*/
     var drawEmpty = false;
     if (drawEmpty) {
         // Draw empty board
@@ -102,7 +75,7 @@ $(window).load(function() {
 
     var mySlidebars = new $.slidebars();
 
-    $('#menu').fadeIn();
+    $('.button').fadeIn();
     var background = 0;
     var storedBackground = readCookie('goban_background');
     if (isInt(storedBackground)) {
@@ -218,25 +191,24 @@ $(window).load(function() {
     }
 
     var fade_menu_timer;
-    $('#about_box, #goban').click(function() {
-        TweenMax.to('#about_box', 1, {
-            top: -500,
-            force3D: true,
-            opactity: 0.0,
-            ease: Power2.easeIn
-        });
-
-
+    $('#about_box, #goban, .button').click(function() {
+        $('#about_box').fadeOut();
     });
-    $("#goban, #menu").click(function() {
-        $('#menu').fadeTo('slow', 1.0);
+    $("#goban, .button").click(function() {
+        $('.button').fadeTo('slow', 1.0);
         clearTimeout(fade_menu_timer);
         fade_menu_timer = setTimeout(function() {
             $('#menu').fadeTo('slow', 0.4);
-        }, 2000);
+            $('#change-background, #change-face, #change-speed').fadeTo('slow', 0.0);
+        }, 8000);
         goClock.update();
     });
 
+    $('#change-face').click(function() {
+        setView(goClock.view + 1);
+        setInfo("Face: " + views[goClock.view]);
+        goClock.transform();
+    });
     $('#clock_face').closest('li').mousedown(function() {
         setView(goClock.view + 1);
         goClock.transform();
@@ -249,9 +221,22 @@ $(window).load(function() {
         wood += 1;
         setWood(wood);
     });
+    $('#change-background').click(function() {
+        background += 1;
+        background %= backgrounds.length;
+        setBackground(background);
+        setInfo("Background: " + backgrounds[background][1]);
+    });
     $('#change_background').closest('li').mousedown(function() {
         background += 1;
+        background %= backgrounds.length;
         setBackground(background);
+    });
+    $('#change-speed').click(function() {
+        stone_speed += 1;
+        setClockSpeed(stone_speed);
+        stone_speed %= stone_speeds.length;
+        setInfo("Stone speed: " + stone_speeds[stone_speed][0]);
     });
     $('#stone_speed').closest('li').mousedown(function() {
         stone_speed += 1;
@@ -324,7 +309,7 @@ $(window).load(function() {
             opacity: 0.0,
             delay: 9
         });
-        /*
+/*
         TweenMax.to('#look_here2', 1, {
             top: 80,
             delay: 6,
@@ -343,12 +328,26 @@ $(window).load(function() {
 
     fade_menu_timer = setTimeout(function() {
         $('#menu').fadeTo('slow', 0.4);
-    }, 5000);
+        $('#change-background, #change-speed, #change-face').fadeTo('slow', 0.0);
+    }, 8000);
 
 
     window.onresize = function() {
         goClock.draw(window.innerWidth, window.innerHeight);
         $('#about_box').hide();
+        if (window.innerWidth > window.innerHeight) {
+            // Arrange icons top to bottom
+            $('#change-face').css({'top': '70px', 'left': '0px'});
+            $('#change-background').css({'top': '140px', 'left': '0px'});
+            $('#change-speed').css({'top': '210px', 'left': '0px'});
+            $('#info').css({'top': '13px', 'left': '70px'});
+        } else {
+            // Arrange icons left to right
+            $('#change-face').css({'left': '70px', 'top': '0px'});
+            $('#change-background').css({'left': '140px', 'top': '0px'});
+            $('#change-speed').css({'left': '210px', 'top': '0px'});
+            $('#info').css({'top': '70px', 'left': '13px'});
+        }
     };
     window.onresize();
     setWood(wood);

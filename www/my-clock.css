@@ -70,17 +70,27 @@ html, body {
     opacity: 0;
 }
 
-#menu {
-    display: none;
+.button {
     font-family: 'Arial';
     position: absolute;
-    padding-left: 10px;
-    padding-right: 10px;
+    padding-left: 2px;
+    padding-right: 2px;
     cursor: pointer;
-    font-size: 50px;
+    font-size: 42px;
     z-index: 2;
     color: white;
+    width: 60px;
+    height: 60px;
+    text-align: center;
     background-color: rgba(0, 0, 0, 0.4);
+}
+
+#change-background {
+    font-size: 52px;
+}
+
+#change-speed {
+    font-size: 50px;
 }
 
 #sidebar {
@@ -157,8 +167,6 @@ html, body {
 #info {
     display: none;
     position: absolute;
-    top: 13px;
-    left: 60px;
     padding: 8px;
     background-color: white;
     border: 2px solid white;
