@@ -490,7 +490,6 @@ function GoClock(){
     // Incrementally change the displayed goban to the desired configuration
     this.transform = function() {
         if (this.moving_stone == true) {
-            console.log('Shouldnt be moving');
             return;
         }
         this.update();
@@ -597,7 +596,8 @@ function GoClock(){
         if (this.moving_stone == true) {
             this.move_stone();
         } else {
-            console.log("Not moving");
+            // Set up next call to transform
+            setTimeout(this.transform.bind(this), 500);
         }
     }
 }

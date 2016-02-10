@@ -236,28 +236,14 @@ $(window).load(function() {
         }, 2000);
         goClock.update();
     });
-    // Rather convoluted method of getting clicks on the goban
-    var can_change_goban = true;
-    $(document).on('click', ':not(#goban)', function(e){
-        if (can_change_goban) {
-            can_change_goban = false;
-            setTimeout(function() {can_change_goban = true;}, 500);
-            if (e.target.id !== 'goban') { // Yes, I do mean not equal to - long story.
-                if (!mySlidebars.slidebars.active('left')) {
-                    // Clicked on the goban when sidebar not active
-                    setView(goClock.view + 1);
-                    setInfo(views[goClock.view]);
-                }
-                goClock.update();
-            }
-        }
-    });
 
     $('#clock_face').closest('li').mousedown(function() {
         setView(goClock.view + 1);
+        goClock.transform();
     });
     $('#mode').closest('li').mousedown(function() {
         setMode(goClock.twenty_four_hour ? 0 : 1);
+        goClock.transform();
     });
     $('#wood').closest('li').mousedown(function() {
         wood += 1;
@@ -277,10 +263,14 @@ $(window).load(function() {
     });
 
     $('#about').closest('li').mousedown(function() {
-        var whole_width = $(window).width();
-        var goban_width = $('#goban img').css('width');
-        var border = ((parseInt(whole_width) - parseInt(goban_width)) / 1.95).toString() + 'px';
-        $('#about_box').css({
+        var whole_width = parseInt($(window).width());
+        var goban_width = parseInt($('#goban img').css('width'));
+        var b =(whole_width - goban_width) / 1.95;
+        if (b > goban_width / 4)
+            b = goban_width / 4;
+        var border = b.toString() + 'px';
+
+        $('#about_box').show().css({
             'left': border,
             'right': border,
             'width': 'auto',
@@ -301,7 +291,7 @@ $(window).load(function() {
     });
 
     var usedMenu = readCookie('used_menu');
-    //if (isInt(usedMenu) === false)
+    if (isInt(usedMenu) === false)
     {
         TweenMax.fromTo('#welcome_box', 0.8, {
             force3D: true,
@@ -334,6 +324,7 @@ $(window).load(function() {
             opacity: 0.0,
             delay: 9
         });
+        /*
         TweenMax.to('#look_here2', 1, {
             top: 80,
             delay: 6,
@@ -345,7 +336,9 @@ $(window).load(function() {
             force3D: true,
             opacity: 0.0,
             delay: 10
-        });
+        });*/
+    } else {
+        $('#sb-site').css('-webkit-filter', 'grayscale(0.0) brightness(1.0)');
     }
 
     fade_menu_timer = setTimeout(function() {
@@ -355,12 +348,12 @@ $(window).load(function() {
 
     window.onresize = function() {
         goClock.draw(window.innerWidth, window.innerHeight);
+        $('#about_box').hide();
     };
     window.onresize();
     setWood(wood);
     setInterval(storeGobanState, 10000);
     goClock.transform();
-    setInterval(function() {goClock.transform()}, 1000);
 
 });
 
