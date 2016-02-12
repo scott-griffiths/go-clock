@@ -199,7 +199,9 @@ $(window).load(function() {
         clearTimeout(fade_menu_timer);
         fade_menu_timer = setTimeout(function() {
             $('#menu').fadeTo('slow', 0.4);
-            $('#change-background, #change-face, #change-speed').fadeTo('slow', 0.0);
+            $('#change-background, #change-face, #change-speed').fadeOut('slow', function() {
+                $(this).css('display', 'none');
+            });
         }, 8000);
         goClock.update();
     });
