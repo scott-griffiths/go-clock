@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <title>Go Clock example</title>
+    <script src="jquery-1.11.1.js"></script>
+    <script src="go-clock.js"></script>
+</head>
+<body>
+<p>This is an example of how to use the Go Clock in your webpage. Look at the source for this page to see how it is done.</p>
+<div id="goban">
+    <div>
+        <canvas width=820 height=850 id="goCanvas"></canvas>
+    </div>
+    <script>
+        // Load in a background image for the clock
+        var background = new Image();
+        background.src = 'images/wood2.jpg';
+        $(window).load(function() {
+            // Create the Go Clock object with the canvas and background
+            var goClock = new GoClock(document.getElementById('goCanvas'), background);
+            // Set the type of clock you want
+            // 0 -> Simple clock with hour and minute hands
+            // 1 -> Hour marker with text for minutes and seconds
+            // 2 -> Text for hours and minutes
+            // 3 -> Text for hours and minutes with second hand
+            // 4 -> Countdown mode!
+            goClock.view = 0;
+            // Draw the clock. Typically the width and height will be the same as your canvas.
+            goClock.draw(820, 850);
+            // Now set some timers. The update function is how often the time is updated. Once a second should be enough.
+            // If you don't provide any parameters it will use the current time, otherwise call it with
+            // seconds, minutes, hours, days (not all are used for all views).
+            setInterval(function () {
+//                goClock.update(12, 34, 45, 678)
+                goClock.update()
+            }, 1000);
+            // The transform function is how often the clock is refreshed. 20 ms gives smooth animation.
+            setInterval(function () {
+                goClock.transform()
+            }, 20);
+            goClock.speed = 3;
+        });
+    </script>
+</div>
+</body>
+</html>

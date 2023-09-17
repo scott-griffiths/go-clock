@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>The Go Clock</title>
+        <meta charset="utf-8">
+        <link rel="stylesheet" href="./my-clock.css">
+        <script src="./jquery-1.11.1.js"></script>
+        <script src="greensock-js/src/uncompressed/TweenMax.js"></script>
+        <script src="./slidebars.js"></script>
+        <script src="../platforms/ios/www/cordova.js"></script>
+        <script src="./go-clock.js"></script>
+        <script src="./my-clock.js"></script>
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-status-bar-style" content="black">
+        <meta name = "viewport" content = "width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable = no, minimal-ui">
+        <link rel="shortcut icon" href="images/white_stone1.png" type="image/x-icon" />
+        <link rel="stylesheet" href="slidebars.css">
+    </head>
+    <body>
+        <link rel="apple-touch-icon" href="touch-icon.png">
+        <div id="about_box">
+            <p style="text-align: center; margin-top: -10px;"><span style="font-size: 20px;">The</span><span style="font-size: 70px;">Go</span><span style="font-size: 20px;">Clock</span></p>
+            <p>The Go Clock is a virtual goban where the stones are used to tell you the time, saving you from the effort of
+                setting up and continually updating your own Go board.</p>
+            <p><span style="font-weight: bold;">Tip of the day:</span> <span id="tip_of_the_day"></span></p>
+            <p style="font-size: small"><span>&copy; 2016 Scott Griffiths / Broken Symmetry</span><span style="float: right;">Version 1.2</span>
+            </p>
+        </div>
+        <div id="welcome_box">
+            <p style="text-align: center; margin-top: -10px;"><span style="font-size: 20px;">The</span><span style="font-size: 70px;">Go</span><span style="font-size: 20px;">Clock</span></p>
+            <p style="text-align: center;">by Scott Griffiths</p>
+        </div>
+        <div id="sb-site">
+            <div id="menu" class="sb-toggle-left button" title="Menu">
+                &#9776;
+            </div>
+            <div id="change-face" class="button" title="Change clock face">
+                &#9678;
+            </div>
+            <div id="change-background" class="button" title="Change background">
+                &#9635;
+            </div>
+            <div id="change-speed" class="button" title="Change stone speed">
+                &#9658;
+            </div>
+            <div id="arrow">
+                &#65513;
+            </div>
+            <div id="look_here">
+                Tap the menu for options
+            </div>
+            <div id="look_here2">
+                Tap the icons too!
+            </div>
+            <div id="info"></div>
+            <div id="goban">
+                <img id="goban-image"/>
+            </div>
+        </div>
+        <div id="sidebar" class="sb-slidebar sb-left sb-width-custom sb-style-overlay" data-sb-width="250px">
+            <div id="menu-title"><span style="font-size: 20px;">The</span><span style="font-size: 70px;">Go</span><span style="font-size: 20px;">Clock</span></div>
+            <nav>
+                <ul class="sb-menu">
+                    <li><a>Clock face: <span id="clock_face"></span></a></li>
+                    <li><a>Background: <span id="change_background"></span></a></li>
+                    <li><a>Speed: <span id="stone_speed"></span></a></li>
+                    <li><a>Board: <span id="wood"></span></a></li>
+                    <li><a>Mode: <span id="mode"></span></a></li>
+<!--                    <li><a>Sound: <span id="stone_sound"></span></a></li>-->
+                    <li class="sb-close"><a id="about">About</a></li>
+                </ul>
+            </nav>
+        </div>
+
+    </body>
+</html>
