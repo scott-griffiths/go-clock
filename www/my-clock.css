@@ -32,11 +32,13 @@ body {
 }
 
 #goban {
-    min-height: 100vh;
+    position: relative;
+    min-height: 100dvh;
     padding-top: 1px;
     padding-bottom: 1px;
     background-size: cover;
     background-position: center;
+    overflow: hidden;
 }
 
 #goban img {
@@ -84,31 +86,79 @@ body {
     background: transparent;
 }
 
-.button {
-    position: absolute;
-    z-index: 3;
+.toolbar {
+    position: fixed;
+    top: max(10px, env(safe-area-inset-top));
+    left: max(10px, env(safe-area-inset-left));
+    z-index: 20;
     display: grid;
-    width: 60px;
-    height: 60px;
+    grid-template-columns: 152px;
+    gap: 8px;
+    width: max-content;
+    opacity: 1;
+    transition: opacity 360ms ease;
+}
+
+.button {
+    display: grid;
+    min-width: 0;
     padding: 0;
     border: 0;
+    border-radius: 6px;
     place-items: center;
-    background: rgb(0 0 0 / 0.48);
+    background: rgb(0 0 0 / 0.62);
     color: white;
     cursor: pointer;
     font-family: Arial, sans-serif;
-    font-size: 42px;
     line-height: 1;
     opacity: 1;
+    box-shadow: 0 3px 14px rgb(0 0 0 / 0.32);
+}
+
+.toolbar[data-visible="false"] {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.toolbar:focus-within {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.sidebar-button {
+    justify-self: start;
+    width: 42px;
+    height: 42px;
+    min-height: 42px;
+    padding: 0;
+    background: rgb(0 0 0 / 0.7);
+}
+
+.sidebar-icon {
+    position: relative;
+    width: 19px;
+    height: 17px;
+    border: 2px solid currentColor;
+    border-radius: 3px;
+}
+
+.sidebar-icon::before {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 5px;
+    content: "";
+    border-left: 2px solid currentColor;
 }
 
 .setting-button {
-    width: 148px;
-    height: 40px;
-    padding: 6px 12px;
-    border-radius: 6px;
-    place-items: center;
-    background: rgb(0 0 0 / 0.58);
+    grid-template-columns: 22px 1fr;
+    width: 152px;
+    min-height: 38px;
+    gap: 9px;
+    padding: 7px 12px;
+    place-items: center start;
+    background: rgb(0 0 0 / 0.68);
     color: white;
     font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     font-size: 14px;
@@ -120,9 +170,23 @@ body {
     white-space: nowrap;
 }
 
+.setting-icon {
+    width: 22px;
+    font-family: "Times New Roman", Georgia, serif;
+    font-size: 19px;
+    line-height: 1;
+    text-align: center;
+}
+
+.setting-button span:last-child {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .button:hover,
 .button:focus-visible {
-    background: rgb(0 0 0 / 0.62);
+    background: rgb(0 0 0 / 0.78);
     outline: 2px solid rgb(255 255 255 / 0.8);
     outline-offset: -2px;
 }
@@ -130,8 +194,8 @@ body {
 #sidebar {
     position: fixed;
     inset: 0 auto 0 0;
-    z-index: 10;
-    width: min(250px, 84vw);
+    z-index: 30;
+    width: min(280px, 86vw);
     overflow-y: auto;
     background-color: #e7d2b6;
     background-image: url('images/bowl2.jpg');
@@ -159,12 +223,20 @@ body {
     border-bottom: 1px solid rgb(0 0 0 / 0.12);
 }
 
-.sb-menu li a {
-    display: block;
+.sb-menu li button {
+    display: flex;
+    width: 100%;
     min-height: 48px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
     padding: 1rem;
+    border: 0;
+    background: transparent;
     color: #4d1d1d;
-    text-decoration: none;
+    cursor: pointer;
+    font: inherit;
+    text-align: left;
 }
 
 .sb-menu li:hover {
@@ -173,26 +245,29 @@ body {
 }
 
 #menu-title {
-    padding: 10px 15px 15px;
+    margin: 0;
+    padding: 12px 15px 18px;
     text-align: center;
     font-size: 33px;
+    font-weight: 400;
 }
 
-#clock_face,
-#stone_speed,
-#change_background,
-#stone_sound,
+#menu-title strong {
+    font-size: 70px;
+    font-weight: 700;
+    line-height: 0.8;
+}
+
 #mode,
 #wood {
     color: #9d2424;
     font-weight: 700;
 }
 
-#about_box,
-#welcome_box {
+#about_box {
     position: absolute;
-    z-index: 4;
-    padding: 2%;
+    z-index: 40;
+    padding: min(24px, 5vw);
     border-radius: 8px;
     background-color: white;
     background-image: url('images/paper_texture.jpg');
@@ -200,53 +275,59 @@ body {
 }
 
 #about_box {
-    top: -500px;
-    left: 3%;
-    width: 90%;
-}
-
-#welcome_box {
-    top: 30%;
+    top: 5%;
     left: 50%;
-    width: 240px;
-    margin-left: -120px;
-    background-color: transparent;
-    opacity: 0;
-    pointer-events: none;
+    width: min(620px, calc(100vw - 32px));
+    transform: translateX(-50%);
 }
 
-#look_here,
-#look_here2 {
-    position: absolute;
-    z-index: 3;
-    padding: 8px;
-    border: 2px solid white;
-    border-radius: 8px;
-    background: white;
-    color: #261917;
-    box-shadow: 12px 12px 10px rgb(0 0 0 / 0.32);
+#about_box h1 {
+    margin: 0 0 0.75rem;
+    text-align: center;
+    font-size: 22px;
+    font-weight: 400;
 }
 
-#look_here,
-#look_here2 {
-    top: -80px;
-    left: 71px;
+#about_box h1 strong {
+    font-size: 58px;
+    line-height: 0.8;
 }
 
-#look_here2 {
-    left: 31px;
+.repo-link {
+    color: #6a1f1f;
+    font-weight: 700;
 }
 
-#arrow {
-    position: absolute;
-    top: -19px;
-    left: 40px;
-    z-index: 3;
-    display: none;
-    padding: 8px;
-    color: white;
-    font-size: 50px;
-    text-shadow: 8px 8px 4px rgb(100 100 100 / 0.8);
+.repo-link:focus-visible,
+.repo-link:hover {
+    color: #9d2424;
+}
+
+.about-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0;
+    font-size: 0.85rem;
+}
+
+@media (max-width: 520px) {
+    .toolbar {
+        grid-template-columns: 138px 138px;
+        align-items: start;
+    }
+
+    .setting-button {
+        width: 138px;
+    }
+
+    #change-background {
+        grid-column: 2;
+    }
+
+    #change-speed {
+        grid-column: 2;
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {

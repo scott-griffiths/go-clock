@@ -1,8 +1,9 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
     <head>
         <title>The Go Clock</title>
         <meta charset="utf-8">
+        <meta name="description" content="A static Go board clock that tells the time with stones.">
         <meta name="theme-color" content="#151515">
         <link rel="stylesheet" href="./my-clock.css">
         <script type="module" src="./my-clock.js"></script>
@@ -11,60 +12,48 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <link rel="shortcut icon" href="images/white_stone1.png" type="image/x-icon">
         <link rel="apple-touch-icon" href="images/touch-icon.png">
+        <link rel="manifest" href="manifest.webmanifest">
     </head>
     <body>
-        <div id="about_box">
-            <p style="text-align: center; margin-top: -10px;"><span style="font-size: 20px;">The</span><span style="font-size: 70px;">Go</span><span style="font-size: 20px;">Clock</span></p>
+        <div id="about_box" role="dialog" aria-labelledby="about-title" hidden>
+            <h1 id="about-title">The <strong>Go</strong> Clock</h1>
             <p>The Go Clock is a virtual goban where the stones are used to tell you the time, saving you from the effort of
                 setting up and continually updating your own Go board.</p>
             <p><span style="font-weight: bold;">Tip of the day:</span> <span id="tip_of_the_day"></span></p>
-            <p style="font-size: small"><span>&copy; 2016 Scott Griffiths / Broken Symmetry</span><span style="float: right;">Version 1.2</span>
-            </p>
-        </div>
-        <div id="welcome_box">
-            <p style="text-align: center; margin-top: -10px;"><span style="font-size: 20px;">The</span><span style="font-size: 70px;">Go</span><span style="font-size: 20px;">Clock</span></p>
-            <p style="text-align: center;">by Scott Griffiths</p>
+            <p><a class="repo-link" href="https://github.com/scott-griffiths/go-clock">GitHub repository</a></p>
+            <p class="about-meta"><span>&copy; 2016 Scott Griffiths / Broken Symmetry</span><span>Version 1.2</span></p>
         </div>
         <div id="sb-site">
-            <button id="menu" class="button" type="button" title="Menu" aria-label="Menu" aria-controls="sidebar" aria-expanded="false">
-                &#9776;
-            </button>
-            <button id="change-face" class="button setting-button" type="button" title="Change clock face" aria-label="Change clock face">
-                Analogue
-            </button>
-            <button id="change-background" class="button setting-button" type="button" title="Change background" aria-label="Change background">
-                Dark wood
-            </button>
-            <button id="change-speed" class="button setting-button" type="button" title="Change stone speed" aria-label="Change stone speed">
-                Normal
-            </button>
-            <div id="arrow">
-                &#65513;
+            <div id="toolbar" class="toolbar" role="toolbar" aria-label="Clock controls" data-visible="true">
+                <button id="menu" class="button sidebar-button" type="button" title="Show sidebar" aria-label="Show sidebar" aria-controls="sidebar" aria-expanded="false">
+                    <span class="sidebar-icon" aria-hidden="true"></span>
+                </button>
+                <button id="change-face" class="button setting-button" type="button" title="Change clock face" aria-label="Change clock face">
+                    <span class="setting-icon" aria-hidden="true">◷</span>
+                    <span id="change-face-label">Analogue</span>
+                </button>
+                <button id="change-background" class="button setting-button" type="button" title="Change background" aria-label="Change background">
+                    <span class="setting-icon" aria-hidden="true">▧</span>
+                    <span id="change-background-label">Dark wood</span>
+                </button>
+                <button id="change-speed" class="button setting-button" type="button" title="Change stone speed" aria-label="Change stone speed">
+                    <span class="setting-icon" aria-hidden="true">≫</span>
+                    <span id="change-speed-label">Normal</span>
+                </button>
             </div>
-            <div id="look_here">
-                Tap the menu for options
-            </div>
-            <div id="look_here2">
-                Tap the icons too!
-            </div>
-            <div id="goban">
-                <img id="goban-image"/>
+            <div id="goban" aria-label="Go board clock">
+                <img id="goban-image" alt="">
             </div>
         </div>
         <aside id="sidebar" aria-label="Clock settings">
-            <div id="menu-title"><span style="font-size: 20px;">The</span><span style="font-size: 70px;">Go</span><span style="font-size: 20px;">Clock</span></div>
+            <h2 id="menu-title">The <strong>Go</strong> Clock</h2>
             <nav>
                 <ul class="sb-menu">
-                    <li><a>Clock face: <span id="clock_face"></span></a></li>
-                    <li><a>Background: <span id="change_background"></span></a></li>
-                    <li><a>Speed: <span id="stone_speed"></span></a></li>
-                    <li><a>Board: <span id="wood"></span></a></li>
-                    <li><a>Mode: <span id="mode"></span></a></li>
-<!--                    <li><a>Sound: <span id="stone_sound"></span></a></li>-->
-                    <li class="sb-close"><a id="about">About</a></li>
+                    <li><button id="setting-wood" type="button">Board <span id="wood"></span></button></li>
+                    <li><button id="setting-mode" type="button">Mode <span id="mode"></span></button></li>
+                    <li><button id="about" type="button">About</button></li>
                 </ul>
             </nav>
         </aside>
-
     </body>
 </html>

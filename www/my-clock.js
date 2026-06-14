@@ -23,6 +23,7 @@ const backgrounds = [
 
 const views = ['Analogue', 'Jumping hour', 'Digital', 'Hybrid'];
 const stoneSpeeds = [['Torpid', 5], ['Slow', 10], ['Normal', 20], ['Fast', 55], ['Insane!', 120]];
+const controlsHideDelay = 3600;
 const woods = [
     ['Oak', 'saturate(0.8) hue-rotate(-12deg) sepia(0.5)'],
     ['Kaya', 'saturate(1.3) hue-rotate(-7deg)'],
@@ -35,9 +36,7 @@ const cookieKeys = new Map([
     ['view', 'goban_view'],
     ['mode', 'mode'],
     ['wood', 'wood'],
-    ['sound', 'stone_sound'],
-    ['state', 'goban_state'],
-    ['usedMenu', 'used_menu']
+    ['state', 'goban_state']
 ]);
 
 function isInt(value) {
@@ -54,11 +53,19 @@ function readCookie(name) {
 }
 
 function readSetting(key) {
-    return localStorage.getItem(`goClock.${key}`) ?? readCookie(cookieKeys.get(key));
+    try {
+        return localStorage.getItem(`goClock.${key}`) ?? readCookie(cookieKeys.get(key));
+    } catch {
+        return readCookie(cookieKeys.get(key));
+    }
 }
 
 function writeSetting(key, value) {
-    localStorage.setItem(`goClock.${key}`, String(value));
+    try {
+        localStorage.setItem(`goClock.${key}`, String(value));
+    } catch {
+        // Preferences are non-critical; keep the clock running if storage is blocked.
+    }
 }
 
 function readIndex(key, fallback, length) {
@@ -119,27 +126,21 @@ window.addEventListener('load', () => {
     let view = readIndex('view', 0, views.length);
     let mode = readIndex('mode', 1, 2);
     let wood = readIndex('wood', 0, woods.length);
-    let sounds = readIndex('sound', 1, 2);
 
     const sidebar = $('#sidebar');
+    const toolbar = $('#toolbar');
     const menuButton = $('#menu');
     const aboutBox = $('#about_box');
+    let controlsHideTimer = null;
+    let lastControlWake = 0;
 
     function setClockSpeed(index) {
         stoneSpeed = index % stoneSpeeds.length;
         const value = stoneSpeeds[stoneSpeed][0];
         goClock.speed = stoneSpeeds[stoneSpeed][1];
-        $('#stone_speed').textContent = value;
-        $('#change-speed').textContent = value;
+        $('#change-speed-label').textContent = value;
         $('#change-speed').setAttribute('aria-label', `Change stone speed, current ${value}`);
         writeSetting('speed', stoneSpeed);
-    }
-
-    function setAudio(index) {
-        sounds = index % 2;
-        goClock.sounds = sounds;
-        $('#stone_sound') && ($('#stone_sound').textContent = sounds ? 'On' : 'Off');
-        writeSetting('sound', sounds);
     }
 
     function setMode(index) {
@@ -163,8 +164,7 @@ window.addEventListener('load', () => {
         view = index % views.length;
         const value = views[view];
         goClock.view = view;
-        $('#clock_face').textContent = value;
-        $('#change-face').textContent = value;
+        $('#change-face-label').textContent = value;
         $('#change-face').setAttribute('aria-label', `Change clock face, current ${value}`);
         writeSetting('view', view);
     }
@@ -173,8 +173,7 @@ window.addEventListener('load', () => {
         background = index % backgrounds.length;
         const value = backgrounds[background][1];
         $('#goban').style.backgroundImage = `url('images/${backgrounds[background][0]}')`;
-        $('#change_background').textContent = value;
-        $('#change-background').textContent = value;
+        $('#change-background-label').textContent = value;
         $('#change-background').setAttribute('aria-label', `Change background, current ${value}`);
         writeSetting('background', background);
     }
@@ -188,38 +187,67 @@ window.addEventListener('load', () => {
     }
 
     function setMenuOpen(open) {
-        sidebar.dataset.open = open ? 'true' : 'false';
-        menuButton.setAttribute('aria-expanded', String(open));
+        const isOpen = Boolean(open);
+        const action = isOpen ? 'Hide sidebar' : 'Show sidebar';
+        sidebar.dataset.open = isOpen ? 'true' : 'false';
+        menuButton.setAttribute('aria-expanded', String(isOpen));
+        menuButton.setAttribute('aria-label', action);
+        menuButton.title = action;
+        wakeControls({hold: isOpen});
     }
 
-    function wakeControls() {
-        $$('.button').forEach((button) => {
-            button.hidden = false;
-            button.style.opacity = button.id === 'menu' ? '1' : '0.96';
-        });
+    function clearControlsFade() {
+        if (controlsHideTimer !== null) {
+            window.clearTimeout(controlsHideTimer);
+            controlsHideTimer = null;
+        }
+    }
+
+    function scheduleControlsFade() {
+        clearControlsFade();
+        if (sidebar.dataset.open === 'true') {
+            return;
+        }
+
+        controlsHideTimer = window.setTimeout(() => {
+            if (sidebar.dataset.open !== 'true' && !toolbar.contains(document.activeElement)) {
+                toolbar.dataset.visible = 'false';
+            }
+        }, controlsHideDelay);
+    }
+
+    function wakeControls({hold = false} = {}) {
+        toolbar.dataset.visible = 'true';
+        clearControlsFade();
+        if (!hold) {
+            scheduleControlsFade();
+        }
+    }
+
+    function wakeControlsForActivity() {
+        const now = Date.now();
+        if (toolbar.dataset.visible !== 'true' || now - lastControlWake > 250) {
+            lastControlWake = now;
+            wakeControls();
+        }
     }
 
     function hideAbout() {
-        fadeTo(aboutBox, 0, 200);
+        if (!aboutBox.hidden) {
+            fadeTo(aboutBox, 0, 200);
+        }
     }
 
     function showAbout() {
-        const wholeWidth = window.innerWidth;
-        const gobanWidth = parseInt(getComputedStyle($('#goban img')).width, 10);
-        let border = (wholeWidth - gobanWidth) / 1.95;
-        if (border > gobanWidth / 4) {
-            border = gobanWidth / 4;
-        }
-
         Object.assign(aboutBox.style, {
-            left: `${border}px`,
-            right: `${border}px`,
-            width: 'auto',
-            top: '-500px',
-            opacity: '0'
+            opacity: '0',
+            transform: 'translate(-50%, -12px)'
         });
         aboutBox.hidden = false;
-        animateStyles(aboutBox, [{top: '-500px', opacity: 0}, {top: '5%', opacity: 1}], {
+        animateStyles(aboutBox, [
+            {opacity: 0, transform: 'translate(-50%, -12px)'},
+            {opacity: 1, transform: 'translate(-50%, 0)'}
+        ], {
             duration: 900,
             easing: 'ease-out'
         });
@@ -228,43 +256,7 @@ window.addEventListener('load', () => {
     function resizeClock() {
         goClock.draw(window.innerWidth, window.innerHeight);
         aboutBox.hidden = true;
-
-        if (window.innerWidth > window.innerHeight) {
-            Object.assign($('#change-face').style, {top: '74px', left: '10px'});
-            Object.assign($('#change-background').style, {top: '120px', left: '10px'});
-            Object.assign($('#change-speed').style, {top: '166px', left: '10px'});
-        } else {
-            Object.assign($('#change-face').style, {left: '74px', top: '10px'});
-            Object.assign($('#change-background').style, {left: '74px', top: '56px'});
-            Object.assign($('#change-speed').style, {left: '74px', top: '102px'});
-        }
         setWood(wood);
-    }
-
-    function showFirstRunHints() {
-        if (isInt(readSetting('usedMenu'))) {
-            return;
-        }
-
-        const welcome = $('#welcome_box');
-        welcome.hidden = false;
-        animateStyles(welcome, [{opacity: 0}, {opacity: 1}], {duration: 800});
-        animateStyles(welcome, [{transform: 'translateY(0)', opacity: 1}, {transform: 'translateY(-50px)', opacity: 0}], {
-            duration: 1000,
-            delay: 2000,
-            onFinish: () => {
-                welcome.hidden = true;
-            }
-        });
-        animateStyles($('#look_here'), [{top: '-80px'}, {top: '18px'}], {
-            duration: 900,
-            delay: 3000,
-            easing: 'cubic-bezier(.34,1.56,.64,1)'
-        });
-        animateStyles($('#look_here'), [{top: '18px', opacity: 1}, {top: '-70px', opacity: 0}], {
-            duration: 500,
-            delay: 9000
-        });
     }
 
     const storedState = readSetting('state');
@@ -276,21 +268,23 @@ window.addEventListener('load', () => {
     setView(view);
     setBackground(background);
     setMode(mode);
-    setAudio(sounds);
 
     $('#goban').addEventListener('click', () => {
         hideAbout();
         wakeControls();
         goClock.update();
     });
+    $('#goban').addEventListener('pointermove', wakeControlsForActivity);
+    $('#goban').addEventListener('touchstart', wakeControls, {passive: true});
+    document.addEventListener('keydown', wakeControlsForActivity);
     $$('.button').forEach((button) => {
         button.addEventListener('click', hideAbout);
         button.addEventListener('click', wakeControls);
+        button.addEventListener('focus', wakeControls);
     });
 
     menuButton.addEventListener('click', (event) => {
         event.stopPropagation();
-        writeSetting('usedMenu', 1);
         setMenuOpen(sidebar.dataset.open !== 'true');
     });
     document.addEventListener('click', (event) => {
@@ -303,32 +297,24 @@ window.addEventListener('load', () => {
         setView(view + 1);
         goClock.transform();
     });
-    $('#clock_face').closest('li').addEventListener('pointerdown', () => {
-        setView(view + 1);
-        goClock.transform();
-    });
-    $('#mode').closest('li').addEventListener('pointerdown', () => {
+    $('#setting-mode').addEventListener('click', () => {
         setMode(goClock.twenty_four_hour ? 0 : 1);
         goClock.transform();
     });
-    $('#wood').closest('li').addEventListener('pointerdown', () => setWood(wood + 1));
+    $('#setting-wood').addEventListener('click', () => setWood(wood + 1));
     $('#change-background').addEventListener('click', () => {
         setBackground(background + 1);
     });
-    $('#change_background').closest('li').addEventListener('pointerdown', () => setBackground(background + 1));
     $('#change-speed').addEventListener('click', () => {
         setClockSpeed(stoneSpeed + 1);
     });
-    $('#stone_speed').closest('li').addEventListener('pointerdown', () => setClockSpeed(stoneSpeed + 1));
-    $('#stone_sound')?.closest('li')?.addEventListener('pointerdown', () => setAudio(1 - sounds));
-    $('#about').closest('li').addEventListener('pointerdown', () => {
+    $('#about').addEventListener('click', () => {
         setMenuOpen(false);
         showAbout();
     });
 
     setMenuOpen(false);
     resizeClock();
-    showFirstRunHints();
     wakeControls();
     window.addEventListener('resize', resizeClock);
     setInterval(storeGobanState, 10000);

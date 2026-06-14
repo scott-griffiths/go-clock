@@ -2,10 +2,6 @@
  * Created by scott on 15/05/2014.
  */
 
-const angle = 20;
-const xFactor = Math.sin(angle*Math.PI/180);
-const yFactor = Math.cos(angle*Math.PI/180);
-
 const gridsize = 19;
 
 const go_bowl = 999;
@@ -18,27 +14,14 @@ const maxy = 0.972;
 
 const ext = "images/";
 
-const images = ["white_stone0.png", "white_stone1.png", "white_stone2.png", "white_stone3.png",
-    "black_stone1.png", "goban_1200.jpg", "goban_400.jpg", "goban_200.jpg"];
-
 var white_stone0 = new Image();
 white_stone0.src = ext + "white_stone0.png";
-var white_stone1 = new Image();
-white_stone1.src = ext + "white_stone1.png";
-var white_stone2 = new Image();
-white_stone2.src = ext + "white_stone2.png";
-var white_stone3 = new Image();
-white_stone3.src = ext + "white_stone3.png";
 
 var black_stone = new Image();
 black_stone.src = ext + "black_stone1.png";
 
 var goban_1200 = new Image();
 goban_1200.src = ext + "goban_1200.jpg";
-var goban_400 = new Image();
-goban_400.src = ext + "goban_400.jpg";
-var goban_200 = new Image();
-goban_200.src = ext + "goban_200.jpg";
 
 const white = 1;
 const black = 3;
@@ -154,19 +137,15 @@ export function GoClock(){
     this.stone_from = [0, 0]; // Board coordinates
     this.stone_to = [0, 0]; // Board coordinates
     this.clear_route = true; // Is the route from stone_from to stone_to clear of obstacles?
-    this.stone_percent = 0; // Percentage stone is between the from and to
     this.stone_colour = white;
-    this.stone_pos = [0, 0, 0, 0]; // Pixel position of last drawn moving stone: x, y, w, h
 
     this.hand_position = 9*19 + 9; // Position of hand that's moving the stones.
 
     this.offsets = []; // The small offsets of each stone position to make it less regular-looking
-    this.white_stone = []; // Which white stone to use in each position (if a white stone is there!)
 
     this.view = 0; // The clock type
 
     this.speed = 9;
-    this.sounds = 0;
 
     this.twenty_four_hour = true; // 24 hour mode for views that make sense
 
@@ -708,22 +687,15 @@ export function GoClock(){
     }
 }
 
-function nearest(point, points) {
-    var nearest = points[0];
-    for (var i=1; i < points.length; ++i) {
-        if (dist(point, points[i]) < dist(point, nearest)) {
-            nearest = points[i];
-        }
-    }
-    return nearest;
-}
-
 // find integer points that form the line from x0, y0 to x1, y1
 function line(x0, x1, y0, y1) {
     var deltax = x1 - x0;
     var deltay = y1 - y0;
     var error = 0.0;
     var points = [];
+    if (deltax == 0 && deltay == 0) {
+        return [[x0, y0]];
+    }
     if (Math.abs(deltax) >= Math.abs(deltay)) {
         if (x1 < x0) {
             var tmp = x1;
@@ -776,13 +748,4 @@ function dist(i, j) {
     var xj = j % gridsize;
     var yj = (j - xj)/gridsize;
     return Math.sqrt((xi - xj)*(xi - xj) + (yi - yj)*(yi - yj));
-}
-
-function backingScale() {
-    if ('devicePixelRatio' in window) {
-        if (window.devicePixelRatio > 1) {
-            return window.devicePixelRatio;
-        }
-    }
-    return 1;
 }
