@@ -99,7 +99,25 @@ body {
     font-family: Arial, sans-serif;
     font-size: 42px;
     line-height: 1;
-    opacity: 0;
+    opacity: 1;
+}
+
+.setting-button {
+    width: 148px;
+    height: 40px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    place-items: center;
+    background: rgb(0 0 0 / 0.58);
+    color: white;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.1;
+    overflow: hidden;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .button:hover,
@@ -107,14 +125,6 @@ body {
     background: rgb(0 0 0 / 0.62);
     outline: 2px solid rgb(255 255 255 / 0.8);
     outline-offset: -2px;
-}
-
-#change-background {
-    font-size: 52px;
-}
-
-#change-speed {
-    font-size: 50px;
 }
 
 #sidebar {
@@ -206,8 +216,7 @@ body {
 }
 
 #look_here,
-#look_here2,
-#info {
+#look_here2 {
     position: absolute;
     z-index: 3;
     padding: 8px;
@@ -226,10 +235,6 @@ body {
 
 #look_here2 {
     left: 31px;
-}
-
-#info {
-    opacity: 0;
 }
 
 #arrow {

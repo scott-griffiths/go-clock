@@ -124,14 +124,14 @@ window.addEventListener('load', () => {
     const sidebar = $('#sidebar');
     const menuButton = $('#menu');
     const aboutBox = $('#about_box');
-    const info = $('#info');
-    let infoFadeTimer;
-    let controlsFadeTimer;
 
     function setClockSpeed(index) {
         stoneSpeed = index % stoneSpeeds.length;
+        const value = stoneSpeeds[stoneSpeed][0];
         goClock.speed = stoneSpeeds[stoneSpeed][1];
-        $('#stone_speed').textContent = stoneSpeeds[stoneSpeed][0];
+        $('#stone_speed').textContent = value;
+        $('#change-speed').textContent = value;
+        $('#change-speed').setAttribute('aria-label', `Change stone speed, current ${value}`);
         writeSetting('speed', stoneSpeed);
     }
 
@@ -161,15 +161,21 @@ window.addEventListener('load', () => {
 
     function setView(index) {
         view = index % views.length;
+        const value = views[view];
         goClock.view = view;
-        $('#clock_face').textContent = views[view];
+        $('#clock_face').textContent = value;
+        $('#change-face').textContent = value;
+        $('#change-face').setAttribute('aria-label', `Change clock face, current ${value}`);
         writeSetting('view', view);
     }
 
     function setBackground(index) {
         background = index % backgrounds.length;
+        const value = backgrounds[background][1];
         $('#goban').style.backgroundImage = `url('images/${backgrounds[background][0]}')`;
-        $('#change_background').textContent = backgrounds[background][1];
+        $('#change_background').textContent = value;
+        $('#change-background').textContent = value;
+        $('#change-background').setAttribute('aria-label', `Change background, current ${value}`);
         writeSetting('background', background);
     }
 
@@ -181,13 +187,6 @@ window.addEventListener('load', () => {
         writeSetting('state', goClock.stones_shown.join(''));
     }
 
-    function setInfo(value) {
-        info.textContent = value;
-        fadeTo(info, 1, 150);
-        clearTimeout(infoFadeTimer);
-        infoFadeTimer = setTimeout(() => fadeTo(info, 0, 300), 2000);
-    }
-
     function setMenuOpen(open) {
         sidebar.dataset.open = open ? 'true' : 'false';
         menuButton.setAttribute('aria-expanded', String(open));
@@ -196,13 +195,8 @@ window.addEventListener('load', () => {
     function wakeControls() {
         $$('.button').forEach((button) => {
             button.hidden = false;
-            fadeTo(button, button.id === 'menu' ? 1 : 0.96, 250);
+            button.style.opacity = button.id === 'menu' ? '1' : '0.96';
         });
-        clearTimeout(controlsFadeTimer);
-        controlsFadeTimer = setTimeout(() => {
-            fadeTo(menuButton, 0.4, 600);
-            ['#change-background', '#change-speed', '#change-face'].forEach((selector) => fadeTo($(selector), 0, 600));
-        }, 8000);
     }
 
     function hideAbout() {
@@ -236,15 +230,13 @@ window.addEventListener('load', () => {
         aboutBox.hidden = true;
 
         if (window.innerWidth > window.innerHeight) {
-            Object.assign($('#change-face').style, {top: '70px', left: '0px'});
-            Object.assign($('#change-background').style, {top: '140px', left: '0px'});
-            Object.assign($('#change-speed').style, {top: '210px', left: '0px'});
-            Object.assign(info.style, {top: '13px', left: '70px'});
+            Object.assign($('#change-face').style, {top: '74px', left: '10px'});
+            Object.assign($('#change-background').style, {top: '120px', left: '10px'});
+            Object.assign($('#change-speed').style, {top: '166px', left: '10px'});
         } else {
-            Object.assign($('#change-face').style, {left: '70px', top: '0px'});
-            Object.assign($('#change-background').style, {left: '140px', top: '0px'});
-            Object.assign($('#change-speed').style, {left: '210px', top: '0px'});
-            Object.assign(info.style, {top: '70px', left: '13px'});
+            Object.assign($('#change-face').style, {left: '74px', top: '10px'});
+            Object.assign($('#change-background').style, {left: '74px', top: '56px'});
+            Object.assign($('#change-speed').style, {left: '74px', top: '102px'});
         }
         setWood(wood);
     }
@@ -309,7 +301,6 @@ window.addEventListener('load', () => {
 
     $('#change-face').addEventListener('click', () => {
         setView(view + 1);
-        setInfo(`Face: ${views[view]}`);
         goClock.transform();
     });
     $('#clock_face').closest('li').addEventListener('pointerdown', () => {
@@ -323,12 +314,10 @@ window.addEventListener('load', () => {
     $('#wood').closest('li').addEventListener('pointerdown', () => setWood(wood + 1));
     $('#change-background').addEventListener('click', () => {
         setBackground(background + 1);
-        setInfo(`Background: ${backgrounds[background][1]}`);
     });
     $('#change_background').closest('li').addEventListener('pointerdown', () => setBackground(background + 1));
     $('#change-speed').addEventListener('click', () => {
         setClockSpeed(stoneSpeed + 1);
-        setInfo(`Stone speed: ${stoneSpeeds[stoneSpeed][0]}`);
     });
     $('#stone_speed').closest('li').addEventListener('pointerdown', () => setClockSpeed(stoneSpeed + 1));
     $('#stone_sound')?.closest('li')?.addEventListener('pointerdown', () => setAudio(1 - sounds));
