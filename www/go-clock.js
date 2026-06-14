@@ -14,8 +14,17 @@ const maxy = 0.972;
 
 const ext = "images/";
 
-var white_stone0 = new Image();
-white_stone0.src = ext + "white_stone0.png";
+const primaryWhiteStoneSrc = ext + "white_stone0.png";
+const alternateWhiteStoneSrcs = [
+    ext + "white_stone1.png",
+    ext + "white_stone2.png",
+    ext + "white_stone3.png"
+];
+const whiteStoneSrcs = [primaryWhiteStoneSrc, ...alternateWhiteStoneSrcs];
+whiteStoneSrcs.forEach((src) => {
+    const image = new Image();
+    image.src = src;
+});
 
 var black_stone = new Image();
 black_stone.src = ext + "black_stone1.png";
@@ -48,6 +57,20 @@ function setStoneShadow(element, height = 0) {
     element.style.setProperty('--stone-shadow-spread-size', `${1 - lift*0.06}px`);
     element.style.setProperty('--stone-shadow-offset-x', `${1.25 + lift*0.45}px`);
     element.style.setProperty('--stone-shadow-offset-y', `${1.75 + lift*0.4}px`);
+}
+
+function randomWhiteStoneSrc() {
+    if (Math.random() < 0.5) {
+        return primaryWhiteStoneSrc;
+    }
+    return alternateWhiteStoneSrcs[Math.floor(Math.random()*alternateWhiteStoneSrcs.length)];
+}
+
+function stoneImageSrc(colour, preferredSrc = null) {
+    if (colour == white) {
+        return preferredSrc || randomWhiteStoneSrc();
+    }
+    return black_stone.src;
 }
 
 function setVisible(element, visible) {
@@ -275,12 +298,12 @@ export function GoClock(){
     this.addStone = function(x, y, colour){
         this.stones[y*gridsize + x] = colour;
     };
-    this.drawStone = function(coords, colour, height) {
+    this.drawStone = function(coords, colour, height, src = null) {
         if (coords[0] <= -0.5 || coords[0] >= gridsize - 0.5 || coords[1] <= -0.5 || coords[1] >= gridsize - 0.5) {
             return;
         }
         var p = this.stonePosition(coords[0], coords[1], height);
-        var src = colour == white ? white_stone0.src : black_stone.src;
+        src = stoneImageSrc(colour, src);
         var i = this.get_index(coords);
         var position = $('#p' + i);
         var stone = position.querySelector('img');
@@ -292,6 +315,11 @@ export function GoClock(){
         setVisible(shadow, true);
         setVisible(stone, true);
         return p;
+    };
+
+    this.getDrawnStoneSrc = function(coords) {
+        var i = this.get_index(coords);
+        return $('#p' + i).querySelector('img').src;
     };
 
     // Remove a stone from the buffered board
@@ -433,6 +461,9 @@ export function GoClock(){
         setVisible(movingStone, true);
         $('#moving_stone img').style.removeProperty('filter');
         setVisible($('#moving_stone .stone-shadow'), true);
+        this.moving_stone_src = this.stone_from[0] == go_bowl
+            ? stoneImageSrc(this.stone_colour)
+            : this.getDrawnStoneSrc(this.stone_from);
         if (this.stone_from[0] != go_bowl) {
             this.eraseStone(this.stone_from);
         }
@@ -458,7 +489,8 @@ export function GoClock(){
             self.stones_shown[Math.round(self.stone_to[0]) + gridsize*Math.round(self.stone_to[1])] = self.stone_colour;
             setVisible($("#moving_stone"), false);
             setVisible($('#moving_stone .stone-shadow'), false);
-            self.drawStone(self.stone_to, self.stone_colour, 0);
+            self.drawStone(self.stone_to, self.stone_colour, 0, self.moving_stone_src);
+            self.moving_stone_src = null;
             self.moving_stone = false;
             self.transform();
         };
@@ -466,7 +498,7 @@ export function GoClock(){
         setStyles($("#moving_stone"), {left: p1[0], top: p1[1], width: p1[2], height: p1[3]});
         var movingShadow = $('#moving_stone .stone-shadow');
         setStoneShadow(movingShadow, 0);
-        var src = colour == white ? white_stone0.src : black_stone.src;
+        var src = stoneImageSrc(colour, this.moving_stone_src);
         var movingStoneImage = $("#moving_stone img");
         movingStoneImage.src = src;
         setVisible(movingStoneImage, true);
@@ -516,7 +548,8 @@ export function GoClock(){
             self.stones_shown[Math.round(self.stone_to[0]) + gridsize*Math.round(self.stone_to[1])] = self.stone_colour;
             setVisible($("#moving_stone"), false);
             setVisible($('#moving_stone .stone-shadow'), false);
-            self.drawStone(self.stone_to, self.stone_colour, 0);
+            self.drawStone(self.stone_to, self.stone_colour, 0, self.moving_stone_src);
+            self.moving_stone_src = null;
             self.moving_stone = false;
             self.transform();
         };
@@ -524,7 +557,7 @@ export function GoClock(){
         setStyles($("#moving_stone"), {left: p1[0], top: p1[1], width: p1[2], height: p1[3]});
         var movingShadow = $('#moving_stone .stone-shadow');
         setStoneShadow(movingShadow, 10);
-        var src = colour == white ? white_stone0.src : black_stone.src;
+        var src = stoneImageSrc(colour, this.moving_stone_src);
         var movingStoneImage = $("#moving_stone img");
         movingStoneImage.src = src;
         setVisible(movingStoneImage, true);
@@ -549,6 +582,7 @@ export function GoClock(){
             setVisible($("#moving_stone"), false);
             setVisible($('#moving_stone .stone-shadow'), false);
             self.moving_stone = false;
+            self.moving_stone_src = null;
             $("#moving_stone").style.opacity = '1.0';
             self.transform();
         };
@@ -556,7 +590,7 @@ export function GoClock(){
         setStyles($("#moving_stone"), {left: p1[0], top: p1[1], width: p1[2], height: p1[3]});
         var movingShadow = $('#moving_stone .stone-shadow');
         setStoneShadow(movingShadow, 0);
-        var src = colour == white ? white_stone0.src : black_stone.src;
+        var src = stoneImageSrc(colour, this.moving_stone_src);
         var movingStoneImage = $("#moving_stone img");
         movingStoneImage.src = src;
         setVisible(movingStoneImage, true);
