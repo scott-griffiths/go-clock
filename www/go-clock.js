@@ -529,8 +529,8 @@ export function GoClock(){
             var midTop = startTop + this.goban_height*(0.14 + 0.28*progress) + stoneDiameter*crowding;
             var finalLeft = pileBaseX + this.goban_width*(Math.random()*0.18 - 0.04) + stoneDiameter*(Math.random() - 0.5);
             var finalTop = pileBaseY + this.goban_height*(0.1*Math.random()) + stoneDiameter*(Math.random()*2.6);
-            var delay = 0.08 + progress*0.9 + Math.random()*0.08;
-            var duration = 0.74 + progress*0.32 + Math.random()*0.16;
+            var delay = 0.12 + progress*1.25 + Math.random()*0.12;
+            var duration = 1.15 + progress*0.55 + Math.random()*0.22;
 
             element.style.zIndex = String(12 + Math.round(progress*80));
             setVisible(element.querySelector('.stone-shadow'), true);
@@ -594,7 +594,7 @@ export function GoClock(){
             window.setTimeout(() => {
                 this.sweeping_board = false;
                 this.transform();
-            }, 2000);
+            }, 1000);
         });
     };
 

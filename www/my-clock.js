@@ -41,6 +41,7 @@ const cookieKeys = new Map([
     ['mode', 'mode'],
     ['wood', 'wood'],
     ['placement', 'placement'],
+    ['controlsPinned', 'controls_pinned'],
     ['state', 'goban_state']
 ]);
 
@@ -143,10 +144,13 @@ window.addEventListener('load', () => {
     let mode = readIndex('mode', 1, 2);
     let wood = readIndex('wood', 0, woods.length);
     let placement = readIndex('placement', 1, placements.length);
+    let controlsPinned = readSetting('controlsPinned') === '1';
 
     const sidebar = $('#sidebar');
     const toolbar = $('#toolbar');
     const menuButton = $('#menu');
+    const pinControlsButton = $('#pin-controls');
+    const pinControlsIcon = $('#pin-controls-icon');
     const aboutBox = $('#about_box');
     let controlsHideTimer = null;
     let lastControlWake = 0;
@@ -222,6 +226,18 @@ window.addEventListener('load', () => {
         wakeControls({hold: isOpen});
     }
 
+    function setControlsPinned(pinned) {
+        controlsPinned = Boolean(pinned);
+        const action = controlsPinned ? 'Unpin controls' : 'Pin controls';
+        toolbar.dataset.pinned = controlsPinned ? 'true' : 'false';
+        pinControlsIcon.textContent = controlsPinned ? '📌' : '📍';
+        pinControlsButton.setAttribute('aria-label', action);
+        pinControlsButton.setAttribute('aria-pressed', String(controlsPinned));
+        pinControlsButton.title = action;
+        writeSetting('controlsPinned', controlsPinned ? 1 : 0);
+        wakeControls({hold: controlsPinned || sidebar.dataset.open === 'true'});
+    }
+
     function clearControlsFade() {
         if (controlsHideTimer !== null) {
             window.clearTimeout(controlsHideTimer);
@@ -231,7 +247,7 @@ window.addEventListener('load', () => {
 
     function scheduleControlsFade() {
         clearControlsFade();
-        if (sidebar.dataset.open === 'true') {
+        if (controlsPinned || sidebar.dataset.open === 'true') {
             return;
         }
 
@@ -318,6 +334,7 @@ window.addEventListener('load', () => {
         setMenuOpen(false);
         goClock.resetBoard();
     });
+    pinControlsButton.addEventListener('click', () => setControlsPinned(!controlsPinned));
     document.addEventListener('click', (event) => {
         if (sidebar.dataset.open === 'true' && !sidebar.contains(event.target) && event.target !== menuButton) {
             setMenuOpen(false);
@@ -347,6 +364,7 @@ window.addEventListener('load', () => {
 
     setMenuOpen(false);
     resizeClock();
+    setControlsPinned(controlsPinned);
     wakeControls();
     registerServiceWorker();
     window.addEventListener('resize', resizeClock);
