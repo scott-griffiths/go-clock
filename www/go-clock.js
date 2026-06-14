@@ -185,6 +185,7 @@ export function GoClock(){
     this.stone_colour = white;
     this.pending_swap = null;
     this.alignment_move = null;
+    this.sweeping_board = false;
 
     this.hand_position = 9*19 + 9; // Position of hand that's moving the stones.
 
@@ -477,6 +478,123 @@ export function GoClock(){
     this.settleAfterLanding = function(index) {
         this.relaxOverlaps(index).forEach((changedIndex) => {
             this.updateBoardPosition(changedIndex, true);
+        });
+    };
+
+    this.resetBoard = function() {
+        if (this.sweeping_board || typeof document === 'undefined') {
+            return;
+        }
+
+        this.sweeping_board = true;
+        this.moving_stone = false;
+        this.pending_swap = null;
+        this.alignment_move = null;
+        this.moving_stone_src = null;
+
+        ['#moving_stone', '#pushed_stone'].forEach((selector) => {
+            var element = $(selector);
+            if (!element) {
+                return;
+            }
+            cancelElementAnimations(element);
+            setVisible(element, false);
+        });
+
+        var animations = [];
+        var sweptIndexes = [];
+        var boardBottom = this.y_offset + this.goban_height;
+        var pileBaseX = this.x_offset + this.goban_width*0.18;
+        var pileBaseY = boardBottom + this.goban_height*0.12;
+        var stoneDiameter = this.goban_width/20;
+
+        for (var i = 0; i < this.stones_shown.length; ++i) {
+            if (this.stones_shown[i] == 0) {
+                continue;
+            }
+
+            var element = $('#p' + i);
+            if (!element) {
+                continue;
+            }
+
+            cancelElementAnimations(element);
+            var x = i % gridsize;
+            var y = (i - x)/gridsize;
+            var progress = ((gridsize - 1 - x) + y)/(2*(gridsize - 1));
+            var startLeft = parseFloat(element.style.left) || 0;
+            var startTop = parseFloat(element.style.top) || 0;
+            var crowding = Math.sin(progress*Math.PI);
+            var midLeft = startLeft - this.goban_width*(0.12 + 0.18*progress) + stoneDiameter*(Math.random() - 0.5)*1.2;
+            var midTop = startTop + this.goban_height*(0.14 + 0.28*progress) + stoneDiameter*crowding;
+            var finalLeft = pileBaseX + this.goban_width*(Math.random()*0.18 - 0.04) + stoneDiameter*(Math.random() - 0.5);
+            var finalTop = pileBaseY + this.goban_height*(0.1*Math.random()) + stoneDiameter*(Math.random()*2.6);
+            var delay = 0.08 + progress*0.9 + Math.random()*0.08;
+            var duration = 0.74 + progress*0.32 + Math.random()*0.16;
+
+            element.style.zIndex = String(12 + Math.round(progress*80));
+            setVisible(element.querySelector('.stone-shadow'), true);
+            setVisible(element.querySelector('img'), true);
+
+            var animation = element.animate([
+                {
+                    left: `${startLeft}px`,
+                    top: `${startTop}px`,
+                    transform: 'translate(0, 0) rotate(0deg) scale(1)',
+                    opacity: 1
+                },
+                {
+                    left: `${midLeft}px`,
+                    top: `${midTop}px`,
+                    transform: `translate(${stoneDiameter*(Math.random() - 0.5)}px, ${stoneDiameter*0.2}px) rotate(${(Math.random() - 0.5)*50}deg) scale(0.98)`,
+                    opacity: 0.96
+                },
+                {
+                    left: `${finalLeft}px`,
+                    top: `${finalTop}px`,
+                    transform: `translate(${stoneDiameter*(Math.random() - 0.5)}px, ${stoneDiameter*0.3}px) rotate(${(Math.random() - 0.5)*100}deg) scale(0.93)`,
+                    opacity: 0.22
+                }
+            ], {
+                duration: duration*1000,
+                delay: delay*1000,
+                easing: 'cubic-bezier(.28,.76,.28,1)',
+                fill: 'forwards'
+            });
+
+            animations.push(new Promise((resolve) => {
+                animation.addEventListener('finish', resolve, {once: true});
+                animation.addEventListener('cancel', resolve, {once: true});
+            }));
+            sweptIndexes.push(i);
+        }
+
+        Promise.all(animations).then(() => {
+            sweptIndexes.forEach((index) => {
+                var element = $('#p' + index);
+                if (!element) {
+                    return;
+                }
+                cancelElementAnimations(element);
+                element.classList.remove('has-stone');
+                element.style.removeProperty('z-index');
+                element.style.removeProperty('transform');
+                element.style.removeProperty('opacity');
+                setVisible(element.querySelector('.stone-shadow'), false);
+                setVisible(element.querySelector('img'), false);
+            });
+
+            this.stones_shown = Array(gridsize*gridsize).fill(0);
+            this.reset_offsets();
+            for (var i = 0; i < gridsize*gridsize; ++i) {
+                this.updateBoardPosition(i, false);
+            }
+            this.hand_position = (gridsize - 1)*gridsize;
+
+            window.setTimeout(() => {
+                this.sweeping_board = false;
+                this.transform();
+            }, 2000);
         });
     };
 
@@ -1000,7 +1118,7 @@ export function GoClock(){
 
     // Incrementally change the displayed goban to the desired configuration
     this.transform = function() {
-        if (this.moving_stone == true) {
+        if (this.moving_stone == true || this.sweeping_board == true) {
             return;
         }
         this.update();

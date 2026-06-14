@@ -314,6 +314,10 @@ window.addEventListener('load', () => {
         event.stopPropagation();
         setMenuOpen(sidebar.dataset.open !== 'true');
     });
+    $('#reset-board').addEventListener('click', () => {
+        setMenuOpen(false);
+        goClock.resetBoard();
+    });
     document.addEventListener('click', (event) => {
         if (sidebar.dataset.open === 'true' && !sidebar.contains(event.target) && event.target !== menuButton) {
             setMenuOpen(false);
