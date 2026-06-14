@@ -34,22 +34,34 @@
                 <button id="pin-controls" class="button pin-button" type="button" title="Pin controls" aria-label="Pin controls" aria-pressed="false">
                     <span id="pin-controls-icon" aria-hidden="true">📍</span>
                 </button>
-                <button id="change-face" class="button setting-button" type="button" title="Change clock face" aria-label="Change clock face">
-                    <span class="setting-icon" aria-hidden="true">◷</span>
-                    <span id="change-face-label">Analogue</span>
-                </button>
-                <button id="change-background" class="button setting-button" type="button" title="Change background" aria-label="Change background">
-                    <span class="setting-icon" aria-hidden="true">▧</span>
-                    <span id="change-background-label">Dark wood</span>
-                </button>
-                <button id="change-speed" class="button setting-button" type="button" title="Change stone speed" aria-label="Change stone speed">
-                    <span class="setting-icon" aria-hidden="true">≫</span>
-                    <span id="change-speed-label">Normal</span>
-                </button>
-                <button id="change-placement" class="button setting-button" type="button" title="Change stone placement" aria-label="Change stone placement">
-                    <span class="setting-icon" aria-hidden="true">⌖</span>
-                    <span id="change-placement-label">Organic</span>
-                </button>
+                <div id="face-control" class="setting-control" role="group" aria-label="Clock face">
+                    <div class="setting-summary">
+                        <span class="setting-icon" aria-hidden="true">◷</span>
+                        <span>Face</span>
+                    </div>
+                    <div id="face-options" class="setting-options"></div>
+                </div>
+                <div id="background-control" class="setting-control" role="group" aria-label="Background">
+                    <div class="setting-summary">
+                        <span class="setting-icon" aria-hidden="true">▧</span>
+                        <span>Background</span>
+                    </div>
+                    <div id="background-options" class="setting-options"></div>
+                </div>
+                <div id="speed-control" class="setting-control" role="group" aria-label="Stone speed">
+                    <div class="setting-summary">
+                        <span class="setting-icon" aria-hidden="true">≫</span>
+                        <span>Speed</span>
+                    </div>
+                    <div id="speed-options" class="setting-options"></div>
+                </div>
+                <div id="placement-control" class="setting-control" role="group" aria-label="Precision">
+                    <div class="setting-summary">
+                        <span class="setting-icon" aria-hidden="true">⌖</span>
+                        <span>Precision</span>
+                    </div>
+                    <div id="placement-options" class="setting-options"></div>
+                </div>
             </div>
             <div id="goban" aria-label="Go board clock">
                 <img id="goban-image" alt="">

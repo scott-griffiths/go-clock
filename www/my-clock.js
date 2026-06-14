@@ -18,15 +18,17 @@ const backgrounds = [
     ['wood2.jpg', 'Light wood'],
     ['stone1.jpg', 'Stone'],
     ['mosaic1.jpg', 'Mosaic'],
-    ['tatami.jpg', 'Tatami'],
-    ['space.jpg', 'Space'],
     ['grass.jpg', 'Grass'],
     ['droplets.jpg', 'Droplets']
 ];
 
 const views = ['Analogue', 'Jumping hour', 'Digital', 'Hybrid'];
+const viewOptionLabels = ['Analogue', 'Jump', 'Digital', 'Hybrid'];
+const backgroundOptionLabels = ['Dark', 'Light', 'Stone', 'Mosaic', 'Grass', 'Drops'];
 const stoneSpeeds = [['Torpid', 5], ['Slow', 10], ['Normal', 20], ['Fast', 55], ['Insane!', 120]];
+const speedOptionLabels = ['Torpid', 'Slow', 'Normal', 'Fast', 'Insane'];
 const placements = ['Exact', 'Organic', 'Careless', 'Haphazard'];
+const placementOptionLabels = ['Exact', 'Organic', 'Careless', 'Meh'];
 const controlsHideDelay = 3600;
 const woods = [
     ['Oak', 'saturate(0.8) hue-rotate(-12deg) sepia(0.5)'],
@@ -155,12 +157,35 @@ window.addEventListener('load', () => {
     let controlsHideTimer = null;
     let lastControlWake = 0;
 
+    function setActiveOption(containerSelector, activeIndex) {
+        $$('.choice-button', $(containerSelector)).forEach((button) => {
+            const isActive = Number(button.dataset.index) === activeIndex;
+            button.setAttribute('aria-pressed', String(isActive));
+        });
+    }
+
+    function createOptionButtons(containerSelector, labels, values, onSelect) {
+        const container = $(containerSelector);
+        labels.forEach((label, index) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'choice-button';
+            button.textContent = label;
+            button.title = values[index];
+            button.dataset.index = String(index);
+            button.setAttribute('aria-label', values[index]);
+            button.setAttribute('aria-pressed', 'false');
+            button.addEventListener('click', () => onSelect(index));
+            container.append(button);
+        });
+    }
+
     function setClockSpeed(index) {
         stoneSpeed = index % stoneSpeeds.length;
         const value = stoneSpeeds[stoneSpeed][0];
         goClock.speed = stoneSpeeds[stoneSpeed][1];
-        $('#change-speed-label').textContent = value;
-        $('#change-speed').setAttribute('aria-label', `Change stone speed, current ${value}`);
+        $('#speed-control').setAttribute('aria-label', `Stone speed, current ${value}`);
+        setActiveOption('#speed-options', stoneSpeed);
         writeSetting('speed', stoneSpeed);
     }
 
@@ -185,8 +210,8 @@ window.addEventListener('load', () => {
         placement = index % placements.length;
         const value = placements[placement];
         goClock.placement = placement;
-        $('#change-placement-label').textContent = value;
-        $('#change-placement').setAttribute('aria-label', `Change stone placement, current ${value}`);
+        $('#placement-control').setAttribute('aria-label', `Precision, current ${value}`);
+        setActiveOption('#placement-options', placement);
         writeSetting('placement', placement);
     }
 
@@ -194,8 +219,8 @@ window.addEventListener('load', () => {
         view = index % views.length;
         const value = views[view];
         goClock.view = view;
-        $('#change-face-label').textContent = value;
-        $('#change-face').setAttribute('aria-label', `Change clock face, current ${value}`);
+        $('#face-control').setAttribute('aria-label', `Clock face, current ${value}`);
+        setActiveOption('#face-options', view);
         writeSetting('view', view);
     }
 
@@ -203,8 +228,8 @@ window.addEventListener('load', () => {
         background = index % backgrounds.length;
         const value = backgrounds[background][1];
         $('#goban').style.backgroundImage = `url('images/${backgrounds[background][0]}')`;
-        $('#change-background-label').textContent = value;
-        $('#change-background').setAttribute('aria-label', `Change background, current ${value}`);
+        $('#background-control').setAttribute('aria-label', `Background, current ${value}`);
+        setActiveOption('#background-options', background);
         writeSetting('background', background);
     }
 
@@ -306,6 +331,14 @@ window.addEventListener('load', () => {
         setGobanState(storedState);
     }
 
+    createOptionButtons('#face-options', viewOptionLabels, views, (index) => {
+        setView(index);
+        goClock.transform();
+    });
+    createOptionButtons('#background-options', backgroundOptionLabels, backgrounds.map(([, name]) => name), setBackground);
+    createOptionButtons('#speed-options', speedOptionLabels, stoneSpeeds.map(([name]) => name), setClockSpeed);
+    createOptionButtons('#placement-options', placementOptionLabels, placements, setPlacement);
+
     setClockSpeed(stoneSpeed);
     setView(view);
     setBackground(background);
@@ -320,7 +353,7 @@ window.addEventListener('load', () => {
     $('#goban').addEventListener('pointermove', wakeControlsForActivity);
     $('#goban').addEventListener('touchstart', wakeControls, {passive: true});
     document.addEventListener('keydown', wakeControlsForActivity);
-    $$('.button').forEach((button) => {
+    $$('#toolbar button, #sidebar button').forEach((button) => {
         button.addEventListener('click', hideAbout);
         button.addEventListener('click', wakeControls);
         button.addEventListener('focus', wakeControls);
@@ -341,22 +374,11 @@ window.addEventListener('load', () => {
         }
     });
 
-    $('#change-face').addEventListener('click', () => {
-        setView(view + 1);
-        goClock.transform();
-    });
     $('#setting-mode').addEventListener('click', () => {
         setMode(goClock.twenty_four_hour ? 0 : 1);
         goClock.transform();
     });
     $('#setting-wood').addEventListener('click', () => setWood(wood + 1));
-    $('#change-placement').addEventListener('click', () => setPlacement(placement + 1));
-    $('#change-background').addEventListener('click', () => {
-        setBackground(background + 1);
-    });
-    $('#change-speed').addEventListener('click', () => {
-        setClockSpeed(stoneSpeed + 1);
-    });
     $('#about').addEventListener('click', () => {
         setMenuOpen(false);
         showAbout();
