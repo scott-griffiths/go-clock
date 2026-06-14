@@ -3,21 +3,16 @@
     <head>
         <title>The Go Clock</title>
         <meta charset="utf-8">
+        <meta name="theme-color" content="#151515">
         <link rel="stylesheet" href="./my-clock.css">
-        <script src="./jquery-1.11.1.js"></script>
-        <script src="greensock-js/src/uncompressed/TweenMax.js"></script>
-        <script src="./slidebars.js"></script>
-        <script src="../platforms/ios/www/cordova.js"></script>
-        <script src="./go-clock.js"></script>
-        <script src="./my-clock.js"></script>
+        <script type="module" src="./my-clock.js"></script>
         <meta name="apple-mobile-web-app-capable" content="yes">
         <meta name="apple-mobile-web-app-status-bar-style" content="black">
-        <meta name = "viewport" content = "width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable = no, minimal-ui">
-        <link rel="shortcut icon" href="images/white_stone1.png" type="image/x-icon" />
-        <link rel="stylesheet" href="slidebars.css">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="shortcut icon" href="images/white_stone1.png" type="image/x-icon">
+        <link rel="apple-touch-icon" href="images/touch-icon.png">
     </head>
     <body>
-        <link rel="apple-touch-icon" href="touch-icon.png">
         <div id="about_box">
             <p style="text-align: center; margin-top: -10px;"><span style="font-size: 20px;">The</span><span style="font-size: 70px;">Go</span><span style="font-size: 20px;">Clock</span></p>
             <p>The Go Clock is a virtual goban where the stones are used to tell you the time, saving you from the effort of
@@ -31,18 +26,18 @@
             <p style="text-align: center;">by Scott Griffiths</p>
         </div>
         <div id="sb-site">
-            <div id="menu" class="sb-toggle-left button" title="Menu">
+            <button id="menu" class="button" type="button" title="Menu" aria-label="Menu" aria-controls="sidebar" aria-expanded="false">
                 &#9776;
-            </div>
-            <div id="change-face" class="button" title="Change clock face">
+            </button>
+            <button id="change-face" class="button" type="button" title="Change clock face" aria-label="Change clock face">
                 &#9678;
-            </div>
-            <div id="change-background" class="button" title="Change background">
+            </button>
+            <button id="change-background" class="button" type="button" title="Change background" aria-label="Change background">
                 &#9635;
-            </div>
-            <div id="change-speed" class="button" title="Change stone speed">
+            </button>
+            <button id="change-speed" class="button" type="button" title="Change stone speed" aria-label="Change stone speed">
                 &#9658;
-            </div>
+            </button>
             <div id="arrow">
                 &#65513;
             </div>
@@ -57,7 +52,7 @@
                 <img id="goban-image"/>
             </div>
         </div>
-        <div id="sidebar" class="sb-slidebar sb-left sb-width-custom sb-style-overlay" data-sb-width="250px">
+        <aside id="sidebar" aria-label="Clock settings">
             <div id="menu-title"><span style="font-size: 20px;">The</span><span style="font-size: 70px;">Go</span><span style="font-size: 20px;">Clock</span></div>
             <nav>
                 <ul class="sb-menu">
@@ -70,7 +65,7 @@
                     <li class="sb-close"><a id="about">About</a></li>
                 </ul>
             </nav>
-        </div>
+        </aside>
 
     </body>
 </html>

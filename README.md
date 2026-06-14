@@ -10,3 +10,11 @@ A working version is currently pretending to be the documentation of this projec
 
 http://scott-griffiths.github.io/go-clock/
 
+## Local development
+
+The web version is a static site under `www/`. It uses native ES modules, so test it through a local web server rather than opening `index.html` directly:
+
+```sh
+cd www
+python3 -m http.server 8000
+```
