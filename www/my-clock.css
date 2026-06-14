@@ -265,8 +265,7 @@ body {
 }
 
 #mode,
-#wood,
-#placement {
+#wood {
     color: #9d2424;
     font-weight: 700;
 }
@@ -332,7 +331,8 @@ body {
         grid-column: 2;
     }
 
-    #change-speed {
+    #change-speed,
+    #change-placement {
         grid-column: 2;
     }
 }

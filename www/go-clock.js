@@ -184,6 +184,7 @@ export function GoClock(){
     this.clear_route = true; // Is the route from stone_from to stone_to clear of obstacles?
     this.stone_colour = white;
     this.pending_swap = null;
+    this.alignment_move = null;
 
     this.hand_position = 9*19 + 9; // Position of hand that's moving the stones.
 
@@ -193,7 +194,7 @@ export function GoClock(){
 
     this.speed = 9;
 
-    this.placement = 1; // 0 exact, 1 organic, 2 haphazard
+    this.placement = 1; // 0 exact, 1 organic, 2 careless, 3 haphazard
 
     this.twenty_four_hour = true; // 24 hour mode for views that make sense
 
@@ -232,6 +233,9 @@ export function GoClock(){
             return 0;
         }
         var speedRatio = Math.min(1, Math.sqrt(Math.max(this.speed, 1)/120));
+        if (this.placement == 3) {
+            return 0.08 + 0.26*speedRatio;
+        }
         if (this.placement == 2) {
             return 0.045 + 0.145*speedRatio;
         }
@@ -241,6 +245,9 @@ export function GoClock(){
     this.maxOffsetRadius = function() {
         if (this.placement == 0) {
             return 0;
+        }
+        if (this.placement == 3) {
+            return 0.4;
         }
         if (this.placement == 2) {
             return 0.28;
@@ -277,6 +284,17 @@ export function GoClock(){
         ]);
     };
 
+    this.coordsForOffset = function(index, offset) {
+        var x = index % gridsize;
+        var y = (index - x)/gridsize;
+        return [x + offset[0], y + offset[1]];
+    };
+
+    this.offsetRadius = function(index) {
+        var offset = this.offsets[index];
+        return Math.sqrt(offset[0]*offset[0] + offset[1]*offset[1]);
+    };
+
     this.updateBoardPosition = function(index, animate = false) {
         if (typeof document === 'undefined') {
             return;
@@ -308,6 +326,86 @@ export function GoClock(){
     this.setLandingOffset = function(index) {
         this.setOffset(index, this.randomOffset());
         this.updateBoardPosition(index, false);
+    };
+
+    this.alignmentTargetRadius = function() {
+        if (this.placement == 0) {
+            return 0.004;
+        }
+        if (this.placement == 3) {
+            return 0.095;
+        }
+        if (this.placement == 2) {
+            return 0.07;
+        }
+        return 0.04;
+    };
+
+    this.alignmentTriggerRadius = function() {
+        return this.alignmentTargetRadius() + 0.01;
+    };
+
+    this.alignedOffset = function(index) {
+        var offset = this.offsets[index];
+        var radius = this.offsetRadius(index);
+        if (this.placement == 0 || radius == 0) {
+            return [0, 0];
+        }
+
+        var targetRadius = this.alignmentTargetRadius();
+        var newRadius = Math.min(radius*0.3, targetRadius*0.45);
+        return [offset[0]/radius*newRadius, offset[1]/radius*newRadius];
+    };
+
+    this.findAlignmentMove = function() {
+        if (this.placement >= 2) {
+            return null;
+        }
+
+        var best = null;
+        var triggerRadius = this.alignmentTriggerRadius();
+        for (var i = 0; i < this.stones_shown.length; ++i) {
+            if (this.stones_shown[i] == 0) {
+                continue;
+            }
+
+            var radius = this.offsetRadius(i);
+            var excess = radius - triggerRadius;
+            if (excess <= 0) {
+                continue;
+            }
+
+            var handDistance = dist(this.hand_position, i);
+            var score = (handDistance + 1)/(excess*excess);
+            if (!best || score < best.score) {
+                best = {
+                    index: i,
+                    score: score,
+                    offset: this.alignedOffset(i)
+                };
+            }
+        }
+        return best;
+    };
+
+    this.alignIdleStone = function() {
+        var move = this.findAlignmentMove();
+        if (!move) {
+            return false;
+        }
+
+        this.moving_stone = true;
+        this.stone_from = this.get_coords(move.index);
+        this.stone_to = this.coordsForOffset(move.index, move.offset);
+        this.hand_position = move.index;
+        this.stone_colour = this.stones_shown[move.index];
+        this.alignment_move = {
+            index: move.index,
+            offset: move.offset
+        };
+        this.stones_shown[move.index] = 0;
+        this.clear_route = true;
+        return true;
     };
 
     this.stoneCollisionDistance = function() {
@@ -758,13 +856,21 @@ export function GoClock(){
             self.stones_shown[landingIndex] = self.stone_colour;
             setVisible($("#moving_stone"), false);
             setVisible($('#moving_stone .stone-shadow'), false);
-            self.drawStone(self.stone_to, self.stone_colour, 0, self.moving_stone_src);
+            if (self.alignment_move) {
+                self.setOffset(landingIndex, self.alignment_move.offset);
+                self.updateBoardPosition(landingIndex, false);
+            }
+            self.drawStone(self.alignment_move ? self.get_coords(landingIndex) : self.stone_to, self.stone_colour, 0, self.moving_stone_src);
             if (self.pending_swap && self.pending_swap.phase == 'push') {
                 self.pending_swap.phase = 'return';
                 self.returnPushedStone();
                 return;
             }
-            self.settleAfterLanding(landingIndex);
+            if (self.alignment_move) {
+                self.alignment_move = null;
+            } else {
+                self.settleAfterLanding(landingIndex);
+            }
             self.moving_stone_src = null;
             self.moving_stone = false;
             self.transform();
@@ -778,7 +884,12 @@ export function GoClock(){
         movingStoneImage.src = src;
         setVisible(movingStoneImage, true);
         var distance = dist(this.get_index(coords1), this.get_index(coords2));
+        var coordinateDistance = Math.sqrt((coords2[0] - coords1[0])*(coords2[0] - coords1[0]) +
+                                           (coords2[1] - coords1[1])*(coords2[1] - coords1[1]));
         var duration = Math.sqrt(distance/speed);
+        if (this.alignment_move) {
+            duration = Math.max(0.16, Math.min(0.45, Math.sqrt((coordinateDistance*7)/speed)));
+        }
         if (this.pending_swap && this.pending_swap.phase == 'push') {
             var pushDuration = Math.max(0.12, Math.min(duration*0.28, 0.35));
             this.showPushedStone(this.pending_swap, Math.max(0, duration - pushDuration), pushDuration);
@@ -1037,6 +1148,9 @@ export function GoClock(){
                     this.hand_position = best_i;
                 }
             }
+        }
+        if (!this.moving_stone && diff.every((value) => value == 0)) {
+            this.alignIdleStone();
         }
         if (this.moving_stone == true) {
             this.move_stone();

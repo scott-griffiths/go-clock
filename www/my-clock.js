@@ -26,7 +26,7 @@ const backgrounds = [
 
 const views = ['Analogue', 'Jumping hour', 'Digital', 'Hybrid'];
 const stoneSpeeds = [['Torpid', 5], ['Slow', 10], ['Normal', 20], ['Fast', 55], ['Insane!', 120]];
-const placements = ['Exact', 'Organic', 'Haphazard'];
+const placements = ['Exact', 'Organic', 'Careless', 'Haphazard'];
 const controlsHideDelay = 3600;
 const woods = [
     ['Oak', 'saturate(0.8) hue-rotate(-12deg) sepia(0.5)'],
@@ -181,7 +181,8 @@ window.addEventListener('load', () => {
         placement = index % placements.length;
         const value = placements[placement];
         goClock.placement = placement;
-        $('#placement').textContent = value;
+        $('#change-placement-label').textContent = value;
+        $('#change-placement').setAttribute('aria-label', `Change stone placement, current ${value}`);
         writeSetting('placement', placement);
     }
 
@@ -328,7 +329,7 @@ window.addEventListener('load', () => {
         goClock.transform();
     });
     $('#setting-wood').addEventListener('click', () => setWood(wood + 1));
-    $('#setting-placement').addEventListener('click', () => setPlacement(placement + 1));
+    $('#change-placement').addEventListener('click', () => setPlacement(placement + 1));
     $('#change-background').addEventListener('click', () => {
         setBackground(background + 1);
     });
