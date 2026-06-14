@@ -4,10 +4,13 @@ const $ = (selector, scope = document) => scope.querySelector(selector);
 const $$ = (selector, scope = document) => [...scope.querySelectorAll(selector)];
 
 const tipsOfTheDay = [
-    'Why not download on the new iPad Pro and then nail or glue it to your living room wall?',
+    'Why not download on an iPad and then nail or glue it to your living room wall?',
     'To use as an alarm clock simply employ a small child to watch the Go Clock and tell them to wake you when it shows the right time.',
     'For extra accuracy when timing sporting events, use the view with the second counter.',
-    'Use The Go Clock on an iPhone sellotaped to your wrist and your friend(s) will think you have an Apple Watch!'
+    'Use The Go Clock on an iPhone sellotaped to your wrist and your friend(s) will think you have an Apple Watch!',
+    'For best results, stare at the board until the time becomes obvious.',
+    'If the stones are moving too slowly, try waiting for longer.',
+
 ];
 
 const backgrounds = [
