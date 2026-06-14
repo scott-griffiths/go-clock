@@ -204,9 +204,8 @@ export function GoClock(){
 
     this.reset_offsets = function() {
         this.offsets = [];
-        var messiness = 0;
         for (var i = 0; i < gridsize*gridsize; ++i){
-            this.offsets.push([Math.random()*messiness - messiness/2, Math.random()*messiness - messiness/2]);
+            this.offsets.push([0, 0]);
         }
     };
 
@@ -219,11 +218,148 @@ export function GoClock(){
 
     // The coordinates of a point with a given index
     this.get_coords = function(p) {
-        return [p%gridsize + this.offsets[p][0]/50, (p - p%gridsize)/gridsize + this.offsets[p][1]/50];
+        return [p%gridsize + this.offsets[p][0], (p - p%gridsize)/gridsize + this.offsets[p][1]];
     };
     // The reverse operation: Get index of point from coordinates
     this.get_index = function(p) {
         return Math.round(p[0]) + gridsize*Math.round(p[1]);
+    };
+
+    this.disorderRadius = function() {
+        var speedRatio = Math.min(1, Math.sqrt(Math.max(this.speed, 1)/120));
+        return 0.02 + 0.085*speedRatio;
+    };
+
+    this.maxOffsetRadius = function() {
+        return 0.18;
+    };
+
+    this.randomOffset = function() {
+        var radius = this.disorderRadius()*Math.sqrt(Math.random());
+        var angle = Math.random()*Math.PI*2;
+        return [Math.cos(angle)*radius, Math.sin(angle)*radius];
+    };
+
+    this.clampOffset = function(offset) {
+        var maxRadius = this.maxOffsetRadius();
+        var radius = Math.sqrt(offset[0]*offset[0] + offset[1]*offset[1]);
+        if (radius <= maxRadius) {
+            return offset;
+        }
+        return [offset[0]/radius*maxRadius, offset[1]/radius*maxRadius];
+    };
+
+    this.setOffset = function(index, offset) {
+        this.offsets[index] = this.clampOffset(offset);
+    };
+
+    this.adjustOffset = function(index, dx, dy) {
+        this.setOffset(index, [
+            this.offsets[index][0] + dx,
+            this.offsets[index][1] + dy
+        ]);
+    };
+
+    this.updateBoardPosition = function(index, animate = false) {
+        if (typeof document === 'undefined') {
+            return;
+        }
+        var element = $('#p' + index);
+        if (!element) {
+            return;
+        }
+        var coords = this.get_coords(index);
+        var p = this.stonePosition(coords[0], coords[1], 0);
+        if (animate && this.stones_shown[index] != 0) {
+            animateElement(element, 0.18, {
+                left: p[0],
+                top: p[1],
+                width: p[2],
+                height: p[3],
+                easing: 'ease-out'
+            });
+        } else {
+            setStyles(element, {
+                left: p[0],
+                top: p[1],
+                width: p[2],
+                height: p[3]
+            });
+        }
+    };
+
+    this.setLandingOffset = function(index) {
+        this.setOffset(index, this.randomOffset());
+        this.updateBoardPosition(index, false);
+    };
+
+    this.stoneCollisionDistance = function() {
+        return (gridsize - 1)/(20*(maxx - minx))*0.98;
+    };
+
+    this.nearbyOccupiedIndexes = function(seedIndex) {
+        var indexes = new Set([seedIndex]);
+        var seedX = seedIndex % gridsize;
+        var seedY = (seedIndex - seedX)/gridsize;
+        for (var i = 0; i < this.stones_shown.length; ++i) {
+            if (this.stones_shown[i] == 0 || i == seedIndex) {
+                continue;
+            }
+            var x = i % gridsize;
+            var y = (i - x)/gridsize;
+            if (Math.abs(x - seedX) <= 2 && Math.abs(y - seedY) <= 2) {
+                indexes.add(i);
+            }
+        }
+        return [...indexes];
+    };
+
+    this.relaxOverlaps = function(seedIndex) {
+        var changed = new Set();
+        var minDistance = this.stoneCollisionDistance();
+        var indexes = this.nearbyOccupiedIndexes(seedIndex);
+        for (var pass = 0; pass < 4; ++pass) {
+            for (var a = 0; a < indexes.length; ++a) {
+                for (var b = a + 1; b < indexes.length; ++b) {
+                    var indexA = indexes[a];
+                    var indexB = indexes[b];
+                    if (this.stones_shown[indexA] == 0 || this.stones_shown[indexB] == 0) {
+                        continue;
+                    }
+                    var coordsA = this.get_coords(indexA);
+                    var coordsB = this.get_coords(indexB);
+                    var dx = coordsB[0] - coordsA[0];
+                    var dy = coordsB[1] - coordsA[1];
+                    var distance = Math.sqrt(dx*dx + dy*dy);
+                    if (distance >= minDistance) {
+                        continue;
+                    }
+                    if (distance == 0) {
+                        dx = (indexB % gridsize) - (indexA % gridsize) || 1;
+                        dy = ((indexB - indexB%gridsize) - (indexA - indexA%gridsize))/gridsize;
+                        distance = Math.sqrt(dx*dx + dy*dy);
+                    }
+                    var push = (minDistance - distance + 0.01)/distance;
+                    var pushA = indexA == seedIndex ? 0 : 0.5;
+                    var pushB = indexB == seedIndex ? 0 : 0.5;
+                    if (indexA == seedIndex || indexB == seedIndex) {
+                        pushA = indexA == seedIndex ? 0 : 1;
+                        pushB = indexB == seedIndex ? 0 : 1;
+                    }
+                    this.adjustOffset(indexA, -dx*push*pushA, -dy*push*pushA);
+                    this.adjustOffset(indexB, dx*push*pushB, dy*push*pushB);
+                    changed.add(indexA);
+                    changed.add(indexB);
+                }
+            }
+        }
+        return changed;
+    };
+
+    this.settleAfterLanding = function(index) {
+        this.relaxOverlaps(index).forEach((changedIndex) => {
+            this.updateBoardPosition(changedIndex, true);
+        });
     };
 
     // Draw the underlying board (i.e. everything except any moving stones)
@@ -424,6 +560,7 @@ export function GoClock(){
                 setVisible(movingStone, false);
                 setVisible(movingStoneShadow, false);
                 self.drawStone(toCoords, swap.displaced_colour, 0, swap.displaced_src);
+                self.settleAfterLanding(swap.source);
                 self.hand_position = swap.source;
                 self.pending_swap = null;
                 self.moving_stone_src = null;
@@ -597,7 +734,8 @@ export function GoClock(){
         var self = this;
         var end_tasks = function() {
             // add stone to board
-            self.stones_shown[Math.round(self.stone_to[0]) + gridsize*Math.round(self.stone_to[1])] = self.stone_colour;
+            var landingIndex = Math.round(self.stone_to[0]) + gridsize*Math.round(self.stone_to[1]);
+            self.stones_shown[landingIndex] = self.stone_colour;
             setVisible($("#moving_stone"), false);
             setVisible($('#moving_stone .stone-shadow'), false);
             self.drawStone(self.stone_to, self.stone_colour, 0, self.moving_stone_src);
@@ -606,6 +744,7 @@ export function GoClock(){
                 self.returnPushedStone();
                 return;
             }
+            self.settleAfterLanding(landingIndex);
             self.moving_stone_src = null;
             self.moving_stone = false;
             self.transform();
@@ -665,10 +804,12 @@ export function GoClock(){
         var self = this;
         var end_tasks = function() {
             // add stone to board
-            self.stones_shown[Math.round(self.stone_to[0]) + gridsize*Math.round(self.stone_to[1])] = self.stone_colour;
+            var landingIndex = Math.round(self.stone_to[0]) + gridsize*Math.round(self.stone_to[1]);
+            self.stones_shown[landingIndex] = self.stone_colour;
             setVisible($("#moving_stone"), false);
             setVisible($('#moving_stone .stone-shadow'), false);
             self.drawStone(self.stone_to, self.stone_colour, 0, self.moving_stone_src);
+            self.settleAfterLanding(landingIndex);
             self.moving_stone_src = null;
             self.moving_stone = false;
             self.transform();
@@ -772,10 +913,11 @@ export function GoClock(){
             // Move stone from best_j to best_i
             this.moving_stone = true;
             this.stone_from = this.get_coords(best_j);
-            this.stone_to = this.get_coords(best_i);
             this.hand_position = best_i;
             this.stone_colour = this.stones_shown[best_j];
             this.stones_shown[best_j] = 0;
+            this.setLandingOffset(best_i);
+            this.stone_to = this.get_coords(best_i);
             // Should we lift the stone or drag it?
             // See if there are any other stones on the route.
             var points = line(Math.round(this.stone_from[0]), Math.round(this.stone_to[0]),
@@ -870,6 +1012,7 @@ export function GoClock(){
                     this.moving_stone = true;
                     this.stone_colour = -diff[best_i];
                     this.stone_from = [go_bowl, go_bowl];
+                    this.setLandingOffset(best_i);
                     this.stone_to = this.get_coords(best_i);
                     this.hand_position = best_i;
                 }
