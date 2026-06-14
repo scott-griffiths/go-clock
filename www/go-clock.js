@@ -53,8 +53,26 @@ function setStyles(element, styles) {
     });
 }
 
+function setStoneShadow(element, height = 0) {
+    const lift = Math.min(height, 10);
+    const liftRatio = lift/10;
+    const fade = Math.pow(1 - liftRatio, 1.4);
+    element.style.setProperty('--stone-shadow-scale', 1);
+    element.style.setProperty('--stone-shadow-opacity', Math.max(0.02, 0.72*fade));
+    element.style.setProperty('--stone-shadow-fill-alpha', Math.max(0.01, 0.34*fade));
+    element.style.setProperty('--stone-shadow-blur-alpha', Math.max(0.01, 0.4*fade));
+    element.style.setProperty('--stone-shadow-blur-size', `${3 + lift*0.8}px`);
+    element.style.setProperty('--stone-shadow-spread-size', `${1 - lift*0.06}px`);
+    element.style.setProperty('--stone-shadow-offset-x', `${1.25 + lift*0.45}px`);
+    element.style.setProperty('--stone-shadow-offset-y', `${1.75 + lift*0.4}px`);
+}
+
 function setVisible(element, visible) {
     element.hidden = !visible;
+}
+
+function cancelElementAnimations(element) {
+    element.getAnimations?.().forEach((animation) => animation.cancel());
 }
 
 function animateElement(target, duration, vars) {
@@ -64,7 +82,11 @@ function animateElement(target, duration, vars) {
         return;
     }
 
-    const {delay = 0, easing = 'ease', onComplete, force3D, ...styleProps} = vars;
+    const {delay = 0, easing = 'ease', onComplete, cancelExisting = true, force3D, ...styleProps} = vars;
+    if (cancelExisting) {
+        cancelElementAnimations(element);
+    }
+
     const finalStyles = {};
     Object.entries(styleProps).forEach(([property, value]) => {
         finalStyles[property] = typeof value === 'number' && property !== 'opacity' ? `${value}px` : String(value);
@@ -225,6 +247,10 @@ export function GoClock(){
                 width: p[2],
                 height: p[3]
             });
+            var stoneShadow = document.createElement('div');
+            stoneShadow.className = 'stone-shadow';
+            stone.append(stoneShadow);
+            setVisible(stoneShadow, false);
             var stoneImage = document.createElement('img');
             stoneImage.className = 'stone';
             stoneImage.alt = '';
@@ -235,6 +261,10 @@ export function GoClock(){
         var movingStone = document.createElement('div');
         movingStone.id = 'moving_stone';
         movingStone.style.position = 'absolute';
+        var movingStoneShadow = document.createElement('div');
+        movingStoneShadow.className = 'stone-shadow';
+        movingStone.append(movingStoneShadow);
+        setVisible(movingStoneShadow, false);
         var movingStoneImage = document.createElement('img');
         movingStoneImage.className = 'stone';
         movingStoneImage.alt = '';
@@ -273,29 +303,25 @@ export function GoClock(){
         var p = this.stonePosition(coords[0], coords[1], height);
         var src = colour == white ? white_stone0.src : black_stone.src;
         var i = this.get_index(coords);
-        var s = $('#p' + i + ' img');
-        s.style.filter = this.getShadowCss(height);
-        s.src = src;
-        setVisible(s, true);
+        var position = $('#p' + i);
+        var stone = position.querySelector('img');
+        var shadow = position.querySelector('.stone-shadow');
+        stone.style.removeProperty('filter');
+        stone.src = src;
+        setStoneShadow(shadow, height);
+        position.classList.add('has-stone');
+        setVisible(shadow, true);
+        setVisible(stone, true);
         return p;
     };
-    this.getShadow = function(height) {
-        var shadowSize = this.goban_width/80 + height*this.goban_width / 160;
-        var shadowX = (shadowSize * xFactor) | 0;
-        var shadowY = (shadowSize * yFactor) | 0;
-        var shadowColour = "rgba(0, 0, 0, " + (height < 4 ? (4 - height)/8 : 1/4) + ")";
-        var shadowBlur = shadowSize / 1 | 0;
-        return [shadowX, shadowY, shadowBlur, shadowColour];
-    };
-    this.getShadowCss = function(height) {
-        var s = this.getShadow(height);
-        return 'drop-shadow(' + s[0] + 'px ' + s[1] + 'px ' + s[2] + 'px ' + s[3] + ')';
-    }
 
     // Remove a stone from the buffered board
     this.eraseStone = function(coords) {
         var i = this.get_index(coords);
-        setVisible($('#p' + i + ' img'), false);
+        var position = $('#p' + i);
+        position.classList.remove('has-stone');
+        setVisible(position.querySelector('.stone-shadow'), false);
+        setVisible(position.querySelector('img'), false);
         this.stones_shown[Math.round(coords[0]) + gridsize*Math.round(coords[1])] = 0;
         return;
     };
@@ -423,9 +449,11 @@ export function GoClock(){
     
     this.move_stone = function() {
         var movingStone = $("#moving_stone");
+        cancelElementAnimations(movingStone);
         movingStone.style.opacity = '1.0';
         setVisible(movingStone, true);
-        $('#moving_stone img').style.filter = this.getShadowCss(0);
+        $('#moving_stone img').style.removeProperty('filter');
+        setVisible($('#moving_stone .stone-shadow'), true);
         if (this.stone_from[0] != go_bowl) {
             this.eraseStone(this.stone_from);
         }
@@ -450,12 +478,15 @@ export function GoClock(){
             // add stone to board
             self.stones_shown[Math.round(self.stone_to[0]) + gridsize*Math.round(self.stone_to[1])] = self.stone_colour;
             setVisible($("#moving_stone"), false);
+            setVisible($('#moving_stone .stone-shadow'), false);
             self.drawStone(self.stone_to, self.stone_colour, 0);
             self.moving_stone = false;
             self.transform();
         };
         
         setStyles($("#moving_stone"), {left: p1[0], top: p1[1], width: p1[2], height: p1[3]});
+        var movingShadow = $('#moving_stone .stone-shadow');
+        setStoneShadow(movingShadow, 0);
         var src = colour == white ? white_stone0.src : black_stone.src;
         var movingStoneImage = $("#moving_stone img");
         movingStoneImage.src = src;
@@ -473,21 +504,27 @@ export function GoClock(){
                 max_height = 12;
             }
             var middle = this.stonePosition((coords1[0] + coords2[0])/2, (coords1[1] + coords2[1])/2, max_height);
+            requestAnimationFrame(function() {
+                setStoneShadow(movingShadow, max_height);
+            });
             animateElement("#moving_stone", duration/2, {
                 left: middle[0],
                 top: middle[1],
                 width: middle[2],
                 height: middle[3],
-                easing: 'ease-in'
+                easing: 'ease-in',
+                onComplete: function() {
+                    setStoneShadow(movingShadow, 0);
+                    animateElement("#moving_stone", duration/2, {
+                        left: p2[0],
+                        top: p2[1],
+                        width: p2[2],
+                        height: p2[3],
+                        easing: 'ease-out',
+                        onComplete: end_tasks
+                    });
+                }
             });
-            animateElement("#moving_stone", duration/2, {
-                left: p2[0],
-                top: p2[1],
-                width: p2[2],
-                height: p2[3],
-                delay: duration/2,
-                easing: 'ease-out',
-                onComplete: end_tasks});
         }
     };
     this.dropStone = function(coords, colour, speed) {
@@ -499,17 +536,23 @@ export function GoClock(){
             // add stone to board
             self.stones_shown[Math.round(self.stone_to[0]) + gridsize*Math.round(self.stone_to[1])] = self.stone_colour;
             setVisible($("#moving_stone"), false);
+            setVisible($('#moving_stone .stone-shadow'), false);
             self.drawStone(self.stone_to, self.stone_colour, 0);
             self.moving_stone = false;
             self.transform();
         };
         
         setStyles($("#moving_stone"), {left: p1[0], top: p1[1], width: p1[2], height: p1[3]});
+        var movingShadow = $('#moving_stone .stone-shadow');
+        setStoneShadow(movingShadow, 10);
         var src = colour == white ? white_stone0.src : black_stone.src;
         var movingStoneImage = $("#moving_stone img");
         movingStoneImage.src = src;
         setVisible(movingStoneImage, true);
         $("#moving_stone").style.opacity = '0.3';
+        requestAnimationFrame(function() {
+            setStoneShadow(movingShadow, 0);
+        });
         animateElement("#moving_stone", duration, {
             left: p2[0],
             top: p2[1],
@@ -525,16 +568,22 @@ export function GoClock(){
         var self = this;
         var end_tasks = function() {
             setVisible($("#moving_stone"), false);
+            setVisible($('#moving_stone .stone-shadow'), false);
             self.moving_stone = false;
             $("#moving_stone").style.opacity = '1.0';
             self.transform();
         };
         
         setStyles($("#moving_stone"), {left: p1[0], top: p1[1], width: p1[2], height: p1[3]});
+        var movingShadow = $('#moving_stone .stone-shadow');
+        setStoneShadow(movingShadow, 0);
         var src = colour == white ? white_stone0.src : black_stone.src;
         var movingStoneImage = $("#moving_stone img");
         movingStoneImage.src = src;
         setVisible(movingStoneImage, true);
+        requestAnimationFrame(function() {
+            setStoneShadow(movingShadow, 10);
+        });
         animateElement("#moving_stone", duration, {
             left: p2[0],
             top: p2[1],

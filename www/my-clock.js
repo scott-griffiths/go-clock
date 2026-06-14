@@ -251,7 +251,6 @@ window.addEventListener('load', () => {
 
     function showFirstRunHints() {
         if (isInt(readSetting('usedMenu'))) {
-            $('#sb-site').style.filter = 'grayscale(0) brightness(1)';
             return;
         }
 
@@ -265,9 +264,6 @@ window.addEventListener('load', () => {
                 welcome.hidden = true;
             }
         });
-        setTimeout(() => {
-            $('#sb-site').style.filter = 'grayscale(0) brightness(1)';
-        }, 2000);
         animateStyles($('#look_here'), [{top: '-80px'}, {top: '18px'}], {
             duration: 900,
             delay: 3000,
