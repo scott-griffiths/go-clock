@@ -50,7 +50,8 @@ body {
 }
 
 .board_pos,
-#moving_stone {
+#moving_stone,
+#pushed_stone {
     pointer-events: none;
 }
 
@@ -73,6 +74,11 @@ body {
 }
 
 #moving_stone {
+    z-index: 4;
+    background: transparent;
+}
+
+#pushed_stone {
     z-index: 3;
     background: transparent;
 }

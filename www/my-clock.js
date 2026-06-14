@@ -116,6 +116,17 @@ function preloadBackgrounds() {
     });
 }
 
+function registerServiceWorker() {
+    if (!('serviceWorker' in navigator)) {
+        return;
+    }
+
+    navigator.serviceWorker.register('./service-worker.js', {scope: './'})
+        .catch((error) => {
+            console.info('Service worker registration failed', error);
+        });
+}
+
 window.addEventListener('DOMContentLoaded', () => {
     const currentDay = Math.floor(Date.now() / (1000 * 60 * 60 * 24));
     $('#tip_of_the_day').textContent = tipsOfTheDay[currentDay % tipsOfTheDay.length];
@@ -319,6 +330,7 @@ window.addEventListener('load', () => {
     setMenuOpen(false);
     resizeClock();
     wakeControls();
+    registerServiceWorker();
     window.addEventListener('resize', resizeClock);
     setInterval(storeGobanState, 10000);
     goClock.transform();

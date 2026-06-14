@@ -73,6 +73,28 @@ function stoneImageSrc(colour, preferredSrc = null) {
     return black_stone.src;
 }
 
+function isWrongColourPair(diff) {
+    return diff == black - white || diff == white - black;
+}
+
+function displacedCoords(fromCoords, toCoords) {
+    var dx = toCoords[0] - fromCoords[0];
+    var dy = toCoords[1] - fromCoords[1];
+    var distance = Math.sqrt(dx*dx + dy*dy) || 1;
+    var x = toCoords[0] + dx/distance*0.55;
+    var y = toCoords[1] + dy/distance*0.55;
+
+    if (x < 0 || x > gridsize - 1 || y < 0 || y > gridsize - 1) {
+        x = toCoords[0] - dy/distance*0.55;
+        y = toCoords[1] + dx/distance*0.55;
+    }
+
+    return [
+        Math.max(0, Math.min(gridsize - 1, x)),
+        Math.max(0, Math.min(gridsize - 1, y))
+    ];
+}
+
 function setVisible(element, visible) {
     element.hidden = !visible;
 }
@@ -161,6 +183,7 @@ export function GoClock(){
     this.stone_to = [0, 0]; // Board coordinates
     this.clear_route = true; // Is the route from stone_from to stone_to clear of obstacles?
     this.stone_colour = white;
+    this.pending_swap = null;
 
     this.hand_position = 9*19 + 9; // Position of hand that's moving the stones.
 
@@ -274,6 +297,20 @@ export function GoClock(){
         goban.append(movingStone);
         setVisible(movingStoneImage, false);
 
+        var pushedStone = document.createElement('div');
+        pushedStone.id = 'pushed_stone';
+        pushedStone.style.position = 'absolute';
+        var pushedStoneShadow = document.createElement('div');
+        pushedStoneShadow.className = 'stone-shadow';
+        pushedStone.append(pushedStoneShadow);
+        setVisible(pushedStoneShadow, false);
+        var pushedStoneImage = document.createElement('img');
+        pushedStoneImage.className = 'stone';
+        pushedStoneImage.alt = '';
+        pushedStone.append(pushedStoneImage);
+        goban.append(pushedStone);
+        setVisible(pushedStone, false);
+
         for (var i = 0; i < gridsize*gridsize; ++i) {
             var p = this.stones_shown[i];
             if (p != 0) {
@@ -320,6 +357,80 @@ export function GoClock(){
     this.getDrawnStoneSrc = function(coords) {
         var i = this.get_index(coords);
         return $('#p' + i).querySelector('img').src;
+    };
+
+    this.showPushedStone = function(swap, delay, duration) {
+        var pushedStone = $('#pushed_stone');
+        var pushedStoneImage = $('#pushed_stone img');
+        var pushedStoneShadow = $('#pushed_stone .stone-shadow');
+        var fromPosition = this.stonePosition(swap.target_coords[0], swap.target_coords[1], 0);
+        var toPosition = this.stonePosition(swap.displaced_coords[0], swap.displaced_coords[1], 0);
+        var targetPosition = $('#p' + swap.target);
+
+        setVisible(targetPosition.querySelector('.stone-shadow'), false);
+        setVisible(targetPosition.querySelector('img'), false);
+        setStyles(pushedStone, {
+            left: fromPosition[0],
+            top: fromPosition[1],
+            width: fromPosition[2],
+            height: fromPosition[3],
+            opacity: 1
+        });
+        pushedStoneImage.src = swap.displaced_src;
+        setStoneShadow(pushedStoneShadow, 0);
+        setVisible(pushedStone, true);
+        setVisible(pushedStoneShadow, true);
+        setVisible(pushedStoneImage, true);
+        animateElement(pushedStone, duration, {
+            delay: delay,
+            left: toPosition[0],
+            top: toPosition[1],
+            easing: 'ease-out',
+            cancelExisting: false
+        });
+    };
+
+    this.returnPushedStone = function() {
+        var swap = this.pending_swap;
+        var fromPosition = this.stonePosition(swap.displaced_coords[0], swap.displaced_coords[1], 0);
+        var toCoords = this.get_coords(swap.source);
+        var toPosition = this.stonePosition(toCoords[0], toCoords[1], 0);
+        var movingStone = $('#moving_stone');
+        var movingStoneImage = $('#moving_stone img');
+        var movingStoneShadow = $('#moving_stone .stone-shadow');
+        var duration = Math.sqrt(dist(swap.target, swap.source)/this.speed);
+        var self = this;
+
+        cancelElementAnimations($('#pushed_stone'));
+        setVisible($('#pushed_stone'), false);
+        setStyles(movingStone, {
+            left: fromPosition[0],
+            top: fromPosition[1],
+            width: fromPosition[2],
+            height: fromPosition[3],
+            opacity: 1
+        });
+        movingStoneImage.src = swap.displaced_src;
+        setStoneShadow(movingStoneShadow, 0);
+        setVisible(movingStone, true);
+        setVisible(movingStoneShadow, true);
+        setVisible(movingStoneImage, true);
+
+        animateElement(movingStone, duration, {
+            left: toPosition[0],
+            top: toPosition[1],
+            onComplete: function() {
+                self.stones_shown[swap.source] = swap.displaced_colour;
+                setVisible(movingStone, false);
+                setVisible(movingStoneShadow, false);
+                self.drawStone(toCoords, swap.displaced_colour, 0, swap.displaced_src);
+                self.hand_position = swap.source;
+                self.pending_swap = null;
+                self.moving_stone_src = null;
+                self.moving_stone = false;
+                self.transform();
+            }
+        });
     };
 
     // Remove a stone from the buffered board
@@ -490,6 +601,11 @@ export function GoClock(){
             setVisible($("#moving_stone"), false);
             setVisible($('#moving_stone .stone-shadow'), false);
             self.drawStone(self.stone_to, self.stone_colour, 0, self.moving_stone_src);
+            if (self.pending_swap && self.pending_swap.phase == 'push') {
+                self.pending_swap.phase = 'return';
+                self.returnPushedStone();
+                return;
+            }
             self.moving_stone_src = null;
             self.moving_stone = false;
             self.transform();
@@ -504,6 +620,10 @@ export function GoClock(){
         setVisible(movingStoneImage, true);
         var distance = dist(this.get_index(coords1), this.get_index(coords2));
         var duration = Math.sqrt(distance/speed);
+        if (this.pending_swap && this.pending_swap.phase == 'push') {
+            var pushDuration = Math.max(0.12, Math.min(duration*0.28, 0.35));
+            this.showPushedStone(this.pending_swap, Math.max(0, duration - pushDuration), pushDuration);
+        }
         if (this.clear_route) {
             animateElement("#moving_stone", duration, {
                 left: p2[0],
@@ -680,6 +800,49 @@ export function GoClock(){
                 }
             }
         } else {
+            var best_swap = null;
+            for (var j = 0; j < diff.length; ++j) {
+                if (!isWrongColourPair(diff[j])) {
+                    continue;
+                }
+                for (var i = 0; i < diff.length; ++i) {
+                    if (diff[i] != -diff[j]) {
+                        continue;
+                    }
+                    var score = dist(this.hand_position, j) + dist(j, i) + dist(i, j);
+                    if (!best_swap || score < best_swap.score) {
+                        best_swap = {
+                            source: j,
+                            target: i,
+                            score: score
+                        };
+                    }
+                }
+            }
+
+            if (best_swap) {
+                var source_coords = this.get_coords(best_swap.source);
+                var target_coords = this.get_coords(best_swap.target);
+                this.moving_stone = true;
+                this.stone_from = source_coords;
+                this.stone_to = target_coords;
+                this.hand_position = best_swap.target;
+                this.stone_colour = this.stones_shown[best_swap.source];
+                this.pending_swap = {
+                    phase: 'push',
+                    source: best_swap.source,
+                    target: best_swap.target,
+                    source_coords: source_coords,
+                    target_coords: target_coords,
+                    displaced_coords: displacedCoords(source_coords, target_coords),
+                    displaced_colour: this.stones_shown[best_swap.target],
+                    displaced_src: this.getDrawnStoneSrc(target_coords)
+                };
+                this.stones_shown[best_swap.source] = 0;
+                this.clear_route = true;
+            }
+        }
+        if (best_j == -1 && !this.moving_stone) {
             // No more moving will help. Find stone to remove.
             // Prefer removing stones which are where the opposite colour wants to be
             var to_remove_first = [];
