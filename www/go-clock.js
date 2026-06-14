@@ -193,6 +193,8 @@ export function GoClock(){
 
     this.speed = 9;
 
+    this.placement = 1; // 0 exact, 1 organic, 2 haphazard
+
     this.twenty_four_hour = true; // 24 hour mode for views that make sense
 
     this.clear = function() {
@@ -226,15 +228,30 @@ export function GoClock(){
     };
 
     this.disorderRadius = function() {
+        if (this.placement == 0) {
+            return 0;
+        }
         var speedRatio = Math.min(1, Math.sqrt(Math.max(this.speed, 1)/120));
+        if (this.placement == 2) {
+            return 0.045 + 0.145*speedRatio;
+        }
         return 0.02 + 0.085*speedRatio;
     };
 
     this.maxOffsetRadius = function() {
+        if (this.placement == 0) {
+            return 0;
+        }
+        if (this.placement == 2) {
+            return 0.28;
+        }
         return 0.18;
     };
 
     this.randomOffset = function() {
+        if (this.placement == 0) {
+            return [0, 0];
+        }
         var radius = this.disorderRadius()*Math.sqrt(Math.random());
         var angle = Math.random()*Math.PI*2;
         return [Math.cos(angle)*radius, Math.sin(angle)*radius];
@@ -315,6 +332,9 @@ export function GoClock(){
     };
 
     this.relaxOverlaps = function(seedIndex) {
+        if (this.placement == 0) {
+            return new Set();
+        }
         var changed = new Set();
         var minDistance = this.stoneCollisionDistance();
         var indexes = this.nearbyOccupiedIndexes(seedIndex);

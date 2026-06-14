@@ -26,6 +26,7 @@ const backgrounds = [
 
 const views = ['Analogue', 'Jumping hour', 'Digital', 'Hybrid'];
 const stoneSpeeds = [['Torpid', 5], ['Slow', 10], ['Normal', 20], ['Fast', 55], ['Insane!', 120]];
+const placements = ['Exact', 'Organic', 'Haphazard'];
 const controlsHideDelay = 3600;
 const woods = [
     ['Oak', 'saturate(0.8) hue-rotate(-12deg) sepia(0.5)'],
@@ -39,6 +40,7 @@ const cookieKeys = new Map([
     ['view', 'goban_view'],
     ['mode', 'mode'],
     ['wood', 'wood'],
+    ['placement', 'placement'],
     ['state', 'goban_state']
 ]);
 
@@ -140,6 +142,7 @@ window.addEventListener('load', () => {
     let view = readIndex('view', 0, views.length);
     let mode = readIndex('mode', 1, 2);
     let wood = readIndex('wood', 0, woods.length);
+    let placement = readIndex('placement', 1, placements.length);
 
     const sidebar = $('#sidebar');
     const toolbar = $('#toolbar');
@@ -172,6 +175,14 @@ window.addEventListener('load', () => {
             boardImage.style.filter = woods[wood][1];
         }
         writeSetting('wood', wood);
+    }
+
+    function setPlacement(index) {
+        placement = index % placements.length;
+        const value = placements[placement];
+        goClock.placement = placement;
+        $('#placement').textContent = value;
+        writeSetting('placement', placement);
     }
 
     function setView(index) {
@@ -282,6 +293,7 @@ window.addEventListener('load', () => {
     setView(view);
     setBackground(background);
     setMode(mode);
+    setPlacement(placement);
 
     $('#goban').addEventListener('click', () => {
         hideAbout();
@@ -316,6 +328,7 @@ window.addEventListener('load', () => {
         goClock.transform();
     });
     $('#setting-wood').addEventListener('click', () => setWood(wood + 1));
+    $('#setting-placement').addEventListener('click', () => setPlacement(placement + 1));
     $('#change-background').addEventListener('click', () => {
         setBackground(background + 1);
     });

@@ -265,7 +265,8 @@ body {
 }
 
 #mode,
-#wood {
+#wood,
+#placement {
     color: #9d2424;
     font-weight: 700;
 }
