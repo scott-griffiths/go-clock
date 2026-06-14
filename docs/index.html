@@ -1,76 +1,81 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
     <head>
         <title>The Go Clock</title>
         <meta charset="utf-8">
+        <meta name="description" content="A static Go board clock that tells the time with stones.">
+        <meta name="theme-color" content="#151515">
         <link rel="stylesheet" href="./my-clock.css">
-        <script src="./jquery-1.11.1.js"></script>
-        <script src="greensock-js/src/uncompressed/TweenMax.js"></script>
-        <script src="./slidebars.js"></script>
-        <script src="../platforms/ios/www/cordova.js"></script>
-        <script src="./go-clock.js"></script>
-        <script src="./my-clock.js"></script>
+        <script type="module" src="./my-clock.js"></script>
         <meta name="apple-mobile-web-app-capable" content="yes">
         <meta name="apple-mobile-web-app-status-bar-style" content="black">
-        <meta name = "viewport" content = "width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable = no, minimal-ui">
-        <link rel="shortcut icon" href="images/white_stone1.png" type="image/x-icon" />
-        <link rel="stylesheet" href="slidebars.css">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="shortcut icon" href="images/white_stone1.png" type="image/x-icon">
+        <link rel="apple-touch-icon" href="images/touch-icon.png">
+        <link rel="manifest" href="manifest.webmanifest">
     </head>
     <body>
-        <link rel="apple-touch-icon" href="touch-icon.png">
-        <div id="about_box">
-            <p style="text-align: center; margin-top: -10px;"><span style="font-size: 20px;">The</span><span style="font-size: 70px;">Go</span><span style="font-size: 20px;">Clock</span></p>
+        <div id="about_box" role="dialog" aria-labelledby="about-title" hidden>
+            <h1 id="about-title">The <strong>Go</strong> Clock</h1>
             <p>The Go Clock is a virtual goban where the stones are used to tell you the time, saving you from the effort of
                 setting up and continually updating your own Go board.</p>
             <p><span style="font-weight: bold;">Tip of the day:</span> <span id="tip_of_the_day"></span></p>
-            <p style="font-size: small"><span>&copy; 2016 Scott Griffiths / Broken Symmetry</span><span style="float: right;">Version 1.2</span>
-            </p>
-        </div>
-        <div id="welcome_box">
-            <p style="text-align: center; margin-top: -10px;"><span style="font-size: 20px;">The</span><span style="font-size: 70px;">Go</span><span style="font-size: 20px;">Clock</span></p>
-            <p style="text-align: center;">by Scott Griffiths</p>
+            <p><a class="repo-link" href="https://github.com/scott-griffiths/go-clock">GitHub repository</a></p>
+            <p class="about-meta"><span>&copy; 2016 Scott Griffiths</span><span>Version 1.3</span></p>
         </div>
         <div id="sb-site">
-            <div id="menu" class="sb-toggle-left button" title="Menu">
-                &#9776;
+            <div id="toolbar" class="toolbar" role="toolbar" aria-label="Clock controls" data-visible="true">
+                <button id="menu" class="button sidebar-button" type="button" title="Show sidebar" aria-label="Show sidebar" aria-controls="sidebar" aria-expanded="false">
+                    <span class="sidebar-icon" aria-hidden="true"></span>
+                </button>
+                <button id="reset-board" class="button reset-button" type="button" title="Reset board" aria-label="Reset board">
+                    <span aria-hidden="true">↙</span>
+                </button>
+                <button id="pin-controls" class="button pin-button" type="button" title="Pin controls" aria-label="Pin controls" aria-pressed="false">
+                    <span id="pin-controls-icon" aria-hidden="true">📍</span>
+                </button>
+                <div id="face-control" class="setting-control" role="group" aria-label="Clock face">
+                    <div class="setting-summary">
+                        <span class="setting-icon" aria-hidden="true">◷</span>
+                        <span>Face</span>
+                    </div>
+                    <div id="face-options" class="setting-options"></div>
+                </div>
+                <div id="background-control" class="setting-control" role="group" aria-label="Background">
+                    <div class="setting-summary">
+                        <span class="setting-icon" aria-hidden="true">▧</span>
+                        <span>Background</span>
+                    </div>
+                    <div id="background-options" class="setting-options"></div>
+                </div>
+                <div id="speed-control" class="setting-control" role="group" aria-label="Stone speed">
+                    <div class="setting-summary">
+                        <span class="setting-icon" aria-hidden="true">≫</span>
+                        <span>Speed</span>
+                    </div>
+                    <div id="speed-options" class="setting-options"></div>
+                </div>
+                <div id="placement-control" class="setting-control" role="group" aria-label="Precision">
+                    <div class="setting-summary">
+                        <span class="setting-icon" aria-hidden="true">⌖</span>
+                        <span>Precision</span>
+                    </div>
+                    <div id="placement-options" class="setting-options"></div>
+                </div>
             </div>
-            <div id="change-face" class="button" title="Change clock face">
-                &#9678;
-            </div>
-            <div id="change-background" class="button" title="Change background">
-                &#9635;
-            </div>
-            <div id="change-speed" class="button" title="Change stone speed">
-                &#9658;
-            </div>
-            <div id="arrow">
-                &#65513;
-            </div>
-            <div id="look_here">
-                Tap the menu for options
-            </div>
-            <div id="look_here2">
-                Tap the icons too!
-            </div>
-            <div id="info"></div>
-            <div id="goban">
-                <img id="goban-image"/>
+            <div id="goban" aria-label="Go board clock">
+                <img id="goban-image" alt="">
             </div>
         </div>
-        <div id="sidebar" class="sb-slidebar sb-left sb-width-custom sb-style-overlay" data-sb-width="250px">
-            <div id="menu-title"><span style="font-size: 20px;">The</span><span style="font-size: 70px;">Go</span><span style="font-size: 20px;">Clock</span></div>
+        <aside id="sidebar" aria-label="Clock settings">
+            <h2 id="menu-title">The <strong>Go</strong> Clock</h2>
             <nav>
                 <ul class="sb-menu">
-                    <li><a>Clock face: <span id="clock_face"></span></a></li>
-                    <li><a>Background: <span id="change_background"></span></a></li>
-                    <li><a>Speed: <span id="stone_speed"></span></a></li>
-                    <li><a>Board: <span id="wood"></span></a></li>
-                    <li><a>Mode: <span id="mode"></span></a></li>
-<!--                    <li><a>Sound: <span id="stone_sound"></span></a></li>-->
-                    <li class="sb-close"><a id="about">About</a></li>
+                    <li><button id="setting-wood" type="button">Board <span id="wood"></span></button></li>
+                    <li><button id="setting-mode" type="button">Mode <span id="mode"></span></button></li>
+                    <li><button id="about" type="button">About</button></li>
                 </ul>
             </nav>
-        </div>
-
+        </aside>
     </body>
 </html>

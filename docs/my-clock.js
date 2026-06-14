@@ -1,361 +1,395 @@
+import {GoClock} from './go-clock.js';
 
+const $ = (selector, scope = document) => scope.querySelector(selector);
+const $$ = (selector, scope = document) => [...scope.querySelectorAll(selector)];
+
+const tipsOfTheDay = [
+    'Why not download on an iPad and then nail or glue it to your living room wall?',
+    'To use as an alarm clock simply employ a small child to watch the Go Clock and tell them to wake you when it shows the right time.',
+    'For extra accuracy when timing sporting events, use the view with the second counter.',
+    'Use The Go Clock on an iPhone sellotaped to your wrist and your friend(s) will think you have an Apple Watch!',
+    'For best results, stare at the board until the time becomes obvious.',
+    'If the stones are moving too slowly, try waiting for longer.',
+
+];
+
+const backgrounds = [
+    ['wood1.jpg', 'Dark wood'],
+    ['wood2.jpg', 'Light wood'],
+    ['stone1.jpg', 'Stone'],
+    ['mosaic1.jpg', 'Mosaic'],
+    ['grass.jpg', 'Grass'],
+    ['droplets.jpg', 'Droplets']
+];
+
+const views = ['Analogue', 'Jumping hour', 'Digital', 'Hybrid'];
+const viewOptionLabels = ['Analogue', 'Jump', 'Digital', 'Hybrid'];
+const backgroundOptionLabels = ['Dark', 'Light', 'Stone', 'Mosaic', 'Grass', 'Drops'];
+const stoneSpeeds = [['Torpid', 5], ['Slow', 10], ['Normal', 20], ['Fast', 55], ['Insane!', 120]];
+const speedOptionLabels = ['Torpid', 'Slow', 'Normal', 'Fast', 'Insane'];
+const placements = ['Exact', 'Organic', 'Careless', 'Haphazard'];
+const placementOptionLabels = ['Exact', 'Organic', 'Careless', 'Meh'];
+const controlsHideDelay = 3600;
+const woods = [
+    ['Oak', 'saturate(0.8) hue-rotate(-12deg) sepia(0.5)'],
+    ['Kaya', 'saturate(1.3) hue-rotate(-7deg)'],
+    ['Bamboo', 'saturate(0.3) contrast(1.4) brightness(1.1) hue-rotate(-6deg)']
+];
+
+const cookieKeys = new Map([
+    ['background', 'goban_background'],
+    ['speed', 'stone_speed'],
+    ['view', 'goban_view'],
+    ['mode', 'mode'],
+    ['wood', 'wood'],
+    ['placement', 'placement'],
+    ['controlsPinned', 'controls_pinned'],
+    ['state', 'goban_state']
+]);
 
 function isInt(value) {
-  var x = parseFloat(value);
-  return !isNaN(value) && (x | 0) === x;
-}
-
-function createCookie(name, value, days) {
-	if (days) {
-		var date = new Date();
-		date.setTime(date.getTime() + (days*24*60*60*1000));
-		var expires = "; expires=" + date.toGMTString();
-	}
-	else expires = "";
-	document.cookie = name + "=" + value + expires + "; path=/";
+    return value !== null && value !== '' && Number.isInteger(Number(value));
 }
 
 function readCookie(name) {
-	var nameEQ = name + "=";
-	var ca = document.cookie.split(';');
-	for(var i=0; i < ca.length; i++) {
-		var c = ca[i];
-		while (c.charAt(0)==' ') c = c.substring(1, c.length);
-		if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);
-	}
-	return null;
+    const prefix = `${name}=`;
+    return document.cookie
+        .split(';')
+        .map((value) => value.trim())
+        .find((value) => value.startsWith(prefix))
+        ?.slice(prefix.length) ?? null;
 }
 
-function eraseCookie(name) {
-	createCookie(name, "", -1);
-}
-
-var tips_of_the_day = [];
-tips_of_the_day.push("Why not download on the new iPad Pro and then nail or glue it to your living room wall?");
-tips_of_the_day.push("To use as an alarm clock simply employ a small child to watch the Go Clock and tell them to wake you when it shows the right time.");
-tips_of_the_day.push("For extra accuracy when timing sporting events, use the view with the second counter.");
-tips_of_the_day.push("Use The Go Clock on an iPhone sellotaped to your wrist and your friend(s) will think you have an Apple Watch!");
-
-var backgrounds = [['wood1.jpg', "Dark wood"], ['wood2.jpg', "Light wood"], ['stone1.jpg', "Stone"],
-                   ['mosaic1.jpg', "Mosaic"], ['tatami.jpg', "Tatami"], ['space.jpg', "Space"], ['grass.jpg', "Grass"], ['droplets.jpg', 'Droplets']];
-
-var backgroundImages = [];
-
-var views = {0 : 'Analogue', 1 : 'Jumping hour', 2 : 'Digital', 3 : 'Hybrid'};
-
-var stone_speeds = [['Torpid', 5], ['Slow', 10], ['Normal', 20], ['Fast', 55], ['Insane!', 120]];
-
-var woods = [['Oak', 'saturate(0.8) hue-rotate(-12deg) sepia(0.5)'],
-             ['Kaya', 'saturate(1.3) hue-rotate(-7deg)'],
-             ['Bamboo', 'saturate(0.3) contrast(1.4) brightness(1.1) hue-rotate(-6deg)']];
-
-$(document).ready(function(){
-    var now = new Date();
-    var time = now.getTime();
-    time /= 1000*60*60*24; // convert from milliseconds to days
-    time |= 0;
-    var current_tip = time % tips_of_the_day.length;
-    $('#tip_of_the_day').html(tips_of_the_day[current_tip]);
-    for (var i = 0; i < backgrounds.length; ++i) {
-        backgroundImages.push(new Image());
-        backgroundImages[i].src = 'images/' + backgrounds[i][0];
+function readSetting(key) {
+    try {
+        return localStorage.getItem(`goClock.${key}`) ?? readCookie(cookieKeys.get(key));
+    } catch {
+        return readCookie(cookieKeys.get(key));
     }
+}
+
+function writeSetting(key, value) {
+    try {
+        localStorage.setItem(`goClock.${key}`, String(value));
+    } catch {
+        // Preferences are non-critical; keep the clock running if storage is blocked.
+    }
+}
+
+function readIndex(key, fallback, length) {
+    const stored = readSetting(key);
+    return isInt(stored) ? Number(stored) % length : fallback;
+}
+
+function animateStyles(element, keyframes, options) {
+    if (!element.animate) {
+        Object.assign(element.style, keyframes.at(-1));
+        options?.onFinish?.();
+        return;
+    }
+
+    const animation = element.animate(keyframes, {
+        duration: 300,
+        easing: 'ease',
+        fill: 'forwards',
+        ...options
+    });
+    animation.addEventListener('finish', () => {
+        Object.assign(element.style, keyframes.at(-1));
+        animation.cancel();
+        options?.onFinish?.();
+    }, {once: true});
+}
+
+function fadeTo(element, opacity, duration = 300, onFinish) {
+    element.hidden = false;
+    animateStyles(element, [{opacity: getComputedStyle(element).opacity}, {opacity}], {
+        duration,
+        onFinish: () => {
+            if (opacity === 0) {
+                element.hidden = true;
+            }
+            onFinish?.();
+        }
+    });
+}
+
+function preloadBackgrounds() {
+    backgrounds.forEach(([file]) => {
+        const image = new Image();
+        image.src = `images/${file}`;
+    });
+}
+
+function registerServiceWorker() {
+    if (!('serviceWorker' in navigator)) {
+        return;
+    }
+
+    navigator.serviceWorker.register('./service-worker.js', {scope: './'})
+        .catch((error) => {
+            console.info('Service worker registration failed', error);
+        });
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+    const currentDay = Math.floor(Date.now() / (1000 * 60 * 60 * 24));
+    $('#tip_of_the_day').textContent = tipsOfTheDay[currentDay % tipsOfTheDay.length];
+    preloadBackgrounds();
 });
 
-// This runs after the DOM *and* images have loaded
-$(window).load(function() {
-    var drawEmpty = false;
-    if (drawEmpty) {
-        // Draw empty board
-        var goClock = new GoClock(document.getElementById('goCanvasOverlay'), document.getElementById('goCanvasMain'));
-        setBackground(0);
+window.addEventListener('load', () => {
+    const goClock = new GoClock();
+    let background = readIndex('background', 0, backgrounds.length);
+    let stoneSpeed = readIndex('speed', 2, stoneSpeeds.length);
+    let view = readIndex('view', 0, views.length);
+    let mode = readIndex('mode', 1, 2);
+    let wood = readIndex('wood', 0, woods.length);
+    let placement = readIndex('placement', 1, placements.length);
+    let controlsPinned = readSetting('controlsPinned') === '1';
+
+    const sidebar = $('#sidebar');
+    const toolbar = $('#toolbar');
+    const menuButton = $('#menu');
+    const pinControlsButton = $('#pin-controls');
+    const pinControlsIcon = $('#pin-controls-icon');
+    const aboutBox = $('#about_box');
+    let controlsHideTimer = null;
+    let lastControlWake = 0;
+
+    function setActiveOption(containerSelector, activeIndex) {
+        $$('.choice-button', $(containerSelector)).forEach((button) => {
+            const isActive = Number(button.dataset.index) === activeIndex;
+            button.setAttribute('aria-pressed', String(isActive));
+        });
+    }
+
+    function createOptionButtons(containerSelector, labels, values, onSelect) {
+        const container = $(containerSelector);
+        labels.forEach((label, index) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'choice-button';
+            button.textContent = label;
+            button.title = values[index];
+            button.dataset.index = String(index);
+            button.setAttribute('aria-label', values[index]);
+            button.setAttribute('aria-pressed', 'false');
+            button.addEventListener('click', () => onSelect(index));
+            container.append(button);
+        });
+    }
+
+    function setClockSpeed(index) {
+        stoneSpeed = index % stoneSpeeds.length;
+        const value = stoneSpeeds[stoneSpeed][0];
+        goClock.speed = stoneSpeeds[stoneSpeed][1];
+        $('#speed-control').setAttribute('aria-label', `Stone speed, current ${value}`);
+        setActiveOption('#speed-options', stoneSpeed);
+        writeSetting('speed', stoneSpeed);
+    }
+
+    function setMode(index) {
+        mode = index % 2;
+        goClock.twenty_four_hour = mode === 1;
+        $('#mode').textContent = goClock.twenty_four_hour ? '24-hour' : '12-hour';
+        writeSetting('mode', mode);
+    }
+
+    function setWood(index) {
+        wood = index % woods.length;
+        $('#wood').textContent = woods[wood][0];
+        const boardImage = $('#goban img:first-child');
+        if (boardImage) {
+            boardImage.style.filter = woods[wood][1];
+        }
+        writeSetting('wood', wood);
+    }
+
+    function setPlacement(index) {
+        placement = index % placements.length;
+        const value = placements[placement];
+        goClock.placement = placement;
+        $('#placement-control').setAttribute('aria-label', `Precision, current ${value}`);
+        setActiveOption('#placement-options', placement);
+        writeSetting('placement', placement);
+    }
+
+    function setView(index) {
+        view = index % views.length;
+        const value = views[view];
+        goClock.view = view;
+        $('#face-control').setAttribute('aria-label', `Clock face, current ${value}`);
+        setActiveOption('#face-options', view);
+        writeSetting('view', view);
+    }
+
+    function setBackground(index) {
+        background = index % backgrounds.length;
+        const value = backgrounds[background][1];
+        $('#goban').style.backgroundImage = `url('images/${backgrounds[background][0]}')`;
+        $('#background-control').setAttribute('aria-label', `Background, current ${value}`);
+        setActiveOption('#background-options', background);
+        writeSetting('background', background);
+    }
+
+    function setGobanState(state) {
+        goClock.stones_shown = [...state].map((value) => Number(value));
+    }
+
+    function storeGobanState() {
+        writeSetting('state', goClock.stones_shown.join(''));
+    }
+
+    function setMenuOpen(open) {
+        const isOpen = Boolean(open);
+        const action = isOpen ? 'Hide sidebar' : 'Show sidebar';
+        sidebar.dataset.open = isOpen ? 'true' : 'false';
+        menuButton.setAttribute('aria-expanded', String(isOpen));
+        menuButton.setAttribute('aria-label', action);
+        menuButton.title = action;
+        wakeControls({hold: isOpen});
+    }
+
+    function setControlsPinned(pinned) {
+        controlsPinned = Boolean(pinned);
+        const action = controlsPinned ? 'Unpin controls' : 'Pin controls';
+        toolbar.dataset.pinned = controlsPinned ? 'true' : 'false';
+        pinControlsIcon.textContent = controlsPinned ? '📌' : '📍';
+        pinControlsButton.setAttribute('aria-label', action);
+        pinControlsButton.setAttribute('aria-pressed', String(controlsPinned));
+        pinControlsButton.title = action;
+        writeSetting('controlsPinned', controlsPinned ? 1 : 0);
+        wakeControls({hold: controlsPinned || sidebar.dataset.open === 'true'});
+    }
+
+    function clearControlsFade() {
+        if (controlsHideTimer !== null) {
+            window.clearTimeout(controlsHideTimer);
+            controlsHideTimer = null;
+        }
+    }
+
+    function scheduleControlsFade() {
+        clearControlsFade();
+        if (controlsPinned || sidebar.dataset.open === 'true') {
+            return;
+        }
+
+        controlsHideTimer = window.setTimeout(() => {
+            if (sidebar.dataset.open !== 'true' && !toolbar.contains(document.activeElement)) {
+                toolbar.dataset.visible = 'false';
+            }
+        }, controlsHideDelay);
+    }
+
+    function wakeControls({hold = false} = {}) {
+        toolbar.dataset.visible = 'true';
+        clearControlsFade();
+        if (!hold) {
+            scheduleControlsFade();
+        }
+    }
+
+    function wakeControlsForActivity() {
+        const now = Date.now();
+        if (toolbar.dataset.visible !== 'true' || now - lastControlWake > 250) {
+            lastControlWake = now;
+            wakeControls();
+        }
+    }
+
+    function hideAbout() {
+        if (!aboutBox.hidden) {
+            fadeTo(aboutBox, 0, 200);
+        }
+    }
+
+    function showAbout() {
+        Object.assign(aboutBox.style, {
+            opacity: '0',
+            transform: 'translate(-50%, -12px)'
+        });
+        aboutBox.hidden = false;
+        animateStyles(aboutBox, [
+            {opacity: 0, transform: 'translate(-50%, -12px)'},
+            {opacity: 1, transform: 'translate(-50%, 0)'}
+        ], {
+            duration: 900,
+            easing: 'ease-out'
+        });
+    }
+
+    function resizeClock() {
         goClock.draw(window.innerWidth, window.innerHeight);
-        $('body').css('-webkit-filter', 'grayscale(0.7) brightness(1.1)');
+        aboutBox.hidden = true;
+        setWood(wood);
     }
 
-    var mySlidebars = new $.slidebars();
-
-    $('.button').fadeIn();
-    var background = 0;
-    var storedBackground = readCookie('goban_background');
-    if (isInt(storedBackground)) {
-        background = parseInt(storedBackground) % backgrounds.length;
-    }
-    var goClock = new GoClock(document.getElementById('goCanvasOverlay'), document.getElementById('goCanvasMain'));
-    setBackground(background);
-    var stone_speed = 2;
-    var storedSpeed = readCookie('stone_speed');
-    if (isInt(storedSpeed)) {
-        stone_speed = parseInt(storedSpeed) % stone_speeds.length;
-    }
-
-    var view = 0;
-    var storedView = readCookie('goban_view');
-    if (isInt(storedView)) {
-        view = parseInt(storedView) % 4;
-    }
-
-    var mode = 0;
-    var storedMode = readCookie('mode');
-    if (isInt(storedMode)) {
-        mode = parseInt(storedMode) % 2;
-    }
-
-    var wood = 0;
-    var storedWood = readCookie('wood');
-    if (isInt(storedWood)) {
-        wood = parseInt(storedWood) % woods.length;
-    }
-
-    var sounds = 0;
-    var storedSound = readCookie('stone_sound');
-    if (isInt(storedSound)) {
-        setAudio(parseInt(storedSound));
-    } else {
-        setAudio(1);
-    }
-
-    function setClockSpeed(s) {
-        s %= stone_speeds.length;
-        goClock.speed = stone_speeds[s][1];
-        $('#stone_speed').text(stone_speeds[s][0]);
-        createCookie('stone_speed', s, 100);
-    }
-
-    function setAudio(a) {
-        sounds = a;
-        goClock.sounds = a;
-        $('#stone_sound').text(a ? 'On' : 'Off');
-        createCookie('stone_sound', a ? '1' : '0');
-    }
-
-    function setMode(m) {
-        goClock.twenty_four_hour = (m == 1);
-        $('#mode').text(goClock.twenty_four_hour ? "24-hour" : "12-hour");
-        createCookie('mode', m, 100);
-    }
-
-    function setWood(w) {
-        w %= woods.length;
-        $('#wood').text(woods[w][0]);
-        $('#goban img:first').css('-webkit-filter', woods[w][1]);
-        createCookie('wood', w, 100);
-    }
-
-    function setView(v) {
-        v %= 4;
-        goClock.view = v;
-        $('#clock_face').text(views[v]);
-        createCookie('goban_view', goClock.view, 100);
-    }
-
-    function setBackground(b) {
-        b %= backgrounds.length;
-        $('#goban').css('background-image', "url('images/" + backgrounds[b][0] + "')");
-        $('#goban').css('background-size', 'cover');
-        $('#change_background').text(backgrounds[b][1]);
-        createCookie('goban_background', b, 100);
-    }
-
-    function setGobanState(s) {
-        var stones = [];
-        for (var x = 0; x < s.length; ++x) {
-            stones.push(parseInt(s[x]));
-        }
-        goClock.stones_shown = stones;
-    }
-
-    var storeGobanState = function() {
-        var s = "";
-        for (var x = 0; x < 361; ++x) {
-            s += goClock.stones_shown[x];
-        }
-        createCookie('goban_state', s, 100);
-    }
-    var storedState = readCookie('goban_state');
-    if (storedState && storedState.length == 361) {
+    const storedState = readSetting('state');
+    if (storedState && storedState.length === 361) {
         setGobanState(storedState);
     }
 
-    setClockSpeed(stone_speed);
+    createOptionButtons('#face-options', viewOptionLabels, views, (index) => {
+        setView(index);
+        goClock.transform();
+    });
+    createOptionButtons('#background-options', backgroundOptionLabels, backgrounds.map(([, name]) => name), setBackground);
+    createOptionButtons('#speed-options', speedOptionLabels, stoneSpeeds.map(([name]) => name), setClockSpeed);
+    createOptionButtons('#placement-options', placementOptionLabels, placements, setPlacement);
+
+    setClockSpeed(stoneSpeed);
     setView(view);
     setBackground(background);
     setMode(mode);
+    setPlacement(placement);
 
-    var info_fade_timer;
-    function setInfo(val) {
-        $('#info').text(val);
-        $('#info').fadeIn();
-        clearTimeout(info_fade_timer);
-        info_fade_timer = setTimeout(function() {$('#info').fadeOut();}, 2000);
-    }
-
-    var fade_menu_timer;
-    $('#about_box, #goban, .button').click(function() {
-        $('#about_box').fadeOut();
-    });
-    $("#goban, .button").click(function() {
-        $('.button').fadeTo('slow', 1.0);
-        clearTimeout(fade_menu_timer);
-        fade_menu_timer = setTimeout(function() {
-            $('#menu').fadeTo('slow', 0.4);
-            $('#change-background, #change-face, #change-speed').fadeOut('slow', function() {
-                $(this).css('display', 'none');
-            });
-        }, 8000);
+    $('#goban').addEventListener('click', () => {
+        hideAbout();
+        wakeControls();
         goClock.update();
     });
+    $('#goban').addEventListener('pointermove', wakeControlsForActivity);
+    $('#goban').addEventListener('touchstart', wakeControls, {passive: true});
+    document.addEventListener('keydown', wakeControlsForActivity);
+    $$('#toolbar button, #sidebar button').forEach((button) => {
+        button.addEventListener('click', hideAbout);
+        button.addEventListener('click', wakeControls);
+        button.addEventListener('focus', wakeControls);
+    });
 
-    $('#change-face').click(function() {
-        setView(goClock.view + 1);
-        setInfo("Face: " + views[goClock.view]);
-        goClock.transform();
+    menuButton.addEventListener('click', (event) => {
+        event.stopPropagation();
+        setMenuOpen(sidebar.dataset.open !== 'true');
     });
-    $('#clock_face').closest('li').mousedown(function() {
-        setView(goClock.view + 1);
-        goClock.transform();
+    $('#reset-board').addEventListener('click', () => {
+        setMenuOpen(false);
+        goClock.resetBoard();
     });
-    $('#mode').closest('li').mousedown(function() {
+    pinControlsButton.addEventListener('click', () => setControlsPinned(!controlsPinned));
+    document.addEventListener('click', (event) => {
+        if (sidebar.dataset.open === 'true' && !sidebar.contains(event.target) && event.target !== menuButton) {
+            setMenuOpen(false);
+        }
+    });
+
+    $('#setting-mode').addEventListener('click', () => {
         setMode(goClock.twenty_four_hour ? 0 : 1);
         goClock.transform();
     });
-    $('#wood').closest('li').mousedown(function() {
-        wood += 1;
-        setWood(wood);
-    });
-    $('#change-background').click(function() {
-        background += 1;
-        background %= backgrounds.length;
-        setBackground(background);
-        setInfo("Background: " + backgrounds[background][1]);
-    });
-    $('#change_background').closest('li').mousedown(function() {
-        background += 1;
-        background %= backgrounds.length;
-        setBackground(background);
-    });
-    $('#change-speed').click(function() {
-        stone_speed += 1;
-        setClockSpeed(stone_speed);
-        stone_speed %= stone_speeds.length;
-        setInfo("Stone speed: " + stone_speeds[stone_speed][0]);
-    });
-    $('#stone_speed').closest('li').mousedown(function() {
-        stone_speed += 1;
-        setClockSpeed(stone_speed);
-    });
-    $('#stone_sound').closest('li').mousedown(function() {
-        sounds = 1 - sounds;
-        setAudio(sounds);
+    $('#setting-wood').addEventListener('click', () => setWood(wood + 1));
+    $('#about').addEventListener('click', () => {
+        setMenuOpen(false);
+        showAbout();
     });
 
-    $('#about').closest('li').mousedown(function() {
-        var whole_width = parseInt($(window).width());
-        var goban_width = parseInt($('#goban img').css('width'));
-        var b =(whole_width - goban_width) / 1.95;
-        if (b > goban_width / 4)
-            b = goban_width / 4;
-        var border = b.toString() + 'px';
-
-        $('#about_box').show().css({
-            'left': border,
-            'right': border,
-            'width': 'auto',
-        });
-        TweenMax.fromTo('#about_box', 1, {
-            top: -500,
-            opacity: 0.0,
-        }, {
-            top: "5%",
-            opacity: 1.0,
-            ease: Power2.easeOut
-        })
-    });
-
-    $('#menu').click(function(){
-        // Don't show the startup arrow for a while
-        createCookie('used_menu', 1, 1); // Lasts for a day
-    });
-
-    var usedMenu = readCookie('used_menu');
-    if (isInt(usedMenu) === false)
-    {
-        TweenMax.fromTo('#welcome_box', 0.8, {
-            force3D: true,
-            opacity: 0.0
-        }, {
-            force3D: true,
-            opacity: 1.0
-        });
-        TweenMax.to('#welcome_box', 1, {
-            y: -50,
-            force3D: true,
-            opacity: 0.0,
-            delay: 2
-        });
-        TweenMax.to('#sb-site', 1, {
-
-        });
-        setTimeout(function() {
-            $('#sb-site').css('-webkit-filter', 'grayscale(0.0) brightness(1.0)');
-        }, 2000)
-        TweenMax.to('#look_here', 1, {
-            top: 18,
-            delay: 3,
-            force3D: true,
-            ease: Bounce.easeOut
-        });
-        TweenMax.to('#look_here', 0.5, {
-            top: -70,
-            force3D: true,
-            opacity: 0.0,
-            delay: 9
-        });
-/*
-        TweenMax.to('#look_here2', 1, {
-            top: 80,
-            delay: 6,
-            force3D: true,
-            ease: Bounce.easeOut
-        });
-        TweenMax.to('#look_here2', 0.5, {
-            top: -70,
-            force3D: true,
-            opacity: 0.0,
-            delay: 10
-        });*/
-    } else {
-        $('#sb-site').css('-webkit-filter', 'grayscale(0.0) brightness(1.0)');
-    }
-
-    fade_menu_timer = setTimeout(function() {
-        $('#menu').fadeTo('slow', 0.4);
-        $('#change-background, #change-speed, #change-face').fadeTo('slow', 0.0);
-    }, 8000);
-
-
-    window.onresize = function() {
-        goClock.draw(window.innerWidth, window.innerHeight);
-        $('#about_box').hide();
-        if (window.innerWidth > window.innerHeight) {
-            // Arrange icons top to bottom
-            $('#change-face').css({'top': '70px', 'left': '0px'});
-            $('#change-background').css({'top': '140px', 'left': '0px'});
-            $('#change-speed').css({'top': '210px', 'left': '0px'});
-            $('#info').css({'top': '13px', 'left': '70px'});
-        } else {
-            // Arrange icons left to right
-            $('#change-face').css({'left': '70px', 'top': '0px'});
-            $('#change-background').css({'left': '140px', 'top': '0px'});
-            $('#change-speed').css({'left': '210px', 'top': '0px'});
-            $('#info').css({'top': '70px', 'left': '13px'});
-        }
-    };
-    window.onresize();
-    setWood(wood);
+    setMenuOpen(false);
+    resizeClock();
+    setControlsPinned(controlsPinned);
+    wakeControls();
+    registerServiceWorker();
+    window.addEventListener('resize', resizeClock);
     setInterval(storeGobanState, 10000);
     goClock.transform();
-
 });
-
-
