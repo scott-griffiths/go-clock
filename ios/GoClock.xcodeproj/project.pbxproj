@@ -1,0 +1,358 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		60C10CC00000000000001011 /* GoClockApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60C10CC00000000000001010 /* GoClockApp.swift */; };
+		60C10CC00000000000001013 /* WebAppView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60C10CC00000000000001012 /* WebAppView.swift */; };
+		60C10CC00000000000001015 /* www in Resources */ = {isa = PBXBuildFile; fileRef = 60C10CC00000000000001014 /* www */; };
+		60C10CC00000000000001017 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 60C10CC00000000000001016 /* PrivacyInfo.xcprivacy */; };
+		60C10CC00000000000001071 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 60C10CC00000000000001070 /* Assets.xcassets */; };
+		60C10CC00000000000001051 /* GoClockUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60C10CC00000000000001050 /* GoClockUITests.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		60C10CC00000000000001060 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 60C10CC00000000000001000 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 60C10CC00000000000001004;
+			remoteInfo = GoClock;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		60C10CC00000000000001005 /* GoClock.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GoClock.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		60C10CC00000000000001010 /* GoClockApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoClockApp.swift; sourceTree = "<group>"; };
+		60C10CC00000000000001012 /* WebAppView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebAppView.swift; sourceTree = "<group>"; };
+		60C10CC00000000000001014 /* www */ = {isa = PBXFileReference; lastKnownFileType = folder; name = www; path = ../www; sourceTree = "<group>"; };
+		60C10CC00000000000001016 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		60C10CC00000000000001070 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		60C10CC00000000000001050 /* GoClockUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoClockUITests.swift; sourceTree = "<group>"; };
+		60C10CC00000000000001052 /* GoClockUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = GoClockUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		60C10CC00000000000001021 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		60C10CC00000000000001054 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		60C10CC00000000000001001 = {
+			isa = PBXGroup;
+			children = (
+				60C10CC00000000000001002 /* GoClock */,
+				60C10CC00000000000001053 /* GoClockUITests */,
+				60C10CC00000000000001014 /* www */,
+				60C10CC00000000000001003 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		60C10CC00000000000001002 /* GoClock */ = {
+			isa = PBXGroup;
+			children = (
+				60C10CC00000000000001010 /* GoClockApp.swift */,
+				60C10CC00000000000001012 /* WebAppView.swift */,
+				60C10CC00000000000001070 /* Assets.xcassets */,
+				60C10CC00000000000001016 /* PrivacyInfo.xcprivacy */,
+			);
+			path = GoClock;
+			sourceTree = "<group>";
+		};
+		60C10CC00000000000001053 /* GoClockUITests */ = {
+			isa = PBXGroup;
+			children = (
+				60C10CC00000000000001050 /* GoClockUITests.swift */,
+			);
+			path = GoClockUITests;
+			sourceTree = "<group>";
+		};
+		60C10CC00000000000001003 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				60C10CC00000000000001005 /* GoClock.app */,
+				60C10CC00000000000001052 /* GoClockUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		60C10CC00000000000001004 /* GoClock */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 60C10CC00000000000001031 /* Build configuration list for PBXNativeTarget "GoClock" */;
+			buildPhases = (
+				60C10CC00000000000001020 /* Sources */,
+				60C10CC00000000000001021 /* Frameworks */,
+				60C10CC00000000000001022 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = GoClock;
+			productName = GoClock;
+			productReference = 60C10CC00000000000001005 /* GoClock.app */;
+			productType = "com.apple.product-type.application";
+		};
+		60C10CC00000000000001055 /* GoClockUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 60C10CC00000000000001058 /* Build configuration list for PBXNativeTarget "GoClockUITests" */;
+			buildPhases = (
+				60C10CC00000000000001056 /* Sources */,
+				60C10CC00000000000001054 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				60C10CC00000000000001061 /* PBXTargetDependency */,
+			);
+			name = GoClockUITests;
+			productName = GoClockUITests;
+			productReference = 60C10CC00000000000001052 /* GoClockUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		60C10CC00000000000001000 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2700;
+				LastUpgradeCheck = 2700;
+				TargetAttributes = {
+					60C10CC00000000000001004 = {
+						CreatedOnToolsVersion = 27.0;
+					};
+					60C10CC00000000000001055 = {
+						CreatedOnToolsVersion = 27.0;
+						TestTargetID = 60C10CC00000000000001004;
+					};
+				};
+			};
+			buildConfigurationList = 60C10CC00000000000001030 /* Build configuration list for PBXProject "GoClock" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 60C10CC00000000000001001;
+			productRefGroup = 60C10CC00000000000001003 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				60C10CC00000000000001004 /* GoClock */,
+				60C10CC00000000000001055 /* GoClockUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		60C10CC00000000000001022 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				60C10CC00000000000001015 /* www in Resources */,
+				60C10CC00000000000001071 /* Assets.xcassets in Resources */,
+				60C10CC00000000000001017 /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		60C10CC00000000000001020 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				60C10CC00000000000001011 /* GoClockApp.swift in Sources */,
+				60C10CC00000000000001013 /* WebAppView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		60C10CC00000000000001056 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				60C10CC00000000000001051 /* GoClockUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		60C10CC00000000000001061 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 60C10CC00000000000001004 /* GoClock */;
+			targetProxy = 60C10CC00000000000001060 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		60C10CC00000000000001040 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_NO_COMMON_BLOCKS = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				ONLY_ACTIVE_ARCH = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		60C10CC00000000000001041 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_NO_COMMON_BLOCKS = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		60C10CC00000000000001042 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = "";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = LGQ988KH5N;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = GoClock/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Go Clock";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIStatusBarHidden = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				MARKETING_VERSION = 2.0;
+				PRODUCT_BUNDLE_IDENTIFIER = uk.co.brokensymmetry.thegoclock;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		60C10CC00000000000001043 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = "";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = LGQ988KH5N;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = GoClock/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Go Clock";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIStatusBarHidden = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				MARKETING_VERSION = 2.0;
+				PRODUCT_BUNDLE_IDENTIFIER = uk.co.brokensymmetry.thegoclock;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		60C10CC00000000000001057 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = LGQ988KH5N;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 2.0;
+				PRODUCT_BUNDLE_IDENTIFIER = uk.co.brokensymmetry.thegoclock.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = GoClock;
+			};
+			name = Debug;
+		};
+		60C10CC00000000000001059 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = LGQ988KH5N;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 2.0;
+				PRODUCT_BUNDLE_IDENTIFIER = uk.co.brokensymmetry.thegoclock.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = GoClock;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		60C10CC00000000000001030 /* Build configuration list for PBXProject "GoClock" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				60C10CC00000000000001040 /* Debug */,
+				60C10CC00000000000001041 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		60C10CC00000000000001031 /* Build configuration list for PBXNativeTarget "GoClock" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				60C10CC00000000000001042 /* Debug */,
+				60C10CC00000000000001043 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		60C10CC00000000000001058 /* Build configuration list for PBXNativeTarget "GoClockUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				60C10CC00000000000001057 /* Debug */,
+				60C10CC00000000000001059 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 60C10CC00000000000001000 /* Project object */;
+}

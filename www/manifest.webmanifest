@@ -1,0 +1,16 @@
+{
+    "name": "The Go Clock",
+    "short_name": "Go Clock",
+    "description": "A Go board that tells the time with stones.",
+    "start_url": "./",
+    "scope": "./",
+    "display": "standalone",
+    "orientation": "any",
+    "background_color": "#2f3432",
+    "theme_color": "#151515",
+    "icons": [
+        {"src": "images/icon-192.png", "sizes": "192x192", "type": "image/png"},
+        {"src": "images/icon-512.png", "sizes": "512x512", "type": "image/png"},
+        {"src": "images/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+    ]
+}

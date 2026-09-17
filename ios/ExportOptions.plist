@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  How an archive leaves this machine: signed for App Store Connect and
+	  sent straight there, which is how a build reaches TestFlight and then
+	  review. Read by `xcodebuild -exportArchive` (see scripts/testflight.sh);
+	  with `destination` set to upload, the export *is* the upload, and
+	  -allowProvisioningUpdates makes the distribution certificate and
+	  profile itself, the way it makes the development ones.
+	-->
+	<key>method</key>
+	<string>app-store-connect</string>
+	<key>destination</key>
+	<string>upload</string>
+	<key>teamID</key>
+	<string>LGQ988KH5N</string>
+	<key>signingStyle</key>
+	<string>automatic</string>
+	<key>uploadSymbols</key>
+	<true/>
+</dict>
+</plist>

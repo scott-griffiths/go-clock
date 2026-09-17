@@ -7,9 +7,14 @@
         <meta name="theme-color" content="#151515">
         <link rel="stylesheet" href="./my-clock.css">
         <script type="module" src="./my-clock.js"></script>
+        <meta name="mobile-web-app-capable" content="yes">
         <meta name="apple-mobile-web-app-capable" content="yes">
         <meta name="apple-mobile-web-app-status-bar-style" content="black">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <!-- viewport-fit=cover is what makes env(safe-area-inset-*) non-zero, so the
+             toolbar and sidebar can keep clear of a notch. user-scalable=no is honoured
+             by the iOS app's web view (no pinch or double-tap zoom on the board) and
+             ignored by Safari, which always lets people zoom. -->
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
         <link rel="shortcut icon" href="images/white_stone1.png" type="image/x-icon">
         <link rel="apple-touch-icon" href="images/touch-icon.png">
         <link rel="manifest" href="manifest.webmanifest">
@@ -21,7 +26,7 @@
                 setting up and continually updating your own Go board.</p>
             <p><span style="font-weight: bold;">Tip of the day:</span> <span id="tip_of_the_day"></span></p>
             <p><a class="repo-link" href="https://github.com/scott-griffiths/go-clock">GitHub repository</a></p>
-            <p class="about-meta"><span>&copy; 2016 Scott Griffiths</span><span>Version 1.3</span></p>
+            <p class="about-meta"><span>&copy; 2014&ndash;2026 Scott Griffiths</span><span>Version <span id="version">2.0</span></span></p>
         </div>
         <div id="sb-site">
             <div id="toolbar" class="toolbar" role="toolbar" aria-label="Clock controls" data-visible="true">

@@ -1,0 +1,10 @@
+.DS_Store
+
+# Xcode's own scratch. The project file itself is in the repository — it is
+# hand-sized and Xcode is the authority on it from here — but nothing Xcode
+# derives is: per-user scheme and window state under xcuserdata, and builds,
+# which go to DerivedData outside the repo anyway.
+ios/**/xcuserdata/
+ios/**/*.xcworkspace/xcuserdata/
+ios/build/
+DerivedData/

@@ -135,6 +135,12 @@ function registerServiceWorker() {
 window.addEventListener('DOMContentLoaded', () => {
     const currentDay = Math.floor(Date.now() / (1000 * 60 * 60 * 24));
     $('#tip_of_the_day').textContent = tipsOfTheDay[currentDay % tipsOfTheDay.length];
+    // The iOS app injects its own version (ios/GoClock/WebAppView.swift) so the
+    // about box matches the App Store listing rather than the web page's number.
+    const shellVersion = window.goClockShell?.version;
+    if (shellVersion) {
+        $('#version').textContent = shellVersion;
+    }
     preloadBackgrounds();
 });
 

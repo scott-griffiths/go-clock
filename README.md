@@ -33,6 +33,11 @@ The public GitHub Pages URL is expected to remain `https://scott-griffiths.githu
 - `www/go-clock.js` owns the board model and stone animation.
 - `www/my-clock.css` owns all visual styling.
 - `www/service-worker.js` caches the static app for offline use.
+- `www/manifest.webmanifest` makes the web version installable to a home screen.
+- `ios/` is the iOS app: a native shell around the same `www/` folder (see below).
+- `scripts/make-icon.swift` renders the app icon and web icons from the board and stone images.
+- `scripts/testflight.sh` archives the iOS app and uploads it to App Store Connect.
+- `resources/` holds the full-size stone images (used by the icon script) and a screenshot.
 - `embedded.html` and `simple-example.html` are legacy compatibility pages that redirect to the current app.
 
 Useful checks:
@@ -41,3 +46,59 @@ Useful checks:
 node --check www/my-clock.js
 node --check www/go-clock.js
 ```
+
+## iOS app
+
+`ios/GoClock.xcodeproj` is a SwiftUI window with a `WKWebView` in it and
+nothing else. `www/` is a *folder reference* in the project, so the same files
+the website serves ship in the bundle, unchanged and with no build step. The
+bundle identifier is `uk.co.brokensymmetry.thegoclock` (the original 2014
+App Store listing) and the version is `MARKETING_VERSION` in the project; the
+shell tells the page that number at launch, so the about box shows it rather
+than the one written in `index.html`.
+
+The page is served to the web view as `goclock://app/…`, never as a `file://`
+URL (`BundleScheme` in `ios/GoClock/WebAppView.swift`). WebKit treats a file
+page as an opaque origin, so the module import in `index.html` would be refused
+without a message and `localStorage` would have nowhere stable to live. Under a
+scheme of its own the page is one ordinary site. The shell also forwards the
+page's uncaught errors and `console.error`s to the system log; read them with:
+
+```sh
+xcrun simctl spawn booted log show --last 5m --predicate 'eventMessage CONTAINS "[goclock]"'
+```
+
+Things the shell does that the website cannot: it keeps the screen awake while
+the app is in front, hides the status bar and home indicator, opens the GitHub
+link in Safari rather than navigating away from the board, and disables pinch
+and double-tap zoom (`user-scalable=no` in the viewport meta, which Safari
+ignores and `WKWebView` honours).
+
+```sh
+open ios/GoClock.xcodeproj                            # in Xcode
+
+xcodebuild -project ios/GoClock.xcodeproj -scheme GoClock \
+  -destination 'platform=iOS Simulator,name=iPhone 17' build
+
+xcodebuild test -project ios/GoClock.xcodeproj -scheme GoClock \
+  -destination 'platform=iOS Simulator,name=iPhone 17'
+                    # the one UI test: the page's module ran, a face choice
+                    # survives a relaunch, the about box opens
+
+swift scripts/make-icon.swift    # regenerate the app icon and web icons
+
+scripts/testflight.sh --dry-run  # archive and export locally; checks signing
+scripts/testflight.sh            # bump the build number, archive, upload
+```
+
+`scripts/testflight.sh` bumps `CURRENT_PROJECT_VERSION` — App Store Connect
+refuses a build number it has seen — commits that one file as its own commit,
+archives, and exports; the export *is* the upload (`destination: upload` in
+`ios/ExportOptions.plist`). The build appears in App Store Connect's TestFlight
+tab ten minutes or so later, from where it can be attached to a version and
+submitted for review. `DEVELOPMENT_TEAM` is set in the project, so
+`-allowProvisioningUpdates` makes the certificates and profiles itself; the
+account needs to be signed in to Xcode (Settings → Accounts). The encryption
+declaration is in the build settings (`ITSAppUsesNonExemptEncryption = NO`;
+the app makes no network connections of its own), and
+`ios/GoClock/PrivacyInfo.xcprivacy` declares that nothing is collected.
