@@ -481,6 +481,9 @@ export function GoClock(){
         });
     };
 
+    // Sweep the board: tip it, far edge up, and let the stones slide off the
+    // near edge. A small simulation rather than keyframes, so that stones
+    // that let go first can knock the others loose on their way down.
     this.resetBoard = function() {
         if (this.sweeping_board || typeof document === 'undefined') {
             return;
@@ -501,80 +504,57 @@ export function GoClock(){
             setVisible(element, false);
         });
 
-        var animations = [];
-        var sweptIndexes = [];
+        var goban = $('#goban');
+        var boardTop = this.y_offset;
         var boardBottom = this.y_offset + this.goban_height;
-        var pileBaseX = this.x_offset + this.goban_width*0.18;
-        var pileBaseY = boardBottom + this.goban_height*0.12;
-        var stoneDiameter = this.goban_width/20;
+        var boardLeft = this.x_offset;
+        var boardRight = this.x_offset + this.goban_width;
+        var diameter = this.goban_width/20;
+        // Down the slope, in px/s²: a stone crosses the board in a second or so.
+        var gravity = this.goban_height*1.6;
+        var stones = [];
 
         for (var i = 0; i < this.stones_shown.length; ++i) {
             if (this.stones_shown[i] == 0) {
                 continue;
             }
-
             var element = $('#p' + i);
             if (!element) {
                 continue;
             }
-
             cancelElementAnimations(element);
-            var x = i % gridsize;
-            var y = (i - x)/gridsize;
-            var progress = ((gridsize - 1 - x) + y)/(2*(gridsize - 1));
-            var startLeft = parseFloat(element.style.left) || 0;
-            var startTop = parseFloat(element.style.top) || 0;
-            var crowding = Math.sin(progress*Math.PI);
-            var midLeft = startLeft - this.goban_width*(0.12 + 0.18*progress) + stoneDiameter*(Math.random() - 0.5)*1.2;
-            var midTop = startTop + this.goban_height*(0.14 + 0.28*progress) + stoneDiameter*crowding;
-            var finalLeft = pileBaseX + this.goban_width*(Math.random()*0.18 - 0.04) + stoneDiameter*(Math.random() - 0.5);
-            var finalTop = pileBaseY + this.goban_height*(0.1*Math.random()) + stoneDiameter*(Math.random()*2.6);
-            var delay = 0.12 + progress*1.25 + Math.random()*0.12;
-            var duration = 1.15 + progress*0.55 + Math.random()*0.22;
-
-            element.style.zIndex = String(12 + Math.round(progress*80));
+            var left = parseFloat(element.style.left) || 0;
+            var top = parseFloat(element.style.top) || 0;
+            var size = parseFloat(element.style.width) || diameter;
+            stones.push({
+                index: i,
+                element: element,
+                startLeft: left,
+                startTop: top,
+                x: left + size/2,
+                y: top + size/2,
+                r: size/2,
+                vx: 0,
+                vy: 0,
+                // The tip takes most of a second; a stone loses its grip some
+                // time after that, each a little differently.
+                release: 0.55 + Math.random()*0.7,
+                moving: false,
+                fade: 1,
+                gone: false
+            });
+            // Lower stones pass in front of higher ones on the way down.
+            element.style.zIndex = String(12 + Math.round((top - boardTop)/this.goban_height*80));
             setVisible(element.querySelector('.stone-shadow'), true);
             setVisible(element.querySelector('img'), true);
-
-            var animation = element.animate([
-                {
-                    left: `${startLeft}px`,
-                    top: `${startTop}px`,
-                    transform: 'translate(0, 0) rotate(0deg) scale(1)',
-                    opacity: 1
-                },
-                {
-                    left: `${midLeft}px`,
-                    top: `${midTop}px`,
-                    transform: `translate(${stoneDiameter*(Math.random() - 0.5)}px, ${stoneDiameter*0.2}px) rotate(${(Math.random() - 0.5)*50}deg) scale(0.98)`,
-                    opacity: 0.96
-                },
-                {
-                    left: `${finalLeft}px`,
-                    top: `${finalTop}px`,
-                    transform: `translate(${stoneDiameter*(Math.random() - 0.5)}px, ${stoneDiameter*0.3}px) rotate(${(Math.random() - 0.5)*100}deg) scale(0.93)`,
-                    opacity: 0.22
-                }
-            ], {
-                duration: duration*1000,
-                delay: delay*1000,
-                easing: 'cubic-bezier(.28,.76,.28,1)',
-                fill: 'forwards'
-            });
-
-            animations.push(new Promise((resolve) => {
-                animation.addEventListener('finish', resolve, {once: true});
-                animation.addEventListener('cancel', resolve, {once: true});
-            }));
-            sweptIndexes.push(i);
         }
 
-        Promise.all(animations).then(() => {
-            sweptIndexes.forEach((index) => {
-                var element = $('#p' + index);
-                if (!element) {
-                    return;
-                }
+        goban.classList.add('tipped');
+
+        var finish = () => {
+            goban.classList.remove('tipped');
+            stones.forEach((stone) => {
+                var element = stone.element;
                 cancelElementAnimations(element);
                 element.classList.remove('has-stone');
                 element.style.removeProperty('z-index');
@@ -591,11 +571,119 @@ export function GoClock(){
             }
             this.hand_position = (gridsize - 1)*gridsize;
 
+            // Let the board settle flat before the stones come back.
             window.setTimeout(() => {
                 this.sweeping_board = false;
                 this.transform();
-            }, 1000);
-        });
+            }, 900);
+        };
+
+        var last = null;
+        var elapsed = 0;
+        var step = (now) => {
+            if (last === null) {
+                last = now;
+            }
+            var dt = Math.min((now - last)/1000, 0.032);
+            last = now;
+            elapsed += dt;
+
+            stones.forEach((stone) => {
+                if (stone.gone) {
+                    return;
+                }
+                if (!stone.moving && elapsed >= stone.release) {
+                    stone.moving = true;
+                    stone.vx = (Math.random() - 0.5)*diameter*0.8;
+                }
+                if (!stone.moving) {
+                    return;
+                }
+                stone.vy += gravity*dt;
+                stone.vx *= 1 - 0.8*dt;
+                stone.x += stone.vx*dt;
+                stone.y += stone.vy*dt;
+                // The board's sides keep them on.
+                if (stone.x - stone.r < boardLeft) {
+                    stone.x = boardLeft + stone.r;
+                    stone.vx = Math.abs(stone.vx)*0.4;
+                } else if (stone.x + stone.r > boardRight) {
+                    stone.x = boardRight - stone.r;
+                    stone.vx = -Math.abs(stone.vx)*0.4;
+                }
+            });
+
+            // Stones in each other's way: push apart, and bounce a little. A
+            // stone that is struck loses its grip too.
+            for (var a = 0; a < stones.length; ++a) {
+                var p = stones[a];
+                if (p.gone) {
+                    continue;
+                }
+                for (var b = a + 1; b < stones.length; ++b) {
+                    var q = stones[b];
+                    if (q.gone || (!p.moving && !q.moving)) {
+                        continue;
+                    }
+                    var dx = q.x - p.x;
+                    var dy = q.y - p.y;
+                    var distance = Math.hypot(dx, dy);
+                    var reach = p.r + q.r;
+                    if (distance === 0 || distance >= reach) {
+                        continue;
+                    }
+                    var nx = dx/distance;
+                    var ny = dy/distance;
+                    var overlap = reach - distance;
+                    p.x -= nx*overlap/2;
+                    p.y -= ny*overlap/2;
+                    q.x += nx*overlap/2;
+                    q.y += ny*overlap/2;
+                    var closing = (q.vx - p.vx)*nx + (q.vy - p.vy)*ny;
+                    if (closing < 0) {
+                        var impulse = -(1 + 0.45)*closing/2;
+                        p.vx -= impulse*nx;
+                        p.vy -= impulse*ny;
+                        q.vx += impulse*nx;
+                        q.vy += impulse*ny;
+                        p.moving = true;
+                        q.moving = true;
+                    }
+                }
+            }
+
+            var active = 0;
+            stones.forEach((stone) => {
+                if (stone.gone) {
+                    return;
+                }
+                if (stone.y - stone.r > boardBottom) {
+                    // Over the edge: keep falling, and fade away.
+                    stone.fade -= dt*2.2;
+                    if (stone.fade <= 0) {
+                        stone.gone = true;
+                        setVisible(stone.element.querySelector('img'), false);
+                        setVisible(stone.element.querySelector('.stone-shadow'), false);
+                        return;
+                    }
+                    stone.element.style.opacity = String(stone.fade);
+                }
+                stone.element.style.transform = `translate(${stone.x - stone.r - stone.startLeft}px, ${stone.y - stone.r - stone.startTop}px)`;
+                active += 1;
+            });
+
+            if (active > 0 && elapsed < 12) {
+                window.requestAnimationFrame(step);
+            } else {
+                finish();
+            }
+        };
+
+        if (stones.length === 0) {
+            finish();
+        } else {
+            window.requestAnimationFrame(step);
+        }
     };
 
     // Draw the underlying board (i.e. everything except any moving stones)

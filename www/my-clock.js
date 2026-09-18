@@ -326,7 +326,7 @@ window.addEventListener('load', () => {
 
     function setBackground(index) {
         background = wrap(index, backgrounds.length);
-        goban.style.backgroundImage = `url('images/${backgrounds[background][0]}')`;
+        $('#sb-site').style.backgroundImage = `url('images/${backgrounds[background][0]}')`;
         writeSetting('background', background);
     }
 
