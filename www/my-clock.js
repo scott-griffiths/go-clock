@@ -29,7 +29,6 @@ const placements = ['Exact', 'Organic', 'Careless', 'Haphazard'];
 const placementOptionLabels = ['Exact', 'Organic', 'Careless', 'Meh'];
 const modes = ['12-hour', '24-hour'];
 const modeOptionLabels = ['12h', '24h'];
-const soundOptions = ['Off', 'On'];
 const woods = [
     ['Oak', 'saturate(0.8) hue-rotate(-12deg) sepia(0.5)'],
     ['Kaya', 'saturate(1.3) hue-rotate(-7deg)'],
@@ -162,13 +161,16 @@ window.addEventListener('load', () => {
     let mode = readIndex('mode', 1, modes.length);
     let wood = readIndex('wood', 0, woods.length);
     let placement = readIndex('placement', 1, placements.length);
-    let sound = readIndex('sound', 0, soundOptions.length);
+    // Sound is on unless it has been muted.
+    let sound = readIndex('sound', 1, 2);
     const sounds = new Sounds();
 
     const goban = $('#goban');
     const toolbar = $('#toolbar');
     const speedSlider = $('#speed-slider');
     const settingsButton = $('#settings');
+    const muteButton = $('#mute');
+    const muteIcon = $('#mute-icon');
     const settingsMenu = $('#settings-menu');
     const boardHint = $('#board-hint');
     const backgroundHint = $('#background-hint');
@@ -288,7 +290,6 @@ window.addEventListener('load', () => {
         setMode(index);
         goClock.transform();
     });
-    const showSound = createSettingControl('sound', soundOptions, soundOptions, setSound);
 
     function setClockSpeed(index) {
         stoneSpeed = wrap(index, stoneSpeeds.length);
@@ -318,10 +319,14 @@ window.addEventListener('load', () => {
     }
 
     function setSound(index) {
-        sound = wrap(index, soundOptions.length);
-        sounds.setEnabled(sound === 1);
-        goClock.sound = sound === 1 ? sounds : null;
-        showSound(sound);
+        sound = wrap(index, 2);
+        const on = sound === 1;
+        sounds.setEnabled(on);
+        goClock.sound = on ? sounds : null;
+        muteIcon.textContent = on ? '🔊' : '🔇';
+        muteButton.setAttribute('aria-pressed', String(!on));
+        muteButton.title = on ? 'Mute' : 'Unmute';
+        muteButton.setAttribute('aria-label', on ? 'Mute' : 'Unmute');
         writeSetting('sound', sound);
     }
 
@@ -548,7 +553,7 @@ window.addEventListener('load', () => {
     document.addEventListener('touchstart', closeOutside, {passive: true});
     document.addEventListener('click', closeOutside);
 
-    $('#reset-board').addEventListener('click', () => goClock.resetBoard());
+    muteButton.addEventListener('click', () => setSound(sound === 1 ? 0 : 1));
     settingsButton.addEventListener('click', () => setSettingsOpen(settingsMenu.hidden));
     aboutButton.addEventListener('click', () => {
         if (aboutBox.hidden) {

@@ -128,7 +128,8 @@ body {
     justify-items: start;
     gap: 8px;
     width: max-content;
-    max-width: calc(100vw - 20px);
+    /* Room on the right for the mute button. */
+    max-width: calc(100vw - 20px - 50px - env(safe-area-inset-right));
     opacity: 1;
     transition: opacity 360ms ease;
     /* The toolbar's own box is see-through to touches: only its controls
@@ -292,9 +293,9 @@ body {
     pointer-events: auto;
 }
 
-.reset-button,
 .about-button,
-.settings-button {
+.settings-button,
+.mute-button {
     width: 42px;
     height: 42px;
     min-height: 42px;
@@ -302,10 +303,15 @@ body {
     background: rgb(0 0 0 / 0.7);
 }
 
-.reset-button {
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    font-size: 24px;
-    font-weight: 800;
+.mute-button {
+    position: fixed;
+    top: max(10px, env(safe-area-inset-top));
+    right: max(10px, env(safe-area-inset-right));
+    font-size: 20px;
+}
+
+.mute-button[aria-pressed="true"] {
+    opacity: 0.75;
 }
 
 .about-button {
