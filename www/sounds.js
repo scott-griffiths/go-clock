@@ -6,7 +6,10 @@
 //
 // A browser will not make a sound until the page has been touched, so the
 // audio context is created (or resumed) on the first pointer event once
-// sound is switched on; anything asked for before that is dropped.
+// sound is switched on; anything asked for before that is dropped. While
+// sound is on, an inaudible source plays the whole time: iOS otherwise lets
+// go of the audio session as soon as the last sound ends, and the next one
+// can find it interrupted or silent.
 
 export class Sounds {
     constructor() {
@@ -14,6 +17,7 @@ export class Sounds {
         this.master = null;
         this.noise = null;
         this.rumble = null;
+        this.keepAlive = null;
         this.enabled = false;
         this.lastPlayed = new Map();
         this.voices = 0;
@@ -26,10 +30,16 @@ export class Sounds {
             this.ensureContext();
             document.addEventListener('pointerdown', this.unlock);
             document.addEventListener('keydown', this.unlock);
+            document.addEventListener('visibilitychange', this.unlock);
         } else {
             document.removeEventListener('pointerdown', this.unlock);
             document.removeEventListener('keydown', this.unlock);
+            document.removeEventListener('visibilitychange', this.unlock);
             this.setRumble(0);
+            if (this.keepAlive) {
+                this.keepAlive.stop();
+                this.keepAlive = null;
+            }
         }
     }
 
@@ -42,6 +52,14 @@ export class Sounds {
         }
         if (!this.context) {
             this.context = new AudioContextClass();
+            // iOS can put the context to sleep — 'suspended', or its own
+            // 'interrupted' after a call or another app's audio — and it
+            // will not wake by itself.
+            this.context.addEventListener('statechange', () => {
+                if (this.enabled && this.context.state !== 'running') {
+                    this.context.resume().catch(() => {});
+                }
+            });
             this.master = this.context.createGain();
             this.master.gain.value = 0.7;
             this.master.connect(this.context.destination);
@@ -53,8 +71,19 @@ export class Sounds {
                 samples[i] = Math.random()*2 - 1;
             }
         }
-        if (this.context.state === 'suspended') {
+        if (this.context.state !== 'running') {
             this.context.resume().catch(() => {});
+        }
+        if (this.enabled && !this.keepAlive) {
+            // Silent, but playing: see the note at the top.
+            const source = this.context.createBufferSource();
+            source.buffer = this.noise;
+            source.loop = true;
+            const quiet = this.context.createGain();
+            quiet.gain.value = 0.00001;
+            source.connect(quiet).connect(this.context.destination);
+            source.start();
+            this.keepAlive = source;
         }
         return this.context.state === 'running';
     }

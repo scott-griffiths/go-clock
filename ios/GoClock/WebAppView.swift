@@ -104,6 +104,7 @@ struct WebAppView: UIViewRepresentable {
         // web view honours as long as the app has chosen a category itself.
         config.mediaTypesRequiringUserActionForPlayback = []
         try? AVAudioSession.sharedInstance().setCategory(.ambient, mode: .default)
+        try? AVAudioSession.sharedInstance().setActive(true)
 
         // A real frame, not `.zero`. A `WKWebView` has no intrinsic content
         // size, so a zero frame can be exactly what it gets laid out at, which
