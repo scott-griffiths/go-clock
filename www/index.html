@@ -24,6 +24,8 @@
             <h1 id="about-title">The <strong>Go</strong> Clock</h1>
             <p>The Go Clock is a virtual goban where the stones are used to tell you the time, saving you from the effort of
                 setting up and continually updating your own Go board.</p>
+            <p>Swipe across the board to change the clock face, across the background to change the background,
+                and down the board to sweep the stones off.</p>
             <p><span style="font-weight: bold;">Tip of the day:</span> <span id="tip_of_the_day"></span></p>
             <p><a class="repo-link" href="https://github.com/scott-griffiths/go-clock">GitHub repository</a></p>
             <p class="about-meta"><span>&copy; 2014&ndash;2026 Scott Griffiths</span><span>Version <span id="version">2.0</span></span></p>
@@ -33,9 +35,6 @@
                 <div class="toolbar-actions">
                     <button id="reset-board" class="button reset-button" type="button" title="Reset board" aria-label="Reset board">
                         <span aria-hidden="true">↙</span>
-                    </button>
-                    <button id="pin-controls" class="button pin-button" type="button" title="Pin controls" aria-label="Pin controls" aria-pressed="false">
-                        <span id="pin-controls-icon" aria-hidden="true">📍</span>
                     </button>
                     <button id="about" class="button about-button" type="button" title="About" aria-label="About" aria-expanded="false" aria-controls="about_box">
                         <span aria-hidden="true">i</span>

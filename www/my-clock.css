@@ -52,6 +52,9 @@ body {
     background-size: cover;
     background-position: center;
     overflow: hidden;
+    /* A one-finger drag is a swipe for my-clock.js to read, not a pan; pinch
+       zoom is left to the browser (Safari allows it, the iOS app does not). */
+    touch-action: pinch-zoom;
 }
 
 #goban img {
@@ -60,6 +63,8 @@ body {
     max-height: 100%;
     margin-right: auto;
     margin-left: auto;
+    /* Dragging the board is a swipe, not a picture being picked up. */
+    -webkit-user-drag: none;
 }
 
 .board_pos,
@@ -164,7 +169,6 @@ body {
 }
 
 .reset-button,
-.pin-button,
 .about-button {
     width: 42px;
     height: 42px;
@@ -177,14 +181,6 @@ body {
     font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     font-size: 24px;
     font-weight: 800;
-}
-
-.pin-button {
-    font-size: 20px;
-}
-
-.pin-button[aria-pressed="true"] {
-    background: rgb(80 32 32 / 0.82);
 }
 
 .about-button {
@@ -232,7 +228,6 @@ body {
     box-shadow: 0 3px 14px rgb(0 0 0 / 0.32);
 }
 
-.setting-summary:hover,
 .setting-summary:focus-visible {
     background: rgb(0 0 0 / 0.8);
     outline: 2px solid rgb(255 255 255 / 0.8);
@@ -245,7 +240,6 @@ body {
     box-shadow: none;
 }
 
-.setting-control[data-open="true"] .setting-summary:hover,
 .setting-control[data-open="true"] .setting-summary:focus-visible {
     background: rgb(255 255 255 / 0.12);
 }
@@ -285,23 +279,50 @@ body {
     color: #261917;
 }
 
-.choice-button:hover,
 .choice-button:focus-visible {
     background: rgb(255 255 255 / 0.28);
     outline: 2px solid rgb(255 255 255 / 0.82);
     outline-offset: -2px;
 }
 
-.choice-button[aria-pressed="true"]:hover,
 .choice-button[aria-pressed="true"]:focus-visible {
     background: white;
 }
 
-.button:hover,
 .button:focus-visible {
     background: rgb(0 0 0 / 0.78);
     outline: 2px solid rgb(255 255 255 / 0.8);
     outline-offset: -2px;
+}
+
+/* Hover styles only where something can hover: on iOS a :hover rule makes
+   the first tap a hover and only the second a click. */
+@media (hover: hover) {
+    .setting-summary:hover {
+        background: rgb(0 0 0 / 0.8);
+        outline: 2px solid rgb(255 255 255 / 0.8);
+        outline-offset: -2px;
+    }
+
+    .setting-control[data-open="true"] .setting-summary:hover {
+        background: rgb(255 255 255 / 0.12);
+    }
+
+    .choice-button:hover {
+        background: rgb(255 255 255 / 0.28);
+        outline: 2px solid rgb(255 255 255 / 0.82);
+        outline-offset: -2px;
+    }
+
+    .choice-button[aria-pressed="true"]:hover {
+        background: white;
+    }
+
+    .button:hover {
+        background: rgb(0 0 0 / 0.78);
+        outline: 2px solid rgb(255 255 255 / 0.8);
+        outline-offset: -2px;
+    }
 }
 
 #about_box {

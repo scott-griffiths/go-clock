@@ -40,6 +40,8 @@ const woods = [
 // little longer, since its choices are being read rather than glanced at.
 const controlsHideDelay = 3600;
 const openControlHideDelay = 8000;
+// A drag at least this far (in CSS pixels) is a swipe rather than a tap.
+const swipeDistance = 48;
 
 const cookieKeys = new Map([
     ['background', 'goban_background'],
@@ -48,7 +50,6 @@ const cookieKeys = new Map([
     ['mode', 'mode'],
     ['wood', 'wood'],
     ['placement', 'placement'],
-    ['controlsPinned', 'controls_pinned'],
     ['state', 'goban_state']
 ]);
 
@@ -81,9 +82,13 @@ function writeSetting(key, value) {
     }
 }
 
+function wrap(index, length) {
+    return ((index % length) + length) % length;
+}
+
 function readIndex(key, fallback, length) {
     const stored = readSetting(key);
-    return isInt(stored) ? Number(stored) % length : fallback;
+    return isInt(stored) ? wrap(Number(stored), length) : fallback;
 }
 
 function animateStyles(element, keyframes, options) {
@@ -157,11 +162,9 @@ window.addEventListener('load', () => {
     let mode = readIndex('mode', 1, modes.length);
     let wood = readIndex('wood', 0, woods.length);
     let placement = readIndex('placement', 1, placements.length);
-    let controlsPinned = readSetting('controlsPinned') === '1';
 
+    const goban = $('#goban');
     const toolbar = $('#toolbar');
-    const pinControlsButton = $('#pin-controls');
-    const pinControlsIcon = $('#pin-controls-icon');
     const aboutButton = $('#about');
     const aboutBox = $('#about_box');
     let controlsHideTimer = null;
@@ -242,21 +245,21 @@ window.addEventListener('load', () => {
     });
 
     function setClockSpeed(index) {
-        stoneSpeed = index % stoneSpeeds.length;
+        stoneSpeed = wrap(index, stoneSpeeds.length);
         goClock.speed = stoneSpeeds[stoneSpeed][1];
         showSpeed(stoneSpeed);
         writeSetting('speed', stoneSpeed);
     }
 
     function setMode(index) {
-        mode = index % modes.length;
+        mode = wrap(index, modes.length);
         goClock.twenty_four_hour = mode === 1;
         showMode(mode);
         writeSetting('mode', mode);
     }
 
     function setWood(index) {
-        wood = index % woods.length;
+        wood = wrap(index, woods.length);
         const boardImage = $('#goban img:first-child');
         if (boardImage) {
             boardImage.style.filter = woods[wood][1];
@@ -266,21 +269,21 @@ window.addEventListener('load', () => {
     }
 
     function setPlacement(index) {
-        placement = index % placements.length;
+        placement = wrap(index, placements.length);
         goClock.placement = placement;
         showPlacement(placement);
         writeSetting('placement', placement);
     }
 
     function setView(index) {
-        view = index % views.length;
+        view = wrap(index, views.length);
         goClock.view = view;
         showView(view);
         writeSetting('view', view);
     }
 
     function setBackground(index) {
-        background = index % backgrounds.length;
+        background = wrap(index, backgrounds.length);
         $('#goban').style.backgroundImage = `url('images/${backgrounds[background][0]}')`;
         showBackground(background);
         writeSetting('background', background);
@@ -294,18 +297,6 @@ window.addEventListener('load', () => {
         writeSetting('state', goClock.stones_shown.join(''));
     }
 
-    function setControlsPinned(pinned) {
-        controlsPinned = Boolean(pinned);
-        const action = controlsPinned ? 'Unpin controls' : 'Pin controls';
-        toolbar.dataset.pinned = controlsPinned ? 'true' : 'false';
-        pinControlsIcon.textContent = controlsPinned ? '📌' : '📍';
-        pinControlsButton.setAttribute('aria-label', action);
-        pinControlsButton.setAttribute('aria-pressed', String(controlsPinned));
-        pinControlsButton.title = action;
-        writeSetting('controlsPinned', controlsPinned ? 1 : 0);
-        wakeControls();
-    }
-
     function clearControlsFade() {
         if (controlsHideTimer !== null) {
             window.clearTimeout(controlsHideTimer);
@@ -315,10 +306,6 @@ window.addEventListener('load', () => {
 
     function scheduleControlsFade() {
         clearControlsFade();
-        if (controlsPinned) {
-            return;
-        }
-
         controlsHideTimer = window.setTimeout(() => {
             if (toolbar.contains(document.activeElement)) {
                 // Someone is tabbing through the controls; try again later.
@@ -387,12 +374,69 @@ window.addEventListener('load', () => {
     setMode(mode);
     setPlacement(placement);
 
-    $('#goban').addEventListener('click', () => {
+    // Swipes: sideways across the board changes the face, sideways across the
+    // surround changes the background, and down the board sweeps it clear. A
+    // shorter drag is a tap.
+    let swipe = null;
+    let swiped = false;
+
+    function isOnBoard(x, y) {
+        const board = $('#goban-image')?.getBoundingClientRect();
+        return Boolean(board) && x >= board.left && x <= board.right && y >= board.top && y <= board.bottom;
+    }
+
+    goban.addEventListener('pointerdown', (event) => {
+        if (!event.isPrimary) {
+            return;
+        }
+        swiped = false;
+        wakeControlsForActivity();
+        swipe = {id: event.pointerId, x: event.clientX, y: event.clientY, onBoard: isOnBoard(event.clientX, event.clientY)};
+        // So the release is heard even if it lands on the toolbar.
+        goban.setPointerCapture(event.pointerId);
+    });
+    goban.addEventListener('pointerup', (event) => {
+        if (!swipe || event.pointerId !== swipe.id) {
+            return;
+        }
+        const dx = event.clientX - swipe.x;
+        const dy = event.clientY - swipe.y;
+        const {onBoard} = swipe;
+        swipe = null;
+        if (Math.max(Math.abs(dx), Math.abs(dy)) < swipeDistance) {
+            return;
+        }
+        swiped = true;
+        if (Math.abs(dx) > Math.abs(dy)) {
+            // Swiping left brings on the next one, as with pages.
+            const step = dx < 0 ? 1 : -1;
+            if (onBoard) {
+                setView(view + step);
+                goClock.transform();
+            } else {
+                setBackground(background + step);
+            }
+        } else if (dy > 0 && onBoard) {
+            goClock.resetBoard();
+        }
+        wakeControls();
+    });
+    goban.addEventListener('pointercancel', () => {
+        swipe = null;
+    });
+    // Browsers that ignore -webkit-user-drag would otherwise pick the board
+    // image up and cancel the swipe.
+    goban.addEventListener('dragstart', (event) => event.preventDefault());
+    goban.addEventListener('click', () => {
+        // The click that follows a mouse swipe is the swipe, not a tap.
+        if (swiped) {
+            swiped = false;
+            return;
+        }
         wakeControls();
         goClock.update();
     });
-    $('#goban').addEventListener('pointermove', wakeControlsForActivity);
-    $('#goban').addEventListener('touchstart', wakeControls, {passive: true});
+    goban.addEventListener('pointermove', wakeControlsForActivity);
     toolbar.addEventListener('pointermove', wakeControlsForActivity);
     document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') {
@@ -408,18 +452,19 @@ window.addEventListener('load', () => {
     $$('.toolbar-actions button').forEach((button) => {
         button.addEventListener('click', () => setOpenControl(null));
     });
-    // A tap anywhere outside an open setting closes it; likewise the about box.
-    document.addEventListener('click', (event) => {
+    // A touch anywhere outside an open setting closes it; likewise the about
+    // box. On pointerdown rather than click: iOS is choosy about which taps
+    // become clicks, and a swipe never does.
+    document.addEventListener('pointerdown', (event) => {
         if (openControl && !openControl.contains(event.target)) {
             setOpenControl(null);
         }
-        if (!aboutBox.hidden && !aboutBox.contains(event.target) && event.target !== aboutButton && !aboutButton.contains(event.target)) {
+        if (!aboutBox.hidden && !aboutBox.contains(event.target) && !aboutButton.contains(event.target)) {
             hideAbout();
         }
     });
 
     $('#reset-board').addEventListener('click', () => goClock.resetBoard());
-    pinControlsButton.addEventListener('click', () => setControlsPinned(!controlsPinned));
     aboutButton.addEventListener('click', () => {
         if (aboutBox.hidden) {
             showAbout();
@@ -429,7 +474,6 @@ window.addEventListener('load', () => {
     });
 
     resizeClock();
-    setControlsPinned(controlsPinned);
     wakeControls();
     registerServiceWorker();
     window.addEventListener('resize', resizeClock);
