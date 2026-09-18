@@ -23,8 +23,6 @@ const backgrounds = [
 ];
 
 const views = ['Analogue', 'Jumping hour', 'Digital', 'Hybrid'];
-const viewOptionLabels = ['Analogue', 'Jump', 'Digital', 'Hybrid'];
-const backgroundOptionLabels = ['Dark', 'Light', 'Stone', 'Mosaic', 'Grass', 'Drops'];
 const stoneSpeeds = [['Torpid', 5], ['Slow', 10], ['Normal', 20], ['Fast', 55], ['Insane!', 120]];
 const placements = ['Exact', 'Organic', 'Careless', 'Haphazard'];
 const placementOptionLabels = ['Exact', 'Organic', 'Careless', 'Meh'];
@@ -165,10 +163,16 @@ window.addEventListener('load', () => {
     const goban = $('#goban');
     const toolbar = $('#toolbar');
     const speedSlider = $('#speed-slider');
+    const settingsButton = $('#settings');
+    const settingsMenu = $('#settings-menu');
+    const boardHint = $('#board-hint');
+    const backgroundHint = $('#background-hint');
+    const swipeToast = $('#swipe-toast');
     const aboutButton = $('#about');
     const aboutBox = $('#about_box');
     let controlsHideTimer = null;
     let lastControlWake = 0;
+    let swipeToastTimer = null;
     // The one setting whose choices are showing, if any.
     let openControl = null;
 
@@ -231,11 +235,48 @@ window.addEventListener('load', () => {
         wakeControls();
     }
 
-    const showView = createSettingControl('face', viewOptionLabels, views, (index) => {
-        setView(index);
-        goClock.transform();
-    });
-    const showBackground = createSettingControl('background', backgroundOptionLabels, backgrounds.map(([, name]) => name), setBackground);
+    function setSettingsOpen(open) {
+        settingsMenu.hidden = !open;
+        settingsButton.setAttribute('aria-expanded', String(open));
+        if (!open) {
+            setOpenControl(null);
+        }
+        wakeControls();
+    }
+
+    // What a swipe just chose, in the chip's dress, at the top for a moment.
+    function showSwipeToast(icon, value) {
+        $('#swipe-toast-icon').textContent = icon;
+        $('#swipe-toast-value').textContent = value;
+        window.clearTimeout(swipeToastTimer);
+        swipeToast.getAnimations?.().forEach((animation) => animation.cancel());
+        swipeToast.style.opacity = '1';
+        swipeToast.hidden = false;
+        swipeToastTimer = window.setTimeout(() => fadeTo(swipeToast, 0, 400), 1400);
+    }
+
+    // The swipe reminders sit at the foot of the board and in the widest
+    // part of the surround: beside the board on a wide screen, below it on
+    // a tall one.
+    function placeHints() {
+        const {x_offset: x, y_offset: y, goban_width: width, goban_height: height} = goClock;
+        const centreX = x + width / 2;
+        boardHint.style.left = `${centreX}px`;
+        boardHint.style.top = `${y + height - 48}px`;
+        const sideMargin = window.innerWidth - x - width;
+        const bottomMargin = window.innerHeight - y - height;
+        const hintWidth = backgroundHint.offsetWidth + 16;
+        const hintHeight = backgroundHint.offsetHeight + 16;
+        if (sideMargin >= hintWidth || bottomMargin < hintHeight) {
+            // Beside the board; on a cramped screen, as far right as fits.
+            backgroundHint.style.left = `${Math.min(x + width + sideMargin / 2, window.innerWidth - hintWidth / 2)}px`;
+            backgroundHint.style.top = `${y + height / 2}px`;
+        } else {
+            backgroundHint.style.left = `${centreX}px`;
+            backgroundHint.style.top = `${y + height + bottomMargin / 2}px`;
+        }
+    }
+
     const showWood = createSettingControl('wood', woods.map(([name]) => name), woods.map(([name]) => name), setWood);
     const showPlacement = createSettingControl('placement', placementOptionLabels, placements, setPlacement);
     const showMode = createSettingControl('mode', modeOptionLabels, modes, (index) => {
@@ -280,14 +321,12 @@ window.addEventListener('load', () => {
     function setView(index) {
         view = wrap(index, views.length);
         goClock.view = view;
-        showView(view);
         writeSetting('view', view);
     }
 
     function setBackground(index) {
         background = wrap(index, backgrounds.length);
-        $('#goban').style.backgroundImage = `url('images/${backgrounds[background][0]}')`;
-        showBackground(background);
+        goban.style.backgroundImage = `url('images/${backgrounds[background][0]}')`;
         writeSetting('background', background);
     }
 
@@ -318,6 +357,8 @@ window.addEventListener('load', () => {
                 setControlOpen(openControl, false);
                 openControl = null;
             }
+            settingsMenu.hidden = true;
+            settingsButton.setAttribute('aria-expanded', 'false');
             toolbar.dataset.visible = 'false';
         }, openControl ? openControlHideDelay : controlsHideDelay);
     }
@@ -363,6 +404,7 @@ window.addEventListener('load', () => {
         aboutBox.hidden = true;
         aboutButton.setAttribute('aria-expanded', 'false');
         setWood(wood);
+        placeHints();
     }
 
     const storedState = readSetting('state');
@@ -416,8 +458,10 @@ window.addEventListener('load', () => {
             if (onBoard) {
                 setView(view + step);
                 goClock.transform();
+                showSwipeToast('◷', views[view]);
             } else {
                 setBackground(background + step);
+                showSwipeToast('▧', backgrounds[background][1]);
             }
         } else if (dy > 0 && onBoard) {
             goClock.resetBoard();
@@ -448,7 +492,7 @@ window.addEventListener('load', () => {
     toolbar.addEventListener('pointermove', wakeControlsForActivity);
     document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') {
-            setOpenControl(null);
+            setSettingsOpen(false);
             hideAbout();
         }
         wakeControlsForActivity();
@@ -458,9 +502,6 @@ window.addEventListener('load', () => {
         control.addEventListener('input', wakeControls);
         control.addEventListener('focus', wakeControls);
     });
-    $$('.toolbar-actions button').forEach((button) => {
-        button.addEventListener('click', () => setOpenControl(null));
-    });
     // A touch anywhere outside an open setting closes it; likewise the about
     // box. Heard on pointerdown, touchstart and click alike: iOS is choosy
     // about which taps become clicks, a swipe never does, and closing twice
@@ -468,6 +509,9 @@ window.addEventListener('load', () => {
     function closeOutside(event) {
         if (openControl && !openControl.contains(event.target)) {
             setOpenControl(null);
+        }
+        if (!settingsMenu.hidden && !settingsMenu.contains(event.target) && !settingsButton.contains(event.target)) {
+            setSettingsOpen(false);
         }
         if (!aboutBox.hidden && !aboutBox.contains(event.target) && !aboutButton.contains(event.target)) {
             hideAbout();
@@ -478,6 +522,7 @@ window.addEventListener('load', () => {
     document.addEventListener('click', closeOutside);
 
     $('#reset-board').addEventListener('click', () => goClock.resetBoard());
+    settingsButton.addEventListener('click', () => setSettingsOpen(settingsMenu.hidden));
     aboutButton.addEventListener('click', () => {
         if (aboutBox.hidden) {
             showAbout();

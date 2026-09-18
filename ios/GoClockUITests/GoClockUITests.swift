@@ -12,11 +12,12 @@ import XCTest
  Everything it reaches for is in the page, through the web view's
  accessibility tree: a `<button>` is a button with its `aria-label` as its
  name, and a button with `aria-pressed` — every choice in the toolbar — is a
- *switch*. Each setting is a chip that opens its choices beneath it and hides
- them again once one is chosen; the chip's name is the setting's name followed
- by its current value ("Clock face Analogue"), which is what a choice is
- checked against. The chip's value is written by my-clock.js rather than in
- index.html, so its presence is the module having run.
+ *switch*. The settings button drops down a chip per setting; a chip opens
+ its choices beneath it and hides them again once one is chosen. The chip's
+ name is the setting's name followed by its current value ("Board Oak"),
+ which is what a choice is checked against. The chip's value is written by
+ my-clock.js rather than in index.html, so its presence is the module
+ having run.
  */
 final class GoClockUITests: XCTestCase {
 
@@ -34,9 +35,17 @@ final class GoClockUITests: XCTestCase {
         app.webViews.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", setting)).firstMatch
     }
 
-    /// Opens a setting's choices (waking the controls first), taps one, and waits for the chip to show it.
-    private func choose(_ value: String, of setting: String, in app: XCUIApplication) {
+    /// Drops the settings down (waking the controls first) so the chips are on screen.
+    private func openSettings(in app: XCUIApplication) {
         wakeControls(in: app)
+        let settings = app.webViews.buttons["Settings"]
+        XCTAssertTrue(settings.waitForExistence(timeout: 5))
+        settings.tap()
+    }
+
+    /// Opens a setting's choices, taps one, and waits for the chip to show it.
+    private func choose(_ value: String, of setting: String, in app: XCUIApplication) {
+        openSettings(in: app)
         let summary = chip(setting, in: app)
         XCTAssertTrue(summary.waitForExistence(timeout: 5))
         summary.tap()
@@ -47,18 +56,20 @@ final class GoClockUITests: XCTestCase {
         wait(for: [shown], timeout: 5)
     }
 
-    func testPageLoadsAndAFaceChoiceSurvivesARelaunch() throws {
+    func testPageLoadsAndABoardChoiceSurvivesARelaunch() throws {
         let app = XCUIApplication()
         app.launch()
 
-        let face = "Clock face"
-        let faceChip = chip(face, in: app)
-        XCTAssertTrue(faceChip.waitForExistence(timeout: 30), "The face chip never appeared; the page's module did not run.")
+        let board = "Board"
+        XCTAssertTrue(app.webViews.buttons["Settings"].waitForExistence(timeout: 30), "The toolbar never appeared.")
+        openSettings(in: app)
+        let boardChip = chip(board, in: app)
+        XCTAssertTrue(boardChip.waitForExistence(timeout: 5), "The board chip never appeared; the page's module did not run.")
 
-        // A known face first — the simulator keeps whatever the last run left —
+        // A known board first — the simulator keeps whatever the last run left —
         // and then a different one, so a relaunch has a change to remember.
-        choose("Analogue", of: face, in: app)
-        choose("Digital", of: face, in: app)
+        choose("Oak", of: board, in: app)
+        choose("Kaya", of: board, in: app)
 
         // The about box, which is where the shell's version lands.
         wakeControls(in: app)
@@ -68,13 +79,15 @@ final class GoClockUITests: XCTestCase {
         let version = app.webViews.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Version'")).firstMatch
         XCTAssertTrue(version.waitForExistence(timeout: 5), "The about box did not open.")
 
-        // The same app, started again: the face comes back from localStorage.
+        // The same app, started again: the board comes back from localStorage.
         app.terminate()
         app.launch()
-        XCTAssertTrue(faceChip.waitForExistence(timeout: 30))
-        XCTAssertEqual(faceChip.label, "Clock face Digital", "The face did not survive a relaunch; localStorage kept nothing.")
+        XCTAssertTrue(app.webViews.buttons["Settings"].waitForExistence(timeout: 30))
+        openSettings(in: app)
+        XCTAssertTrue(boardChip.waitForExistence(timeout: 5))
+        XCTAssertEqual(boardChip.label, "Board Kaya", "The board did not survive a relaunch; localStorage kept nothing.")
 
         // Leave the default behind for whoever runs the app next.
-        choose("Analogue", of: face, in: app)
+        choose("Oak", of: board, in: app)
     }
 }

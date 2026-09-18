@@ -116,7 +116,8 @@ body {
     left: max(10px, env(safe-area-inset-left));
     z-index: 20;
     display: grid;
-    grid-template-columns: max-content;
+    /* Shrinkable, so the slider can give way on a narrow phone. */
+    grid-template-columns: minmax(0, max-content);
     justify-items: start;
     gap: 8px;
     width: max-content;
@@ -134,12 +135,15 @@ body {
 
 .toolbar-actions {
     display: flex;
+    max-width: 100%;
     align-items: center;
     gap: 8px;
 }
 
 .speed-control {
     display: flex;
+    min-width: 0;
+    flex: 1 1 auto;
     align-items: center;
     gap: 6px;
     height: 42px;
@@ -154,8 +158,41 @@ body {
     line-height: 1;
 }
 
+/* The slider: a plain track, with the five notches drawn alongside it so
+   they sit exactly where the thumb's centre can be — half a thumb (9px)
+   in from either end of the track. */
+.speed-track {
+    position: relative;
+    display: block;
+    flex: 1 1 180px;
+    min-width: 72px;
+    max-width: 180px;
+    height: 28px;
+}
+
+.speed-notches {
+    position: absolute;
+    top: 50%;
+    right: 6px;
+    left: 6px;
+    display: flex;
+    height: 6px;
+    margin-top: -3px;
+    justify-content: space-between;
+    pointer-events: none;
+}
+
+.speed-notches i {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: rgb(255 255 255 / 0.9);
+}
+
 #speed-slider {
-    width: clamp(120px, 40vw, 180px);
+    position: relative;
+    display: block;
+    width: 100%;
     height: 28px;
     margin: 0;
     background: transparent;
@@ -164,15 +201,10 @@ body {
     appearance: none;
 }
 
-/* The track: a line with a notch at each of the five speeds. */
 #speed-slider::-webkit-slider-runnable-track {
     height: 4px;
     border-radius: 2px;
-    background:
-        radial-gradient(circle, rgb(255 255 255 / 0.9) 2px, transparent 2.5px) 0 50% / calc((100% - 14px) / 4) 100% repeat-x content-box,
-        rgb(255 255 255 / 0.35);
-    padding: 0 7px;
-    box-sizing: border-box;
+    background: rgb(255 255 255 / 0.35);
 }
 
 #speed-slider::-moz-range-track {
@@ -254,7 +286,8 @@ body {
 }
 
 .reset-button,
-.about-button {
+.about-button,
+.settings-button {
     width: 42px;
     height: 42px;
     min-height: 42px;
@@ -273,6 +306,22 @@ body {
     font-size: 24px;
     font-style: italic;
     font-weight: 700;
+}
+
+.settings-button {
+    font-family: "Times New Roman", Georgia, serif;
+    font-size: 24px;
+}
+
+.settings-button[aria-expanded="true"] {
+    background: rgb(255 255 255 / 0.93);
+    color: #261917;
+}
+
+.settings-menu {
+    display: grid;
+    justify-items: start;
+    gap: 8px;
 }
 
 /* A setting is a chip showing its current value. Open, it grows into a panel
@@ -378,6 +427,42 @@ body {
     background: rgb(0 0 0 / 0.78);
     outline: 2px solid rgb(255 255 255 / 0.8);
     outline-offset: -2px;
+}
+
+/* Swipe reminders: fixed, centred on a point my-clock.js sets, and part of
+   the toolbar so they come and go with it. */
+.swipe-hint {
+    position: fixed;
+    z-index: 20;
+    display: grid;
+    gap: 3px;
+    padding: 8px 14px;
+    border-radius: 6px;
+    background: rgb(0 0 0 / 0.55);
+    color: white;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.2;
+    text-align: center;
+    white-space: nowrap;
+    transform: translate(-50%, -50%);
+    pointer-events: none !important;
+}
+
+.swipe-hint small {
+    font-size: 11px;
+    font-weight: 400;
+    opacity: 0.85;
+}
+
+.swipe-toast {
+    position: fixed;
+    top: max(10px, env(safe-area-inset-top));
+    left: 50%;
+    z-index: 25;
+    transform: translateX(-50%);
+    cursor: default;
+    pointer-events: none;
 }
 
 /* Hover styles only where something can hover: on iOS a :hover rule makes

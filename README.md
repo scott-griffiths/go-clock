@@ -82,7 +82,7 @@ xcodebuild -project ios/GoClock.xcodeproj -scheme GoClock \
 
 xcodebuild test -project ios/GoClock.xcodeproj -scheme GoClock \
   -destination 'platform=iOS Simulator,name=iPhone 17'
-                    # the one UI test: the page's module ran, a face choice
+                    # the one UI test: the page's module ran, a board choice
                     # survives a relaunch, the about box opens
 
 swift scripts/make-icon.swift    # regenerate the app icon and web icons
