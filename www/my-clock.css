@@ -111,11 +111,30 @@ body {
     left: max(10px, env(safe-area-inset-left));
     z-index: 20;
     display: grid;
-    grid-template-columns: 42px 42px 42px;
+    grid-template-columns: max-content;
+    justify-items: start;
     gap: 8px;
     width: max-content;
+    max-width: calc(100vw - 20px);
     opacity: 1;
     transition: opacity 360ms ease;
+}
+
+.toolbar-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
 }
 
 .button {
@@ -144,10 +163,9 @@ body {
     pointer-events: auto;
 }
 
-.sidebar-button,
 .reset-button,
-.pin-button {
-    justify-self: start;
+.pin-button,
+.about-button {
     width: 42px;
     height: 42px;
     min-height: 42px;
@@ -169,51 +187,67 @@ body {
     background: rgb(80 32 32 / 0.82);
 }
 
-.sidebar-icon {
-    position: relative;
-    width: 19px;
-    height: 17px;
-    border: 2px solid currentColor;
-    border-radius: 3px;
+.about-button {
+    font-family: "Times New Roman", Georgia, serif;
+    font-size: 24px;
+    font-style: italic;
+    font-weight: 700;
 }
 
-.sidebar-icon::before {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 5px;
-    content: "";
-    border-left: 2px solid currentColor;
-}
-
+/* A setting is a chip showing its current value. Open, it grows into a panel
+   with the choices beneath the chip. */
 .setting-control {
-    grid-column: 1 / -1;
     display: grid;
-    grid-template-columns: 1fr;
-    align-items: stretch;
     gap: 6px;
-    width: max-content;
-    max-width: calc(100vw - 20px);
-    min-height: 38px;
-    padding: 6px;
+    max-width: 100%;
     border-radius: 6px;
-    background: rgb(0 0 0 / 0.68);
     color: white;
     font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     font-size: 14px;
     font-weight: 700;
     line-height: 1.1;
+}
+
+.setting-control[data-open="true"] {
+    padding: 6px;
+    background: rgb(0 0 0 / 0.68);
     box-shadow: 0 3px 14px rgb(0 0 0 / 0.32);
 }
 
 .setting-summary {
     display: grid;
-    grid-template-columns: 22px minmax(82px, max-content);
+    grid-template-columns: 22px max-content;
     align-items: center;
     gap: 9px;
-    min-width: 0;
-    padding: 1px 5px 0 2px;
+    min-height: 38px;
+    padding: 0 12px 0 8px;
+    border: 0;
+    border-radius: 6px;
+    background: rgb(0 0 0 / 0.68);
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+    text-align: left;
     white-space: nowrap;
+    box-shadow: 0 3px 14px rgb(0 0 0 / 0.32);
+}
+
+.setting-summary:hover,
+.setting-summary:focus-visible {
+    background: rgb(0 0 0 / 0.8);
+    outline: 2px solid rgb(255 255 255 / 0.8);
+    outline-offset: -2px;
+}
+
+.setting-control[data-open="true"] .setting-summary {
+    padding-left: 2px;
+    background: transparent;
+    box-shadow: none;
+}
+
+.setting-control[data-open="true"] .setting-summary:hover,
+.setting-control[data-open="true"] .setting-summary:focus-visible {
+    background: rgb(255 255 255 / 0.12);
 }
 
 .setting-icon {
@@ -222,12 +256,6 @@ body {
     font-size: 19px;
     line-height: 1;
     text-align: center;
-}
-
-.setting-summary span:last-child {
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .setting-options {
@@ -274,83 +302,6 @@ body {
     background: rgb(0 0 0 / 0.78);
     outline: 2px solid rgb(255 255 255 / 0.8);
     outline-offset: -2px;
-}
-
-#sidebar {
-    position: fixed;
-    inset: 0 auto 0 0;
-    z-index: 30;
-    width: min(280px, 86vw);
-    /* Keep the title and menu clear of a notch: above it in portrait, beside it in landscape. */
-    padding-top: env(safe-area-inset-top);
-    padding-left: env(safe-area-inset-left);
-    padding-bottom: env(safe-area-inset-bottom);
-    overflow-y: auto;
-    background-color: #e7d2b6;
-    background-image: url('images/bowl2.jpg');
-    background-size: cover;
-    box-shadow: 18px 0 36px rgb(0 0 0 / 0.5);
-    transform: translateX(-105%);
-    transition: transform 260ms ease;
-}
-
-#sidebar[data-open="true"] {
-    transform: translateX(0);
-}
-
-.sb-menu {
-    padding: 0;
-    margin: 0;
-    list-style: none;
-}
-
-.sb-menu li {
-    width: 100%;
-    padding: 0;
-    margin: 0;
-    border-top: 1px solid rgb(255 255 255 / 0.18);
-    border-bottom: 1px solid rgb(0 0 0 / 0.12);
-}
-
-.sb-menu li button {
-    display: flex;
-    width: 100%;
-    min-height: 48px;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 1rem;
-    border: 0;
-    background: transparent;
-    color: #4d1d1d;
-    cursor: pointer;
-    font: inherit;
-    text-align: left;
-}
-
-.sb-menu li:hover {
-    background-color: rgb(255 255 255 / 0.14);
-    cursor: pointer;
-}
-
-#menu-title {
-    margin: 0;
-    padding: 12px 15px 18px;
-    text-align: center;
-    font-size: 33px;
-    font-weight: 400;
-}
-
-#menu-title strong {
-    font-size: 70px;
-    font-weight: 700;
-    line-height: 0.8;
-}
-
-#mode,
-#wood {
-    color: #9d2424;
-    font-weight: 700;
 }
 
 #about_box {
@@ -401,18 +352,8 @@ body {
 }
 
 @media (max-width: 520px) {
-    .toolbar {
-        grid-template-columns: 42px 42px 42px;
-        align-items: start;
-    }
-
-    .setting-control {
-        grid-column: 1 / -1;
+    .setting-control[data-open="true"] {
         width: min(320px, calc(100vw - 20px));
-    }
-
-    .setting-options {
-        max-width: 100%;
     }
 }
 

@@ -29,12 +29,17 @@ const stoneSpeeds = [['Torpid', 5], ['Slow', 10], ['Normal', 20], ['Fast', 55], 
 const speedOptionLabels = ['Torpid', 'Slow', 'Normal', 'Fast', 'Insane'];
 const placements = ['Exact', 'Organic', 'Careless', 'Haphazard'];
 const placementOptionLabels = ['Exact', 'Organic', 'Careless', 'Meh'];
-const controlsHideDelay = 3600;
+const modes = ['12-hour', '24-hour'];
+const modeOptionLabels = ['12h', '24h'];
 const woods = [
     ['Oak', 'saturate(0.8) hue-rotate(-12deg) sepia(0.5)'],
     ['Kaya', 'saturate(1.3) hue-rotate(-7deg)'],
     ['Bamboo', 'saturate(0.3) contrast(1.4) brightness(1.1) hue-rotate(-6deg)']
 ];
+// The controls fade this long after the last touch; an open setting gets a
+// little longer, since its choices are being read rather than glanced at.
+const controlsHideDelay = 3600;
+const openControlHideDelay = 8000;
 
 const cookieKeys = new Map([
     ['background', 'goban_background'],
@@ -149,29 +154,30 @@ window.addEventListener('load', () => {
     let background = readIndex('background', 0, backgrounds.length);
     let stoneSpeed = readIndex('speed', 2, stoneSpeeds.length);
     let view = readIndex('view', 0, views.length);
-    let mode = readIndex('mode', 1, 2);
+    let mode = readIndex('mode', 1, modes.length);
     let wood = readIndex('wood', 0, woods.length);
     let placement = readIndex('placement', 1, placements.length);
     let controlsPinned = readSetting('controlsPinned') === '1';
 
-    const sidebar = $('#sidebar');
     const toolbar = $('#toolbar');
-    const menuButton = $('#menu');
     const pinControlsButton = $('#pin-controls');
     const pinControlsIcon = $('#pin-controls-icon');
+    const aboutButton = $('#about');
     const aboutBox = $('#about_box');
     let controlsHideTimer = null;
     let lastControlWake = 0;
+    // The one setting whose choices are showing, if any.
+    let openControl = null;
 
-    function setActiveOption(containerSelector, activeIndex) {
-        $$('.choice-button', $(containerSelector)).forEach((button) => {
-            const isActive = Number(button.dataset.index) === activeIndex;
-            button.setAttribute('aria-pressed', String(isActive));
-        });
-    }
+    // A setting control is a chip (`.setting-summary`) that shows the current
+    // value and opens the choices beneath it. Returns a setter that marks the
+    // chosen option and updates the chip.
+    function createSettingControl(name, labels, values, onSelect) {
+        const control = $(`#${name}-control`);
+        const summary = $('.setting-summary', control);
+        const options = $('.setting-options', control);
+        const valueLabel = $(`#${name}-value`);
 
-    function createOptionButtons(containerSelector, labels, values, onSelect) {
-        const container = $(containerSelector);
         labels.forEach((label, index) => {
             const button = document.createElement('button');
             button.type = 'button';
@@ -181,61 +187,102 @@ window.addEventListener('load', () => {
             button.dataset.index = String(index);
             button.setAttribute('aria-label', values[index]);
             button.setAttribute('aria-pressed', 'false');
-            button.addEventListener('click', () => onSelect(index));
-            container.append(button);
+            button.addEventListener('click', (event) => {
+                onSelect(index);
+                setOpenControl(null);
+                // Keyboard users land back on the chip; a pointer is left
+                // alone so the controls can still fade.
+                if (event.detail === 0) {
+                    summary.focus({preventScroll: true});
+                }
+            });
+            options.append(button);
         });
+
+        summary.addEventListener('click', () => {
+            setOpenControl(control.dataset.open === 'true' ? null : control);
+        });
+
+        return (activeIndex) => {
+            valueLabel.textContent = values[activeIndex];
+            $$('.choice-button', options).forEach((button) => {
+                button.setAttribute('aria-pressed', String(Number(button.dataset.index) === activeIndex));
+            });
+        };
     }
+
+    function setControlOpen(control, open) {
+        control.dataset.open = open ? 'true' : 'false';
+        $('.setting-summary', control).setAttribute('aria-expanded', String(open));
+        $('.setting-options', control).hidden = !open;
+    }
+
+    function setOpenControl(control) {
+        if (openControl && openControl !== control) {
+            setControlOpen(openControl, false);
+        }
+        openControl = control;
+        if (control) {
+            setControlOpen(control, true);
+        }
+        wakeControls();
+    }
+
+    const showView = createSettingControl('face', viewOptionLabels, views, (index) => {
+        setView(index);
+        goClock.transform();
+    });
+    const showBackground = createSettingControl('background', backgroundOptionLabels, backgrounds.map(([, name]) => name), setBackground);
+    const showWood = createSettingControl('wood', woods.map(([name]) => name), woods.map(([name]) => name), setWood);
+    const showSpeed = createSettingControl('speed', speedOptionLabels, stoneSpeeds.map(([name]) => name), setClockSpeed);
+    const showPlacement = createSettingControl('placement', placementOptionLabels, placements, setPlacement);
+    const showMode = createSettingControl('mode', modeOptionLabels, modes, (index) => {
+        setMode(index);
+        goClock.transform();
+    });
 
     function setClockSpeed(index) {
         stoneSpeed = index % stoneSpeeds.length;
-        const value = stoneSpeeds[stoneSpeed][0];
         goClock.speed = stoneSpeeds[stoneSpeed][1];
-        $('#speed-control').setAttribute('aria-label', `Stone speed, current ${value}`);
-        setActiveOption('#speed-options', stoneSpeed);
+        showSpeed(stoneSpeed);
         writeSetting('speed', stoneSpeed);
     }
 
     function setMode(index) {
-        mode = index % 2;
+        mode = index % modes.length;
         goClock.twenty_four_hour = mode === 1;
-        $('#mode').textContent = goClock.twenty_four_hour ? '24-hour' : '12-hour';
+        showMode(mode);
         writeSetting('mode', mode);
     }
 
     function setWood(index) {
         wood = index % woods.length;
-        $('#wood').textContent = woods[wood][0];
         const boardImage = $('#goban img:first-child');
         if (boardImage) {
             boardImage.style.filter = woods[wood][1];
         }
+        showWood(wood);
         writeSetting('wood', wood);
     }
 
     function setPlacement(index) {
         placement = index % placements.length;
-        const value = placements[placement];
         goClock.placement = placement;
-        $('#placement-control').setAttribute('aria-label', `Precision, current ${value}`);
-        setActiveOption('#placement-options', placement);
+        showPlacement(placement);
         writeSetting('placement', placement);
     }
 
     function setView(index) {
         view = index % views.length;
-        const value = views[view];
         goClock.view = view;
-        $('#face-control').setAttribute('aria-label', `Clock face, current ${value}`);
-        setActiveOption('#face-options', view);
+        showView(view);
         writeSetting('view', view);
     }
 
     function setBackground(index) {
         background = index % backgrounds.length;
-        const value = backgrounds[background][1];
         $('#goban').style.backgroundImage = `url('images/${backgrounds[background][0]}')`;
-        $('#background-control').setAttribute('aria-label', `Background, current ${value}`);
-        setActiveOption('#background-options', background);
+        showBackground(background);
         writeSetting('background', background);
     }
 
@@ -247,16 +294,6 @@ window.addEventListener('load', () => {
         writeSetting('state', goClock.stones_shown.join(''));
     }
 
-    function setMenuOpen(open) {
-        const isOpen = Boolean(open);
-        const action = isOpen ? 'Hide sidebar' : 'Show sidebar';
-        sidebar.dataset.open = isOpen ? 'true' : 'false';
-        menuButton.setAttribute('aria-expanded', String(isOpen));
-        menuButton.setAttribute('aria-label', action);
-        menuButton.title = action;
-        wakeControls({hold: isOpen});
-    }
-
     function setControlsPinned(pinned) {
         controlsPinned = Boolean(pinned);
         const action = controlsPinned ? 'Unpin controls' : 'Pin controls';
@@ -266,7 +303,7 @@ window.addEventListener('load', () => {
         pinControlsButton.setAttribute('aria-pressed', String(controlsPinned));
         pinControlsButton.title = action;
         writeSetting('controlsPinned', controlsPinned ? 1 : 0);
-        wakeControls({hold: controlsPinned || sidebar.dataset.open === 'true'});
+        wakeControls();
     }
 
     function clearControlsFade() {
@@ -278,23 +315,27 @@ window.addEventListener('load', () => {
 
     function scheduleControlsFade() {
         clearControlsFade();
-        if (controlsPinned || sidebar.dataset.open === 'true') {
+        if (controlsPinned) {
             return;
         }
 
         controlsHideTimer = window.setTimeout(() => {
-            if (sidebar.dataset.open !== 'true' && !toolbar.contains(document.activeElement)) {
-                toolbar.dataset.visible = 'false';
+            if (toolbar.contains(document.activeElement)) {
+                // Someone is tabbing through the controls; try again later.
+                scheduleControlsFade();
+                return;
             }
-        }, controlsHideDelay);
+            if (openControl) {
+                setControlOpen(openControl, false);
+                openControl = null;
+            }
+            toolbar.dataset.visible = 'false';
+        }, openControl ? openControlHideDelay : controlsHideDelay);
     }
 
-    function wakeControls({hold = false} = {}) {
+    function wakeControls() {
         toolbar.dataset.visible = 'true';
-        clearControlsFade();
-        if (!hold) {
-            scheduleControlsFade();
-        }
+        scheduleControlsFade();
     }
 
     function wakeControlsForActivity() {
@@ -307,11 +348,13 @@ window.addEventListener('load', () => {
 
     function hideAbout() {
         if (!aboutBox.hidden) {
+            aboutButton.setAttribute('aria-expanded', 'false');
             fadeTo(aboutBox, 0, 200);
         }
     }
 
     function showAbout() {
+        aboutButton.setAttribute('aria-expanded', 'true');
         Object.assign(aboutBox.style, {
             opacity: '0',
             transform: 'translate(-50%, -12px)'
@@ -329,6 +372,7 @@ window.addEventListener('load', () => {
     function resizeClock() {
         goClock.draw(window.innerWidth, window.innerHeight);
         aboutBox.hidden = true;
+        aboutButton.setAttribute('aria-expanded', 'false');
         setWood(wood);
     }
 
@@ -337,14 +381,6 @@ window.addEventListener('load', () => {
         setGobanState(storedState);
     }
 
-    createOptionButtons('#face-options', viewOptionLabels, views, (index) => {
-        setView(index);
-        goClock.transform();
-    });
-    createOptionButtons('#background-options', backgroundOptionLabels, backgrounds.map(([, name]) => name), setBackground);
-    createOptionButtons('#speed-options', speedOptionLabels, stoneSpeeds.map(([name]) => name), setClockSpeed);
-    createOptionButtons('#placement-options', placementOptionLabels, placements, setPlacement);
-
     setClockSpeed(stoneSpeed);
     setView(view);
     setBackground(background);
@@ -352,45 +388,46 @@ window.addEventListener('load', () => {
     setPlacement(placement);
 
     $('#goban').addEventListener('click', () => {
-        hideAbout();
         wakeControls();
         goClock.update();
     });
     $('#goban').addEventListener('pointermove', wakeControlsForActivity);
     $('#goban').addEventListener('touchstart', wakeControls, {passive: true});
-    document.addEventListener('keydown', wakeControlsForActivity);
-    $$('#toolbar button, #sidebar button').forEach((button) => {
-        button.addEventListener('click', hideAbout);
+    toolbar.addEventListener('pointermove', wakeControlsForActivity);
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            setOpenControl(null);
+            hideAbout();
+        }
+        wakeControlsForActivity();
+    });
+    $$('#toolbar button').forEach((button) => {
         button.addEventListener('click', wakeControls);
         button.addEventListener('focus', wakeControls);
     });
-
-    menuButton.addEventListener('click', (event) => {
-        event.stopPropagation();
-        setMenuOpen(sidebar.dataset.open !== 'true');
+    $$('.toolbar-actions button').forEach((button) => {
+        button.addEventListener('click', () => setOpenControl(null));
     });
-    $('#reset-board').addEventListener('click', () => {
-        setMenuOpen(false);
-        goClock.resetBoard();
-    });
-    pinControlsButton.addEventListener('click', () => setControlsPinned(!controlsPinned));
+    // A tap anywhere outside an open setting closes it; likewise the about box.
     document.addEventListener('click', (event) => {
-        if (sidebar.dataset.open === 'true' && !sidebar.contains(event.target) && event.target !== menuButton) {
-            setMenuOpen(false);
+        if (openControl && !openControl.contains(event.target)) {
+            setOpenControl(null);
+        }
+        if (!aboutBox.hidden && !aboutBox.contains(event.target) && event.target !== aboutButton && !aboutButton.contains(event.target)) {
+            hideAbout();
         }
     });
 
-    $('#setting-mode').addEventListener('click', () => {
-        setMode(goClock.twenty_four_hour ? 0 : 1);
-        goClock.transform();
-    });
-    $('#setting-wood').addEventListener('click', () => setWood(wood + 1));
-    $('#about').addEventListener('click', () => {
-        setMenuOpen(false);
-        showAbout();
+    $('#reset-board').addEventListener('click', () => goClock.resetBoard());
+    pinControlsButton.addEventListener('click', () => setControlsPinned(!controlsPinned));
+    aboutButton.addEventListener('click', () => {
+        if (aboutBox.hidden) {
+            showAbout();
+        } else {
+            hideAbout();
+        }
     });
 
-    setMenuOpen(false);
     resizeClock();
     setControlsPinned(controlsPinned);
     wakeControls();

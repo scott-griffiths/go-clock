@@ -12,9 +12,11 @@ import XCTest
  Everything it reaches for is in the page, through the web view's
  accessibility tree: a `<button>` is a button with its `aria-label` as its
  name, and a button with `aria-pressed` — every choice in the toolbar — is a
- *switch* whose value is "1" when pressed. The face buttons are created by
- my-clock.js rather than written in index.html, so their existence is the
- module having run.
+ *switch*. Each setting is a chip that opens its choices beneath it and hides
+ them again once one is chosen; the chip's name is the setting's name followed
+ by its current value ("Clock face Analogue"), which is what a choice is
+ checked against. The chip's value is written by my-clock.js rather than in
+ index.html, so its presence is the module having run.
  */
 final class GoClockUITests: XCTestCase {
 
@@ -27,37 +29,39 @@ final class GoClockUITests: XCTestCase {
         app.webViews.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
     }
 
-    /// Whether a toolbar choice is the pressed one.
-    private func isPressed(_ choice: XCUIElement) -> Bool {
-        (choice.value as? String) == "1"
+    /// The chip for a setting, whatever value it currently shows.
+    private func chip(_ setting: String, in app: XCUIApplication) -> XCUIElement {
+        app.webViews.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", setting)).firstMatch
     }
 
-    /// Taps a toolbar choice (waking the controls first) and waits for it to take.
-    private func choose(_ choice: XCUIElement, in app: XCUIApplication) {
+    /// Opens a setting's choices (waking the controls first), taps one, and waits for the chip to show it.
+    private func choose(_ value: String, of setting: String, in app: XCUIApplication) {
         wakeControls(in: app)
-        XCTAssertTrue(choice.waitForExistence(timeout: 5))
+        let summary = chip(setting, in: app)
+        XCTAssertTrue(summary.waitForExistence(timeout: 5))
+        summary.tap()
+        let choice = app.webViews.switches[value]
+        XCTAssertTrue(choice.waitForExistence(timeout: 5), "The \(setting) chip did not open its choices.")
         choice.tap()
-        let pressed = expectation(for: NSPredicate(format: "value == '1'"), evaluatedWith: choice)
-        wait(for: [pressed], timeout: 5)
+        let shown = expectation(for: NSPredicate(format: "label == %@", "\(setting) \(value)"), evaluatedWith: summary)
+        wait(for: [shown], timeout: 5)
     }
 
     func testPageLoadsAndAFaceChoiceSurvivesARelaunch() throws {
         let app = XCUIApplication()
         app.launch()
 
-        let analogue = app.webViews.switches["Analogue"]
-        XCTAssertTrue(analogue.waitForExistence(timeout: 30), "The face buttons never appeared; the page's module did not run.")
+        let face = "Clock face"
+        let faceChip = chip(face, in: app)
+        XCTAssertTrue(faceChip.waitForExistence(timeout: 30), "The face chip never appeared; the page's module did not run.")
 
         // A known face first — the simulator keeps whatever the last run left —
         // and then a different one, so a relaunch has a change to remember.
-        choose(analogue, in: app)
-        let digital = app.webViews.switches["Digital"]
-        choose(digital, in: app)
-        XCTAssertFalse(isPressed(analogue))
+        choose("Analogue", of: face, in: app)
+        choose("Digital", of: face, in: app)
 
         // The about box, which is where the shell's version lands.
         wakeControls(in: app)
-        app.webViews.buttons["Show sidebar"].tap()
         let about = app.webViews.buttons["About"]
         XCTAssertTrue(about.waitForExistence(timeout: 5))
         about.tap()
@@ -67,11 +71,10 @@ final class GoClockUITests: XCTestCase {
         // The same app, started again: the face comes back from localStorage.
         app.terminate()
         app.launch()
-        XCTAssertTrue(analogue.waitForExistence(timeout: 30))
-        XCTAssertTrue(isPressed(app.webViews.switches["Digital"]), "The face did not survive a relaunch; localStorage kept nothing.")
-        XCTAssertFalse(isPressed(analogue))
+        XCTAssertTrue(faceChip.waitForExistence(timeout: 30))
+        XCTAssertEqual(faceChip.label, "Clock face Digital", "The face did not survive a relaunch; localStorage kept nothing.")
 
         // Leave the default behind for whoever runs the app next.
-        choose(analogue, in: app)
+        choose("Analogue", of: face, in: app)
     }
 }

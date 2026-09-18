@@ -16,7 +16,7 @@ struct GoClockApp: App {
             WebAppView()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 // The page is written for the whole screen: `viewport-fit=cover`,
-                // with its toolbar and sidebar laid out against
+                // with its toolbar laid out against
                 // `env(safe-area-inset-*)`. Insetting the web view as well
                 // would take that room twice.
                 .ignoresSafeArea()
