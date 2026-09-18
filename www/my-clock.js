@@ -382,6 +382,16 @@ window.addEventListener('load', () => {
         scheduleControlsFade();
     }
 
+    // The controls out of the way at once, menus and all.
+    function hideControls() {
+        setOpenControl(null);
+        settingsMenu.hidden = true;
+        settingsButton.setAttribute('aria-expanded', 'false');
+        // setOpenControl woke the controls; that is not wanted here.
+        clearControlsFade();
+        toolbar.dataset.visible = 'false';
+    }
+
     function wakeControlsForActivity() {
         const now = Date.now();
         if (toolbar.dataset.visible !== 'true' || now - lastControlWake > 250) {
@@ -478,6 +488,8 @@ window.addEventListener('load', () => {
                 setBackground(background + step);
                 showSwipeToast('▧', backgrounds[background][1]);
             }
+            // A swipe is about the board, not the controls: if they are up, they go.
+            hideControls();
         } else if (dy > 0 && onBoard) {
             goClock.resetBoard();
         }
