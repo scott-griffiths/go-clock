@@ -26,7 +26,6 @@ const views = ['Analogue', 'Jumping hour', 'Digital', 'Hybrid'];
 const viewOptionLabels = ['Analogue', 'Jump', 'Digital', 'Hybrid'];
 const backgroundOptionLabels = ['Dark', 'Light', 'Stone', 'Mosaic', 'Grass', 'Drops'];
 const stoneSpeeds = [['Torpid', 5], ['Slow', 10], ['Normal', 20], ['Fast', 55], ['Insane!', 120]];
-const speedOptionLabels = ['Torpid', 'Slow', 'Normal', 'Fast', 'Insane'];
 const placements = ['Exact', 'Organic', 'Careless', 'Haphazard'];
 const placementOptionLabels = ['Exact', 'Organic', 'Careless', 'Meh'];
 const modes = ['12-hour', '24-hour'];
@@ -165,6 +164,7 @@ window.addEventListener('load', () => {
 
     const goban = $('#goban');
     const toolbar = $('#toolbar');
+    const speedSlider = $('#speed-slider');
     const aboutButton = $('#about');
     const aboutBox = $('#about_box');
     let controlsHideTimer = null;
@@ -237,7 +237,6 @@ window.addEventListener('load', () => {
     });
     const showBackground = createSettingControl('background', backgroundOptionLabels, backgrounds.map(([, name]) => name), setBackground);
     const showWood = createSettingControl('wood', woods.map(([name]) => name), woods.map(([name]) => name), setWood);
-    const showSpeed = createSettingControl('speed', speedOptionLabels, stoneSpeeds.map(([name]) => name), setClockSpeed);
     const showPlacement = createSettingControl('placement', placementOptionLabels, placements, setPlacement);
     const showMode = createSettingControl('mode', modeOptionLabels, modes, (index) => {
         setMode(index);
@@ -246,8 +245,11 @@ window.addEventListener('load', () => {
 
     function setClockSpeed(index) {
         stoneSpeed = wrap(index, stoneSpeeds.length);
-        goClock.speed = stoneSpeeds[stoneSpeed][1];
-        showSpeed(stoneSpeed);
+        const [name, speed] = stoneSpeeds[stoneSpeed];
+        goClock.speed = speed;
+        speedSlider.value = String(stoneSpeed);
+        speedSlider.setAttribute('aria-valuetext', name);
+        speedSlider.title = name;
         writeSetting('speed', stoneSpeed);
     }
 
@@ -307,7 +309,7 @@ window.addEventListener('load', () => {
     function scheduleControlsFade() {
         clearControlsFade();
         controlsHideTimer = window.setTimeout(() => {
-            if (toolbar.contains(document.activeElement)) {
+            if (toolbar.querySelector(':focus-visible')) {
                 // Someone is tabbing through the controls; try again later.
                 scheduleControlsFade();
                 return;
@@ -368,6 +370,8 @@ window.addEventListener('load', () => {
         setGobanState(storedState);
     }
 
+    speedSlider.max = String(stoneSpeeds.length - 1);
+    speedSlider.addEventListener('input', () => setClockSpeed(Number(speedSlider.value)));
     setClockSpeed(stoneSpeed);
     setView(view);
     setBackground(background);
@@ -390,7 +394,6 @@ window.addEventListener('load', () => {
             return;
         }
         swiped = false;
-        wakeControlsForActivity();
         swipe = {id: event.pointerId, x: event.clientX, y: event.clientY, onBoard: isOnBoard(event.clientX, event.clientY)};
         // So the release is heard even if it lands on the toolbar.
         goban.setPointerCapture(event.pointerId);
@@ -419,7 +422,6 @@ window.addEventListener('load', () => {
         } else if (dy > 0 && onBoard) {
             goClock.resetBoard();
         }
-        wakeControls();
     });
     goban.addEventListener('pointercancel', () => {
         swipe = null;
@@ -436,7 +438,13 @@ window.addEventListener('load', () => {
         wakeControls();
         goClock.update();
     });
-    goban.addEventListener('pointermove', wakeControlsForActivity);
+    // A mouse moving over the page brings the controls up; a finger does
+    // not, so a swipe leaves the board as it was.
+    goban.addEventListener('pointermove', (event) => {
+        if (event.pointerType === 'mouse') {
+            wakeControlsForActivity();
+        }
+    });
     toolbar.addEventListener('pointermove', wakeControlsForActivity);
     document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') {
@@ -445,24 +453,29 @@ window.addEventListener('load', () => {
         }
         wakeControlsForActivity();
     });
-    $$('#toolbar button').forEach((button) => {
-        button.addEventListener('click', wakeControls);
-        button.addEventListener('focus', wakeControls);
+    $$('#toolbar button, #toolbar input').forEach((control) => {
+        control.addEventListener('click', wakeControls);
+        control.addEventListener('input', wakeControls);
+        control.addEventListener('focus', wakeControls);
     });
     $$('.toolbar-actions button').forEach((button) => {
         button.addEventListener('click', () => setOpenControl(null));
     });
     // A touch anywhere outside an open setting closes it; likewise the about
-    // box. On pointerdown rather than click: iOS is choosy about which taps
-    // become clicks, and a swipe never does.
-    document.addEventListener('pointerdown', (event) => {
+    // box. Heard on pointerdown, touchstart and click alike: iOS is choosy
+    // about which taps become clicks, a swipe never does, and closing twice
+    // is harmless.
+    function closeOutside(event) {
         if (openControl && !openControl.contains(event.target)) {
             setOpenControl(null);
         }
         if (!aboutBox.hidden && !aboutBox.contains(event.target) && !aboutButton.contains(event.target)) {
             hideAbout();
         }
-    });
+    }
+    document.addEventListener('pointerdown', closeOutside);
+    document.addEventListener('touchstart', closeOutside, {passive: true});
+    document.addEventListener('click', closeOutside);
 
     $('#reset-board').addEventListener('click', () => goClock.resetBoard());
     aboutButton.addEventListener('click', () => {
@@ -480,3 +493,4 @@ window.addEventListener('load', () => {
     setInterval(storeGobanState, 10000);
     goClock.transform();
 });
+
