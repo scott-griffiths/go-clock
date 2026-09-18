@@ -1,5 +1,6 @@
 import SwiftUI
 import UniformTypeIdentifiers
+import AVFoundation
 import WebKit
 
 /**
@@ -95,6 +96,14 @@ struct WebAppView: UIViewRepresentable {
         config.userContentController.addUserScript(
             WKUserScript(source: PageLog.script, injectionTime: .atDocumentStart, forMainFrameOnly: true)
         )
+
+        // The stones may click without anyone touching the screen (sounds.js,
+        // when sound is on): a web view otherwise refuses to play anything
+        // until a tap. And the clicks are ambient — they keep to the silent
+        // switch and do not interrupt whatever else is playing — which the
+        // web view honours as long as the app has chosen a category itself.
+        config.mediaTypesRequiringUserActionForPlayback = []
+        try? AVAudioSession.sharedInstance().setCategory(.ambient, mode: .default)
 
         // A real frame, not `.zero`. A `WKWebView` has no intrinsic content
         // size, so a zero frame can be exactly what it gets laid out at, which

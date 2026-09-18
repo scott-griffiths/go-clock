@@ -185,6 +185,9 @@ export function GoClock(){
     this.stone_colour = white;
     this.pending_swap = null;
     this.alignment_move = null;
+    // Something with place/slide/nudge/bowl/knock/land/setRumble methods
+    // (see sounds.js), or null for a silent board.
+    this.sound = null;
     this.sweeping_board = false;
 
     this.hand_position = 9*19 + 9; // Position of hand that's moving the stones.
@@ -596,6 +599,7 @@ export function GoClock(){
 
         var finish = () => {
             goban.classList.remove('tipped');
+            this.sound?.setRumble(0);
             // The heap sits for a moment, then fades, and the board is bare.
             var fades = stones.filter((stone) => !stone.gone).map((stone) => new Promise((resolve) => {
                 var animation = stone.element.animate([{opacity: 1}, {opacity: 0}], {
@@ -646,6 +650,7 @@ export function GoClock(){
                     if (!stone.landed) {
                         // Landing takes the edge off its speed.
                         stone.landed = true;
+                        this.sound?.land(Math.hypot(stone.vx, stone.vy)/(this.goban_height*1.8));
                         stone.vx *= 0.5;
                         stone.vy *= 0.5;
                     }
@@ -706,6 +711,7 @@ export function GoClock(){
                     q.y += ny*overlap/2;
                     var closing = (q.vx - p.vx)*nx + (q.vy - p.vy)*ny;
                     if (closing < 0) {
+                        this.sound?.knock(-closing/(this.goban_height*1.2));
                         // Stones bounce off each other on the board, less so on the table.
                         var bounce = p.offBoard && q.offBoard ? 0.25 : 0.45;
                         var impulse = -(1 + bounce)*closing/2;
@@ -745,6 +751,17 @@ export function GoClock(){
                 }
                 stone.element.style.transform = `translate(${stone.x - stone.r - stone.startLeft}px, ${stone.y - stone.r - stone.startTop}px)`;
             });
+
+            if (this.sound) {
+                // The rumble follows how much is sliding on the board.
+                var sliding = 0;
+                stones.forEach((stone) => {
+                    if (stone.moving && !stone.offBoard) {
+                        sliding += Math.min(1, Math.hypot(stone.vx, stone.vy)/(this.goban_height*0.8));
+                    }
+                });
+                this.sound.setRumble(Math.min(1, sliding/6)*0.25);
+            }
 
             // Done once every stone is off the board and the heap has kept
             // still for half a second (or, failing that, after a while).
@@ -919,6 +936,12 @@ export function GoClock(){
         setVisible(pushedStone, true);
         setVisible(pushedStoneShadow, true);
         setVisible(pushedStoneImage, true);
+        if (this.sound) {
+            var self = this;
+            window.setTimeout(function() {
+                self.sound?.nudge(swap.displaced_colour == white ? 'white' : 'black');
+            }, delay*1000);
+        }
         animateElement(pushedStone, duration, {
             delay: delay,
             left: toPosition[0],
@@ -962,6 +985,7 @@ export function GoClock(){
                 setVisible(movingStone, false);
                 setVisible(movingStoneShadow, false);
                 self.drawStone(toCoords, swap.displaced_colour, 0, swap.displaced_src);
+                self.sound?.place(swap.displaced_colour == white ? 'white' : 'black');
                 self.settleAfterLanding(swap.source);
                 self.hand_position = swap.source;
                 self.pending_swap = null;
@@ -1145,6 +1169,9 @@ export function GoClock(){
                 self.updateBoardPosition(landingIndex, false);
             }
             self.drawStone(self.alignment_move ? self.get_coords(landingIndex) : self.stone_to, self.stone_colour, 0, self.moving_stone_src);
+            if (!self.alignment_move && !self.clear_route) {
+                self.sound?.place(self.stone_colour == white ? 'white' : 'black');
+            }
             if (self.pending_swap && self.pending_swap.phase == 'push') {
                 self.pending_swap.phase = 'return';
                 self.returnPushedStone();
@@ -1179,6 +1206,9 @@ export function GoClock(){
             this.showPushedStone(this.pending_swap, Math.max(0, duration - pushDuration), pushDuration);
         }
         if (this.clear_route) {
+            if (!this.alignment_move) {
+                this.sound?.slide(duration);
+            }
             animateElement("#moving_stone", duration, {
                 left: p2[0],
                 top: p2[1],
@@ -1224,6 +1254,7 @@ export function GoClock(){
             setVisible($("#moving_stone"), false);
             setVisible($('#moving_stone .stone-shadow'), false);
             self.drawStone(self.stone_to, self.stone_colour, 0, self.moving_stone_src);
+            self.sound?.place(self.stone_colour == white ? 'white' : 'black');
             self.settleAfterLanding(landingIndex);
             self.moving_stone_src = null;
             self.moving_stone = false;
@@ -1260,6 +1291,7 @@ export function GoClock(){
             self.moving_stone = false;
             self.moving_stone_src = null;
             $("#moving_stone").style.opacity = '1.0';
+            self.sound?.bowl(colour == white ? 'white' : 'black');
             self.transform();
         };
         

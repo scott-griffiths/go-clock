@@ -1,4 +1,5 @@
 import {GoClock} from './go-clock.js';
+import {Sounds} from './sounds.js';
 
 const $ = (selector, scope = document) => scope.querySelector(selector);
 const $$ = (selector, scope = document) => [...scope.querySelectorAll(selector)];
@@ -28,6 +29,7 @@ const placements = ['Exact', 'Organic', 'Careless', 'Haphazard'];
 const placementOptionLabels = ['Exact', 'Organic', 'Careless', 'Meh'];
 const modes = ['12-hour', '24-hour'];
 const modeOptionLabels = ['12h', '24h'];
+const soundOptions = ['Off', 'On'];
 const woods = [
     ['Oak', 'saturate(0.8) hue-rotate(-12deg) sepia(0.5)'],
     ['Kaya', 'saturate(1.3) hue-rotate(-7deg)'],
@@ -47,6 +49,7 @@ const cookieKeys = new Map([
     ['mode', 'mode'],
     ['wood', 'wood'],
     ['placement', 'placement'],
+    ['sound', 'sound'],
     ['state', 'goban_state']
 ]);
 
@@ -159,6 +162,8 @@ window.addEventListener('load', () => {
     let mode = readIndex('mode', 1, modes.length);
     let wood = readIndex('wood', 0, woods.length);
     let placement = readIndex('placement', 1, placements.length);
+    let sound = readIndex('sound', 0, soundOptions.length);
+    const sounds = new Sounds();
 
     const goban = $('#goban');
     const toolbar = $('#toolbar');
@@ -283,6 +288,7 @@ window.addEventListener('load', () => {
         setMode(index);
         goClock.transform();
     });
+    const showSound = createSettingControl('sound', soundOptions, soundOptions, setSound);
 
     function setClockSpeed(index) {
         stoneSpeed = wrap(index, stoneSpeeds.length);
@@ -309,6 +315,14 @@ window.addEventListener('load', () => {
         }
         showWood(wood);
         writeSetting('wood', wood);
+    }
+
+    function setSound(index) {
+        sound = wrap(index, soundOptions.length);
+        sounds.setEnabled(sound === 1);
+        goClock.sound = sound === 1 ? sounds : null;
+        showSound(sound);
+        writeSetting('sound', sound);
     }
 
     function setPlacement(index) {
@@ -419,6 +433,7 @@ window.addEventListener('load', () => {
     setBackground(background);
     setMode(mode);
     setPlacement(placement);
+    setSound(sound);
 
     // Swipes: sideways across the board changes the face, sideways across the
     // surround changes the background, and down the board sweeps it clear. A
