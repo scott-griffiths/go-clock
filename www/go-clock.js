@@ -482,8 +482,11 @@ export function GoClock(){
     };
 
     // Sweep the board: tip it, far edge up, and let the stones slide off the
-    // near edge. A small simulation rather than keyframes, so that stones
-    // that let go first can knock the others loose on their way down.
+    // near edge onto the table, where they skid to a stop. A small simulation
+    // rather than keyframes, so that stones that let go first can knock the
+    // others loose on their way down, and the heap is whatever they make of
+    // it. The view is from above: gravity is into the screen, so only the
+    // tipped board pulls the stones anywhere; the table is flat.
     this.resetBoard = function() {
         if (this.sweeping_board || typeof document === 'undefined') {
             return;
@@ -512,6 +515,17 @@ export function GoClock(){
         var diameter = this.goban_width/20;
         // Down the slope, in px/s²: a stone crosses the board in a second or so.
         var gravity = this.goban_height*1.6;
+        // The table. A phone in portrait has room for the stones below the
+        // board; a wide screen may not, in which case they skid out of sight.
+        var outOfSight = (goban.clientHeight || window.innerHeight) + diameter*2;
+        var tableLeft = 0;
+        var tableRight = goban.clientWidth || window.innerWidth;
+        // The drop from the board's edge to the table, in the air.
+        var dropTime = 0.12;
+        // The tip leans a little towards the middle of the near edge as well,
+        // so the stones gather as they slide and land in one heap.
+        var boardMiddle = (boardLeft + boardRight)/2;
+        var gather = gravity*0.4/(this.goban_width/2);
         var stones = [];
 
         for (var i = 0; i < this.stones_shown.length; ++i) {
@@ -540,7 +554,9 @@ export function GoClock(){
                 // time after that, each a little differently.
                 release: 0.55 + Math.random()*0.7,
                 moving: false,
-                fade: 1,
+                offBoard: false,
+                leftAt: 0,
+                landed: false,
                 gone: false
             });
             // Lower stones pass in front of higher ones on the way down.
@@ -551,8 +567,7 @@ export function GoClock(){
 
         goban.classList.add('tipped');
 
-        var finish = () => {
-            goban.classList.remove('tipped');
+        var clear = () => {
             stones.forEach((stone) => {
                 var element = stone.element;
                 cancelElementAnimations(element);
@@ -560,6 +575,7 @@ export function GoClock(){
                 element.style.removeProperty('z-index');
                 element.style.removeProperty('transform');
                 element.style.removeProperty('opacity');
+                setStoneShadow(element, 0);
                 setVisible(element.querySelector('.stone-shadow'), false);
                 setVisible(element.querySelector('img'), false);
             });
@@ -578,8 +594,25 @@ export function GoClock(){
             }, 900);
         };
 
+        var finish = () => {
+            goban.classList.remove('tipped');
+            // The heap sits for a moment, then fades, and the board is bare.
+            var fades = stones.filter((stone) => !stone.gone).map((stone) => new Promise((resolve) => {
+                var animation = stone.element.animate([{opacity: 1}, {opacity: 0}], {
+                    duration: 700,
+                    delay: 900,
+                    easing: 'ease',
+                    fill: 'forwards'
+                });
+                animation.addEventListener('finish', resolve, {once: true});
+                animation.addEventListener('cancel', resolve, {once: true});
+            }));
+            Promise.all(fades).then(clear);
+        };
+
         var last = null;
         var elapsed = 0;
+        var stillFor = 0;
         var step = (now) => {
             if (last === null) {
                 last = now;
@@ -599,17 +632,49 @@ export function GoClock(){
                 if (!stone.moving) {
                     return;
                 }
-                stone.vy += gravity*dt;
-                stone.vx *= 1 - 0.8*dt;
+                if (!stone.offBoard && stone.y > boardBottom) {
+                    // Over the edge, and off the slope.
+                    stone.offBoard = true;
+                    stone.leftAt = elapsed;
+                }
+                if (!stone.offBoard) {
+                    // Sliding down the tipped board.
+                    stone.vy += gravity*dt;
+                    stone.vx += (boardMiddle - stone.x)*gather*dt;
+                    stone.vx *= 1 - 0.8*dt;
+                } else if (elapsed - stone.leftAt > dropTime) {
+                    if (!stone.landed) {
+                        // Landing takes the edge off its speed.
+                        stone.landed = true;
+                        stone.vx *= 0.5;
+                        stone.vy *= 0.5;
+                    }
+                    // Skidding on the flat table: nothing pulls, friction slows.
+                    var speed = Math.hypot(stone.vx, stone.vy);
+                    if (speed > 0) {
+                        var slower = Math.max(0, speed - (speed*6 + diameter*20)*dt);
+                        stone.vx *= slower/speed;
+                        stone.vy *= slower/speed;
+                    }
+                }
                 stone.x += stone.vx*dt;
                 stone.y += stone.vy*dt;
-                // The board's sides keep them on.
-                if (stone.x - stone.r < boardLeft) {
-                    stone.x = boardLeft + stone.r;
-                    stone.vx = Math.abs(stone.vx)*0.4;
-                } else if (stone.x + stone.r > boardRight) {
-                    stone.x = boardRight - stone.r;
-                    stone.vx = -Math.abs(stone.vx)*0.4;
+                if (!stone.offBoard) {
+                    // The board's sides keep them on.
+                    if (stone.x - stone.r < boardLeft) {
+                        stone.x = boardLeft + stone.r;
+                        stone.vx = Math.abs(stone.vx)*0.4;
+                    } else if (stone.x + stone.r > boardRight) {
+                        stone.x = boardRight - stone.r;
+                        stone.vx = -Math.abs(stone.vx)*0.4;
+                    }
+                } else if (stone.x - stone.r < tableLeft) {
+                    // Nothing skids out of the picture sideways.
+                    stone.x = tableLeft + stone.r;
+                    stone.vx = Math.abs(stone.vx)*0.3;
+                } else if (stone.x + stone.r > tableRight) {
+                    stone.x = tableRight - stone.r;
+                    stone.vx = -Math.abs(stone.vx)*0.3;
                 }
             });
 
@@ -641,7 +706,9 @@ export function GoClock(){
                     q.y += ny*overlap/2;
                     var closing = (q.vx - p.vx)*nx + (q.vy - p.vy)*ny;
                     if (closing < 0) {
-                        var impulse = -(1 + 0.45)*closing/2;
+                        // Stones bounce off each other on the board, less so on the table.
+                        var bounce = p.offBoard && q.offBoard ? 0.25 : 0.45;
+                        var impulse = -(1 + bounce)*closing/2;
                         p.vx -= impulse*nx;
                         p.vy -= impulse*ny;
                         q.vx += impulse*nx;
@@ -652,27 +719,38 @@ export function GoClock(){
                 }
             }
 
-            var active = 0;
+            var onBoard = 0;
+            var moved = 0;
             stones.forEach((stone) => {
                 if (stone.gone) {
                     return;
                 }
-                if (stone.y - stone.r > boardBottom) {
-                    // Over the edge: keep falling, and fade away.
-                    stone.fade -= dt*2.2;
-                    if (stone.fade <= 0) {
-                        stone.gone = true;
-                        setVisible(stone.element.querySelector('img'), false);
-                        setVisible(stone.element.querySelector('.stone-shadow'), false);
-                        return;
-                    }
-                    stone.element.style.opacity = String(stone.fade);
+                if (!stone.offBoard) {
+                    onBoard += 1;
+                }
+                moved = Math.max(moved, Math.hypot(stone.x - (stone.lastX ?? stone.x), stone.y - (stone.lastY ?? stone.y)));
+                stone.lastX = stone.x;
+                stone.lastY = stone.y;
+                if (stone.y - stone.r > outOfSight) {
+                    // Skidded off the bottom of the screen: the table goes on unseen.
+                    stone.gone = true;
+                    setVisible(stone.element.querySelector('img'), false);
+                    setVisible(stone.element.querySelector('.stone-shadow'), false);
+                    return;
+                }
+                if (stone.offBoard) {
+                    // In the air for the drop off the edge, then on the table.
+                    var drop = (elapsed - stone.leftAt)/dropTime;
+                    setStoneShadow(stone.element, drop < 1 ? 8*Math.sin(drop*Math.PI) : 0);
                 }
                 stone.element.style.transform = `translate(${stone.x - stone.r - stone.startLeft}px, ${stone.y - stone.r - stone.startTop}px)`;
-                active += 1;
             });
 
-            if (active > 0 && elapsed < 12) {
+            // Done once every stone is off the board and the heap has kept
+            // still for half a second (or, failing that, after a while).
+            stillFor = moved < 0.5 ? stillFor + dt : 0;
+            var settled = onBoard === 0 && stillFor > 0.5;
+            if (!settled && elapsed < 12) {
                 window.requestAnimationFrame(step);
             } else {
                 finish();
