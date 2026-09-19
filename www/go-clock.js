@@ -1027,26 +1027,21 @@ export function GoClock(){
         };
     };
 
-    // The nearest point to the coordinates that no other stone has claimed.
+    // The nearest point to the coordinates that no other stone has claimed,
+    // anywhere on the board: a heap shoved into a corner has more stones
+    // than the corner has points, and each still needs one. -1 only when
+    // the whole board is taken.
     this.freePointNear = function(coords, taken) {
         var best = -1;
         var bestDistance = Infinity;
-        var cx = Math.round(coords[0]);
-        var cy = Math.round(coords[1]);
-        for (var y = cy - 2; y <= cy + 2; ++y) {
-            for (var x = cx - 2; x <= cx + 2; ++x) {
-                if (x < 0 || x >= gridsize || y < 0 || y >= gridsize) {
-                    continue;
-                }
-                var index = x + gridsize*y;
-                if (taken.has(index)) {
-                    continue;
-                }
-                var distance = Math.hypot(coords[0] - x, coords[1] - y);
-                if (distance < bestDistance) {
-                    best = index;
-                    bestDistance = distance;
-                }
+        for (var index = 0; index < gridsize*gridsize; ++index) {
+            if (taken.has(index)) {
+                continue;
+            }
+            var distance = Math.hypot(coords[0] - index%gridsize, coords[1] - (index - index%gridsize)/gridsize);
+            if (distance < bestDistance) {
+                best = index;
+                bestDistance = distance;
             }
         }
         return best;
@@ -1382,7 +1377,7 @@ export function GoClock(){
             if (finger.pressing || (!still && finger.elapsed - finger.releasedAt < 6)) {
                 finger.frame = window.requestAnimationFrame(step);
             } else {
-                this.endFinger(false);
+                this.endFinger();
             }
         };
         finger.frame = window.requestAnimationFrame(step);
@@ -1412,9 +1407,8 @@ export function GoClock(){
     // is. Each stone stays put and is recorded at its nearest point, with
     // its displacement as its offset; only when two stones share a nearest
     // point does the second take the next free one, with a short slide.
-    // Fallen stones stay on the table, in play. `immediate` skips the
-    // animation, for when the board is about to be redrawn.
-    this.endFinger = function(immediate) {
+    // Fallen stones stay on the table, in play.
+    this.endFinger = function() {
         var finger = this.finger;
         if (!finger) {
             return;
@@ -1448,7 +1442,8 @@ export function GoClock(){
         placements.forEach(({stone, coords}) => {
             var index = this.freePointNear(coords, taken);
             if (index < 0) {
-                // No room on the grid for it: it might as well have fallen.
+                // Every point on the grid taken (it would take 361 stones):
+                // it might as well have fallen.
                 stone.offBoard = true;
                 fallen.push(stone);
                 return;
@@ -1475,7 +1470,7 @@ export function GoClock(){
             // Where it lies, and then, if its point was taken, the short
             // way to the next one.
             setStyles(position, {left: stone.x - stone.r, top: stone.y - stone.r, width: stone.r*2, height: stone.r*2});
-            this.updateBoardPosition(index, slides && !immediate);
+            this.updateBoardPosition(index, slides);
             stone.element.remove();
         });
         for (var i = 0; i < gridsize*gridsize; ++i) {
@@ -1497,39 +1492,47 @@ export function GoClock(){
             });
         });
 
-        if (immediate) {
-            // The board is being rebuilt; the hand starts again after that.
-            this.idle_timer = setTimeout(this.transform.bind(this), 500);
-        } else {
-            this.transform();
-        }
+        this.transform();
     };
 
-    // Draw the underlying board (i.e. everything except any moving stones)
+    // Build the board for a window this size: the goban image, an element
+    // for every point drawn from stones_shown, and the stones on the table.
+    // While the board is busy — a stone in the hand, a sweep, a finger on
+    // it — the rebuild waits, and transform() does it once the board is
+    // quiet. (A rebuild in the middle of a sweep would leave the sweep
+    // hiding elements no longer on the page, and every swept stone still
+    // showing on the new ones with the model sure they had gone.) Returns
+    // whether it was done now. `onDraw`, if set, is called after each
+    // rebuild: my-clock.js puts the wood back on the new image.
+    this.onDraw = null;
+    this.pending_size = null;
     this.draw = function(width, height) {
-        // A finger on the board is lifted, and the stones read, before the
-        // board is rebuilt.
-        this.endFinger(true);
-        var refreshing = false;
-        if (typeof width === 'undefined' || typeof height === 'undefined') {
-            refreshing = true;
+        if (this.sweeping_board || this.moving_stone || this.finger) {
+            this.pending_size = [width, height];
+            return false;
         }
-        if (!refreshing) {
-            this.goban_width = width * 0.95 | 0; // Some padding to show background
-            this.goban_height = height * 0.95 | 0;
-            var goban_ratio = 857/800; // Ratio of the goban image
+        this.pending_size = null;
+        if (width === this.window_width && height === this.window_height) {
+            // The same window: nothing to do.
+            return true;
+        }
+        this.window_width = width;
+        this.window_height = height;
+        this.goban_width = width * 0.95 | 0; // Some padding to show background
+        this.goban_height = height * 0.95 | 0;
+        var goban_ratio = 857/800; // Ratio of the goban image
 
-            if (this.goban_width*goban_ratio > this.goban_height) {
-                // clip to height
-                this.goban_width = this.goban_height/goban_ratio | 0;
-            } else {
-                this.goban_height = this.goban_width*goban_ratio | 0;
-            }
-            this.y_offset = (height - this.goban_height) / 2 | 0;
-            this.x_offset = (width - this.goban_width) / 2 | 0;
+        if (this.goban_width*goban_ratio > this.goban_height) {
+            // clip to height
+            this.goban_width = this.goban_height/goban_ratio | 0;
+        } else {
+            this.goban_height = this.goban_width*goban_ratio | 0;
         }
+        this.y_offset = (height - this.goban_height) / 2 | 0;
+        this.x_offset = (width - this.goban_width) / 2 | 0;
         var gobanImage = goban_1200;
         gobanImage.id = 'goban-image';
+        gobanImage.alt = '';
         var goban = $('#goban');
         goban.replaceChildren(gobanImage);
         var gobanImg = goban.querySelector('img');
@@ -1616,6 +1619,8 @@ export function GoClock(){
                 this.eraseStone(this.get_coords(i));
             }
         }
+        this.onDraw?.();
+        return true;
     };
 
     this.drawNumber = function(number, x_offset, y_offset, size, colour) {
@@ -2121,6 +2126,10 @@ export function GoClock(){
             return;
         }
         window.clearTimeout(this.idle_timer);
+        if (this.pending_size) {
+            // A resize that came while the board was busy.
+            this.draw(this.pending_size[0], this.pending_size[1]);
+        }
         this.update();
         // Work out what, if anything, needs to change
         var diff = [];

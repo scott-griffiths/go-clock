@@ -468,12 +468,29 @@ window.addEventListener('load', () => {
         });
     }
 
+    // After each rebuild of the board: the wood is a filter on the board
+    // image, which draw() makes afresh, and the hints sit relative to it.
+    goClock.onDraw = () => {
+        setWood(wood);
+        placeHints();
+    };
+
     function resizeClock() {
+        // Done now, or once the board is quiet (see draw() in go-clock.js).
         goClock.draw(window.innerWidth, window.innerHeight);
         aboutBox.hidden = true;
         aboutButton.setAttribute('aria-expanded', 'false');
-        setWood(wood);
-        placeHints();
+    }
+
+    // One rebuild per frame, however many resize events a window drag sends.
+    let resizeFrame = null;
+    function scheduleResize() {
+        if (resizeFrame === null) {
+            resizeFrame = window.requestAnimationFrame(() => {
+                resizeFrame = null;
+                resizeClock();
+            });
+        }
     }
 
     const storedState = readSetting('state');
@@ -646,7 +663,7 @@ window.addEventListener('load', () => {
     resizeClock();
     wakeControls();
     registerServiceWorker();
-    window.addEventListener('resize', resizeClock);
+    window.addEventListener('resize', scheduleResize);
     setInterval(storeGobanState, 10000);
     goClock.transform();
 });
