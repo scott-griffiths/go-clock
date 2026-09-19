@@ -43,6 +43,8 @@ The public GitHub Pages URL is expected to remain `https://scott-griffiths.githu
   - `www/physics.js` — the stone simulation the sweep and the hand share.
   - `www/sweep.js` — the board tipped and the stones sliding off it.
   - `www/hand.js` — a finger held on the board, pushing the stones about.
+  - `www/flight.js` — the stones flying off into space, drawn from sprite sheets of a stone
+    turning over.
 
   `board.js`, `faces.js`, `planner.js` and `physics.js` have no DOM in them and are tested under node.
 - `www/my-clock.css` owns all visual styling.
@@ -50,6 +52,8 @@ The public GitHub Pages URL is expected to remain `https://scott-griffiths.githu
 - `www/manifest.webmanifest` makes the web version installable to a home screen.
 - `ios/` is the iOS app: a native shell around the same `www/` folder (see below).
 - `scripts/make-icon.swift` renders the app icon and web icons from the board and stone images.
+- `scripts/make-stone-sprites.swift` renders the tumbling-stone sprite sheets in `www/images`
+  from the stone images.
 - `scripts/testflight.sh` archives the iOS app and uploads it to App Store Connect.
 - `resources/` holds the full-size stone images (used by the icon script) and a screenshot.
 - `embedded.html` and `simple-example.html` are legacy compatibility pages that redirect to the current app.

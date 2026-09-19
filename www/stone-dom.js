@@ -18,13 +18,14 @@ const alternateWhiteStoneSrcs = [
     ext + "white_stone3_160.png"
 ];
 const blackStoneSrc = ext + "black_stone1_160.png";
+export const stoneSrcs = [primaryWhiteStoneSrc, ...alternateWhiteStoneSrcs, blackStoneSrc];
 
 // The board image, and the stone images fetched ahead of their first use.
 // Only in a browser: the modules this one serves also run under node for
 // the tests, where there is no Image.
 export let gobanImage = null;
 if (typeof Image !== 'undefined') {
-    [primaryWhiteStoneSrc, ...alternateWhiteStoneSrcs, blackStoneSrc].forEach((src) => {
+    stoneSrcs.forEach((src) => {
         const image = new Image();
         image.src = src;
     });
@@ -193,15 +194,6 @@ export function looseStone(goban, diameter, src, colour, x, y) {
         landed: false,
         gone: false
     };
-}
-
-// A stone's element on its way into the void, `fall` (0 to 1) of the way
-// there: fading and shrinking as it falls away. `transform` is any
-// transform the element already needs.
-export function drawFalling(element, fall, transform = '') {
-    setVisible(element.querySelector('.stone-shadow'), false);
-    element.style.opacity = String(1 - fall);
-    element.style.transform = `${transform} scale(${1 - 0.4*fall})`.trim();
 }
 
 // A stone's element as it lies on the table, or drops onto it: `drop`

@@ -2,11 +2,11 @@
 // pointer events. It is a disc two stones wide that follows the pointer.
 // Stones in its way are shoved aside and skid a little (physics.js),
 // knocking into each other; any pushed over the edge drop onto the
-// table, skid to a stop, and fade. The hand stops what it is doing (the
-// stone it held drops where it is), waits for the finger to go and the
-// stones to lie still, and then carries on with the board as it finds
-// it: a stone stays where it was left, and counts as being at the
-// nearest point.
+// table and skid to a stop (or, in space, fly away: flight.js). The hand
+// stops what it is doing (the stone it held drops where it is), waits
+// for the finger to go and the stones to lie still, and then carries on
+// with the board as it finds it: a stone stays where it was left, and
+// counts as being at the nearest point.
 //
 // Functions of the clock (go-clock.js), which keeps `finger` while one is
 // down: the world of loose stones, where the pointer is, and whether it
@@ -15,7 +15,8 @@
 import {gridsize, nearestFreePoint} from './board.js';
 import {StoneWorld, flatBoard} from './physics.js';
 import {$, setStyles, setVisible, setStoneShadow, cancelElementAnimations, elementCentre, colourOfImage, tableTransform,
-        drawFalling, drawOnTable} from './stone-dom.js';
+        drawOnTable} from './stone-dom.js';
+import {drawFlying, flyOn} from './flight.js';
 
 export function fingerDown(clock, clientX, clientY) {
     if (clock.sweeping_board || clock.finger || typeof document === 'undefined') {
@@ -191,7 +192,7 @@ export function fingerDown(clock, clientX, clientY) {
             }
             setStyles(stone.element, {left: stone.x - stone.r, top: stone.y - stone.r});
             if (stone.falling) {
-                drawFalling(stone.element, world.fall(stone));
+                drawFlying(stone.element, stone, world);
                 return;
             }
             if (stone.offBoard) {
@@ -251,15 +252,10 @@ export function endFinger(clock) {
     clock.stones_shown = Array(gridsize*gridsize).fill(0);
     clock.reset_offsets();
     var taken = new Set();
-    // A stone still falling into the void when the finger goes (the hand
-    // waits for the fall, but not for ever) is as good as gone.
-    var stones = finger.world.stones;
-    stones.forEach((stone) => {
-        if (stone.falling && !stone.gone) {
-            stone.gone = true;
-            stone.element.remove();
-        }
-    });
+    // A stone still flying off into space flies on by itself.
+    var world = finger.world;
+    flyOn(world.takeFalling(), world.elapsed, world);
+    var stones = world.stones;
     var fallen = stones.filter((stone) => !stone.gone && stone.offBoard);
     var placements = stones
         .filter((stone) => !stone.gone && !stone.offBoard)

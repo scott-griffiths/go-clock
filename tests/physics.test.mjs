@@ -2,11 +2,11 @@
 // to a stop, a stone over the edge drops and lands and stops on the table,
 // the board's side keeps a table stone off, the tipped board sends its
 // stones down the slope, two stones in each other's way part, and in the
-// void a stone over the edge is gone.
+// void a stone over the edge flies on, end over end, and is gone.
 
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {StoneWorld, flatBoard, tippedBoard, dropTime, voidFadeTime} from '../www/physics.js';
+import {StoneWorld, flatBoard, tippedBoard, dropTime, voidFlightTime} from '../www/physics.js';
 
 const board = {left: 100, top: 100, right: 500, bottom: 500};
 const screen = {right: 600, bottom: 800};
@@ -110,16 +110,50 @@ test('two sleeping stones lying together are left alone', () => {
     assert.equal(b.x, 312);
 });
 
-test('in the void, a stone over the edge falls away and is gone after voidFadeTime', () => {
+test('in the void, a stone over the edge flies on, unslowed, and is gone after voidFlightTime', () => {
     const w = world({isVoid: true});
-    const s = w.add(stone({x: 300, y: 501}));
+    const s = w.add(stone({x: 300, y: 501, vy: 30}));
     w.advance(0.016);
     assert.ok(s.falling);
+    // The world is done with it at once; it keeps its speed, and turns over.
+    assert.ok(w.still());
     w.advance(0.016);
     assert.ok(w.fall(s) > 0 && w.fall(s) < 1);
-    run(w, voidFadeTime + 0.1, () => s.gone);
+    assert.equal(s.vy, 30);
+    assert.ok(s.tumble !== 0);
+    run(w, voidFlightTime + 0.1, () => s.gone);
     assert.ok(s.gone);
-    assert.ok(w.still());
+});
+
+test('a flying stone tumbles leading edge first, turned the nearer way round', () => {
+    const w = world({isVoid: true});
+    // Over the top edge, going up: the tumble is about the horizontal already.
+    const up = w.add(stone({x: 300, y: 99, vy: -30}));
+    // Over the bottom edge: the same, backwards, rather than turned right round.
+    const down = w.add(stone({x: 300, y: 501, vy: 30}));
+    // Over the right edge: turned a quarter, tumbling forwards.
+    const right = w.add(stone({x: 501, y: 300, vx: 30}));
+    // Over the left edge: turned the same quarter, tumbling backwards.
+    const left = w.add(stone({x: 99, y: 300, vx: -30}));
+    w.advance(0.016);
+    assert.ok(Math.abs(up.heading) < 1e-9 && up.spin > 0);
+    assert.ok(Math.abs(down.heading) < 1e-9 && down.spin < 0);
+    assert.ok(Math.abs(right.heading - Math.PI/2) < 1e-9 && right.spin > 0);
+    assert.ok(Math.abs(left.heading - Math.PI/2) < 1e-9 && left.spin < 0);
+    // Faster, it tumbles faster.
+    const fast = w.add(stone({x: 300, y: 501, vy: 300}));
+    w.advance(0.016);
+    assert.ok(Math.abs(fast.spin) > Math.abs(down.spin));
+});
+
+test('the flying stones can be taken out of the world to fly on elsewhere', () => {
+    const w = world({isVoid: true});
+    const flying = w.add(stone({x: 300, y: 501, vy: 30}));
+    const staying = w.add(stone({x: 300, y: 300}));
+    w.advance(0.016);
+    assert.deepEqual(w.takeFalling(), [flying]);
+    assert.deepEqual(w.stones, [staying]);
+    assert.deepEqual(w.takeFalling(), []);
 });
 
 test('a stone off the screen is gone', () => {

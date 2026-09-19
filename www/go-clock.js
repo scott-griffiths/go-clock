@@ -5,7 +5,8 @@
 import {gridsize, white, go_bowl, go_table, minx, maxx, miny, maxy, emptyBoard} from './board.js';
 import {faceFor} from './faces.js';
 import {planMove} from './planner.js';
-import {voidFadeTime} from './physics.js';
+import {setTumbling} from './physics.js';
+import {flyOn} from './flight.js';
 import {sweepBoard} from './sweep.js';
 import {fingerDown, fingerMove, fingerUp, endFinger} from './hand.js';
 import {setLandingOffset, alignIdleStone} from './placement.js';
@@ -245,19 +246,31 @@ export function GoClock(){
         };
     };
 
-    // The table has gone from under the stones lying on it: they fall away.
+    // The table has gone from under the stones lying on it: they drift
+    // away, turning over slowly, each its own way (flight.js).
     this.dropTableStones = function() {
-        this.table_stones.forEach((entry) => {
-            var element = entry.element;
-            var animation = element.animate([
-                {opacity: 1, transform: tableTransform()},
-                {opacity: 0, transform: 'scale(0.55)'}
-            ], {duration: voidFadeTime*1000, easing: 'ease-in', fill: 'forwards'});
-            var remove = () => element.remove();
-            animation.addEventListener('finish', remove, {once: true});
-            animation.addEventListener('cancel', remove, {once: true});
+        var diameter = this.goban_width/20;
+        var stones = this.table_stones.map((entry) => {
+            var stone = {
+                element: entry.element,
+                src: entry.src,
+                colour: entry.colour,
+                x: entry.x,
+                y: entry.y,
+                r: diameter/2,
+                vx: (Math.random() - 0.5)*diameter*2,
+                vy: (Math.random() - 0.5)*diameter*2,
+                offBoard: true,
+                landed: true,
+                falling: true,
+                leftAt: 0,
+                gone: false
+            };
+            setTumbling(stone, Math.atan2(stone.vy, stone.vx), 2 + Math.random()*3);
+            return stone;
         });
         this.table_stones = [];
+        flyOn(stones, 0, {board: this.boardRect(), screen: this.screenRect(), diameter: diameter});
     };
 
     // A stone free of the grid, drawn by an element of its own (stone-dom.js).

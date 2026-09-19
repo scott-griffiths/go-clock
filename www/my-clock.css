@@ -126,6 +126,11 @@ body {
     z-index: 3;
 }
 
+/* A stone flying off into space wears a frame of its tumble sheet (flight.js). */
+.flying {
+    background-repeat: no-repeat;
+}
+
 .stone {
     position: relative;
     z-index: 1;

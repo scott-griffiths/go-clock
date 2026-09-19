@@ -1,5 +1,6 @@
 // Sweeping the board: tip it, far edge up, and let the stones slide off
-// the near edge onto the table, where they skid to a stop. A simulation
+// the near edge onto the table, where they skid to a stop (or, in space,
+// off into the dark: flight.js). A simulation
 // (physics.js) rather than keyframes, so that stones that let go first can
 // knock the others loose on their way down, and the heap is whatever they
 // make of it. The view is from above: gravity is into the screen, so only
@@ -11,7 +12,8 @@
 
 import {gridsize} from './board.js';
 import {StoneWorld, tippedBoard} from './physics.js';
-import {$, setStyles, setVisible, setStoneShadow, cancelElementAnimations, tableTransform, drawFalling, drawOnTable} from './stone-dom.js';
+import {$, setStyles, setVisible, setStoneShadow, cancelElementAnimations, tableTransform, drawOnTable} from './stone-dom.js';
+import {drawFlying, flyOn, clearFlying} from './flight.js';
 
 export function sweepBoard(clock) {
     if (clock.sweeping_board || clock.finger || typeof document === 'undefined') {
@@ -138,13 +140,14 @@ export function sweepBoard(clock) {
 
     goban.classList.add('tipped');
 
+    // The grid points' elements go back to their points at the end, whatever
+    // became of their stones.
+    var pointStones = world.stones.filter((stone) => stone.index >= 0);
     var clear = () => {
-        world.stones.forEach((stone) => {
-            if (stone.index < 0) {
-                return;
-            }
+        pointStones.forEach((stone) => {
             var element = stone.element;
             cancelElementAnimations(element);
+            clearFlying(element);
             element.classList.remove('has-stone');
             element.style.removeProperty('z-index');
             element.style.removeProperty('transform');
@@ -174,12 +177,14 @@ export function sweepBoard(clock) {
     var finish = () => {
         goban.classList.remove('tipped');
         clock.sound?.setRumble(0);
+        // A stone still on its way into the dark flies on by itself, a grid
+        // point's by a loose element of its own, since the point's element
+        // is about to go back to its point (clear() below).
+        flyOn(world.takeFalling().map((stone) => stone.index < 0 ? stone
+            : {...stone, index: -1, element: clock.looseStone(stone.src, stone.colour, stone.x, stone.y).element}),
+            world.elapsed, world);
         // The heap stays on the table, in play, and the board is bare.
         world.stones.forEach((stone) => {
-            if (stone.falling) {
-                // Still on its way into the dark: as good as gone.
-                stone.gone = true;
-            }
             if (stone.gone) {
                 if (stone.index < 0) {
                     stone.element.remove();
@@ -247,7 +252,7 @@ export function sweepBoard(clock) {
             }
             var translate = `translate(${stone.x - stone.r - stone.startLeft}px, ${stone.y - stone.r - stone.startTop}px)`;
             if (stone.falling) {
-                drawFalling(stone.element, world.fall(stone), translate);
+                drawFlying(stone.element, stone, world, translate);
                 return;
             }
             if (stone.offBoard) {

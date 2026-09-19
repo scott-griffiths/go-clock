@@ -1,5 +1,6 @@
 import {GoClock} from './go-clock.js';
 import {Sounds} from './sounds.js';
+import {preloadTumbleSheets} from './flight.js';
 
 const $ = (selector, scope = document) => scope.querySelector(selector);
 const $$ = (selector, scope = document) => [...scope.querySelectorAll(selector)];
@@ -386,6 +387,7 @@ window.addEventListener('load', () => {
         if (goClock.table_void) {
             // Whatever was lying on the table has nothing under it now.
             goClock.dropTableStones();
+            preloadTumbleSheets();
         }
         writeSetting('background', background);
     }
