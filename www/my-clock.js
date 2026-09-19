@@ -493,8 +493,10 @@ window.addEventListener('load', () => {
         }
     }
 
+    // A character per point: 0 empty, 1 white, 3 black. Anything else would
+    // become a NaN in the model, which no move could ever mend.
     const storedState = readSetting('state');
-    if (storedState && storedState.length === 361) {
+    if (storedState && /^[013]{361}$/.test(storedState)) {
         setGobanState(storedState);
     }
 

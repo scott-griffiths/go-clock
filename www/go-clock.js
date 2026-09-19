@@ -520,20 +520,9 @@ export function GoClock(){
             return;
         }
 
+        // Whatever the hand holds drops where it is and is swept with the rest.
+        var held = this.dropHeldStones();
         this.sweeping_board = true;
-        this.moving_stone = false;
-        this.pending_swap = null;
-        this.alignment_move = null;
-        this.moving_stone_src = null;
-
-        ['#moving_stone', '#pushed_stone'].forEach((selector) => {
-            var element = $(selector);
-            if (!element) {
-                return;
-            }
-            cancelElementAnimations(element);
-            setVisible(element, false);
-        });
 
         var goban = $('#goban');
         var boardTop = this.y_offset;
@@ -620,6 +609,31 @@ export function GoClock(){
         });
         this.table_stones = [];
 
+        // The stones the hand dropped lie on the board, loose, and slide
+        // off with the others; they end up on the table like them.
+        held.forEach((stone) => {
+            stone.element.style.zIndex = String(12 + Math.round((stone.y - stone.r - boardTop)/this.goban_height*80));
+            stones.push({
+                index: -1,
+                element: stone.element,
+                colour: stone.colour,
+                src: stone.src,
+                startLeft: stone.x - stone.r,
+                startTop: stone.y - stone.r,
+                x: stone.x,
+                y: stone.y,
+                r: stone.r,
+                vx: 0,
+                vy: 0,
+                release: 0.55 + Math.random()*0.7,
+                moving: false,
+                offBoard: false,
+                leftAt: 0,
+                landed: false,
+                gone: false
+            });
+        });
+
         goban.classList.add('tipped');
 
         var clear = () => {
@@ -643,7 +657,8 @@ export function GoClock(){
             for (var i = 0; i < gridsize*gridsize; ++i) {
                 this.updateBoardPosition(i, false);
             }
-            this.hand_position = (gridsize - 1)*gridsize;
+            // The hand is at the heap, below the middle of the near edge.
+            this.hand_position = (gridsize - 1)*gridsize + (gridsize - 1)/2;
 
             // Let the board settle flat before the stones come back.
             window.setTimeout(() => {
@@ -1060,6 +1075,48 @@ export function GoClock(){
         return best;
     };
 
+    // Where an element's stone is now, mid-animation or not.
+    this.elementCentre = function(element) {
+        var style = getComputedStyle(element);
+        var size = parseFloat(style.width) || this.goban_width/20;
+        return [parseFloat(style.left) + size/2, parseFloat(style.top) + size/2];
+    };
+
+    // Whatever the hand is doing stops, and the stone it holds drops where
+    // it is, as a loose stone of its own; so does one it is pushing aside.
+    // Returns the loose stones, for the finger or the sweep to take on.
+    this.dropHeldStones = function() {
+        var stones = [];
+        if (!this.moving_stone) {
+            return stones;
+        }
+        var movingStone = $('#moving_stone');
+        var pushedStone = $('#pushed_stone');
+        var swap = this.pending_swap;
+        if (!movingStone.hidden) {
+            var at = this.elementCentre(movingStone);
+            var colour = swap && swap.phase == 'return' ? swap.displaced_colour : this.stone_colour;
+            stones.push(this.looseStone(movingStone.querySelector('img').src, colour, at[0], at[1]));
+        }
+        if (swap && swap.phase == 'push' && !pushedStone.hidden) {
+            var at = this.elementCentre(pushedStone);
+            stones.push(this.looseStone(swap.displaced_src, swap.displaced_colour, at[0], at[1]));
+            // The board still records that stone at the point it is leaving.
+            this.stones_shown[swap.target] = 0;
+        }
+        cancelElementAnimations(movingStone);
+        setVisible(movingStone, false);
+        movingStone.style.opacity = '1.0';
+        cancelElementAnimations(pushedStone);
+        setVisible(pushedStone, false);
+        this.moving_stone = false;
+        this.pending_swap = null;
+        this.alignment_move = null;
+        this.moving_stone_src = null;
+        this.table_pickup = null;
+        return stones;
+    };
+
     this.fingerDown = function(clientX, clientY) {
         if (this.sweeping_board || this.finger || typeof document === 'undefined') {
             return false;
@@ -1068,45 +1125,12 @@ export function GoClock(){
         var rect = goban.getBoundingClientRect();
         var diameter = this.goban_width/20;
         var radius = this.fingerRadius();
-        var stones = [];
         var self = this;
         window.clearTimeout(this.idle_timer);
 
-        // Where an element's stone is now, mid-animation or not.
-        var centre = (element) => {
-            var style = getComputedStyle(element);
-            var size = parseFloat(style.width) || diameter;
-            return [parseFloat(style.left) + size/2, parseFloat(style.top) + size/2];
-        };
-
         // Whatever the hand was doing stops, and the stone it held drops
         // where it is; so does one it was pushing aside.
-        var movingStone = $('#moving_stone');
-        var pushedStone = $('#pushed_stone');
-        if (this.moving_stone) {
-            var swap = this.pending_swap;
-            if (!movingStone.hidden) {
-                var at = centre(movingStone);
-                var colour = swap && swap.phase == 'return' ? swap.displaced_colour : this.stone_colour;
-                stones.push(this.looseStone(movingStone.querySelector('img').src, colour, at[0], at[1]));
-            }
-            if (swap && swap.phase == 'push' && !pushedStone.hidden) {
-                var at = centre(pushedStone);
-                stones.push(this.looseStone(swap.displaced_src, swap.displaced_colour, at[0], at[1]));
-                // The board still records that stone at the point it is leaving.
-                this.stones_shown[swap.target] = 0;
-            }
-            cancelElementAnimations(movingStone);
-            setVisible(movingStone, false);
-            movingStone.style.opacity = '1.0';
-            cancelElementAnimations(pushedStone);
-            setVisible(pushedStone, false);
-            this.moving_stone = false;
-            this.pending_swap = null;
-            this.alignment_move = null;
-            this.moving_stone_src = null;
-            this.table_pickup = null;
-        }
+        var stones = this.dropHeldStones();
 
         // The stones on the table are in it too.
         this.table_stones.forEach((entry) => {
@@ -1133,7 +1157,7 @@ export function GoClock(){
             if (colour == 0) {
                 continue;
             }
-            var at = centre(element);
+            var at = this.elementCentre(element);
             cancelElementAnimations(element);
             stones.push(this.looseStone(image.src, colour, at[0], at[1]));
             setVisible(element.querySelector('.stone-shadow'), false);
