@@ -229,9 +229,6 @@ window.addEventListener('load', () => {
     const muteButton = $('#mute');
     const muteIcon = $('#mute-icon');
     const settingsMenu = $('#settings-menu');
-    const modeControl = $('#mode-control');
-    const boardHint = $('#board-hint');
-    const backgroundHint = $('#background-hint');
     const swipeToast = $('#swipe-toast');
     const aboutButton = $('#about');
     const aboutBox = $('#about_box');
@@ -320,28 +317,6 @@ window.addEventListener('load', () => {
         swipeToastTimer = window.setTimeout(() => fadeTo(swipeToast, 0, 400), 1400);
     }
 
-    // The swipe reminders sit at the foot of the board and in the widest
-    // part of the surround: beside the board on a wide screen, below it on
-    // a tall one.
-    function placeHints() {
-        const {x_offset: x, y_offset: y, goban_width: width, goban_height: height} = goClock;
-        const centreX = x + width / 2;
-        boardHint.style.left = `${centreX}px`;
-        boardHint.style.top = `${y + height - 48}px`;
-        const sideMargin = window.innerWidth - x - width;
-        const bottomMargin = window.innerHeight - y - height;
-        const hintWidth = backgroundHint.offsetWidth + 16;
-        const hintHeight = backgroundHint.offsetHeight + 16;
-        if (sideMargin >= hintWidth || bottomMargin < hintHeight) {
-            // Beside the board; on a cramped screen, as far right as fits.
-            backgroundHint.style.left = `${Math.min(x + width + sideMargin / 2, window.innerWidth - hintWidth / 2)}px`;
-            backgroundHint.style.top = `${y + height / 2}px`;
-        } else {
-            backgroundHint.style.left = `${centreX}px`;
-            backgroundHint.style.top = `${y + height + bottomMargin / 2}px`;
-        }
-    }
-
     const showWood = createSettingControl('wood', woods.map(([name]) => name), woods.map(([name]) => name), setWood);
     const showPlacement = createSettingControl('placement', placementOptionLabels, placements, setPlacement);
     const showMode = createSettingControl('mode', modeOptionLabels, modes, (index) => {
@@ -399,13 +374,6 @@ window.addEventListener('load', () => {
     function setView(index) {
         view = wrap(index, views.length);
         goClock.view = view;
-        // Only the faces with digits can show a 24-hour time; the mode chip
-        // comes and goes with them.
-        const showsMode = view === 2 || view === 3;
-        modeControl.hidden = !showsMode;
-        if (!showsMode && openControl === modeControl) {
-            setOpenControl(null);
-        }
         writeSetting('view', view);
     }
 
@@ -522,10 +490,9 @@ window.addEventListener('load', () => {
     }
 
     // After each rebuild of the board: the wood is a filter on the board
-    // image, which draw() makes afresh, and the hints sit relative to it.
+    // image, which draw() makes afresh.
     goClock.onDraw = () => {
         setWood(wood);
-        placeHints();
     };
 
     function resizeClock() {
@@ -564,10 +531,10 @@ window.addEventListener('load', () => {
     goClock.haptic = haptic;
 
     // Swipes and the hand. Sideways across the board changes the face,
-    // sideways across the surround changes the background, and down the board
-    // sweeps it clear; a shorter drag is a tap. A finger that stays put for
-    // a moment instead becomes the hand (go-clock.js): from then until it
-    // lifts, it pushes the stones about.
+    // sideways across the surround changes the background; a shorter drag
+    // is a tap. A finger that stays put for a moment instead becomes the
+    // hand (go-clock.js): from then until it lifts, it pushes the stones
+    // about.
     let swipe = null;
     let hand = null;
     let holdTimer = null;
@@ -653,8 +620,6 @@ window.addEventListener('load', () => {
             }
             // A swipe is about the board, not the controls: if they are up, they go.
             hideControls();
-        } else if (dy > 0 && onBoard) {
-            goClock.resetBoard();
         }
     }
     goban.addEventListener('pointerup', endPointer);

@@ -24,9 +24,8 @@
             <h1 id="about-title">The <strong>Go</strong> Clock</h1>
             <p>The Go Clock is a virtual goban where the stones are used to tell you the time, saving you from the effort of
                 setting up and continually updating your own Go board.</p>
-            <p>Swipe across the board to change the clock face, across the background to change the background,
-                and down the board to sweep the stones off. Hold a finger on the board for a moment and it becomes
-                a hand: drag it to push the stones about.</p>
+            <p>Swipe across the board to change the clock face, and across the background to change the background.
+                Hold a finger on the board for a moment and it becomes a hand: drag it to push the stones about.</p>
             <p>With a keyboard: the left and right arrows change the face, up and down the background,
                 <kbd>S</kbd> sweeps the board and <kbd>M</kbd> mutes it.</p>
             <p><span style="font-weight: bold;">Tip of the day:</span> <span id="tip_of_the_day"></span></p>
@@ -52,33 +51,30 @@
                     </div>
                 </div>
                 <!-- The settings button drops these down. Each is a chip showing its
-                     current value; tapping the chip opens that setting's choices
-                     beneath it, and only one is open at a time. The choice buttons
-                     are created by my-clock.js. The clock face and background have
-                     no chip: they are changed by swiping. The mode chip is only
-                     shown with the faces that can show a 24-hour time. -->
+                     name and current value ("Board: Oak"); tapping the chip opens
+                     that setting's choices beneath it, under the name alone, and
+                     only one is open at a time. The choice buttons are created by
+                     my-clock.js. The clock face and background have no chip: they
+                     are changed by swiping, which the note beneath says. -->
                 <div id="settings-menu" class="settings-menu" hidden>
                     <div id="wood-control" class="setting-control" data-open="false">
                         <button class="setting-summary" type="button" aria-expanded="false" aria-controls="wood-options">
                             <span class="setting-icon" aria-hidden="true">▦</span>
-                            <span class="setting-name">Board</span>
-                            <span class="setting-value" id="wood-value"></span>
+                            <span class="setting-text"><span class="setting-name">Board</span><span class="setting-colon" aria-hidden="true">:</span> <span class="setting-value" id="wood-value"></span></span>
                         </button>
                         <div id="wood-options" class="setting-options" role="group" aria-label="Board" hidden></div>
                     </div>
                     <div id="placement-control" class="setting-control" data-open="false">
                         <button class="setting-summary" type="button" aria-expanded="false" aria-controls="placement-options">
                             <span class="setting-icon" aria-hidden="true">⌖</span>
-                            <span class="setting-name">Precision</span>
-                            <span class="setting-value" id="placement-value"></span>
+                            <span class="setting-text"><span class="setting-name">Precision</span><span class="setting-colon" aria-hidden="true">:</span> <span class="setting-value" id="placement-value"></span></span>
                         </button>
                         <div id="placement-options" class="setting-options" role="group" aria-label="Precision" hidden></div>
                     </div>
                     <div id="mode-control" class="setting-control" data-open="false">
                         <button class="setting-summary" type="button" aria-expanded="false" aria-controls="mode-options">
                             <span class="setting-icon" aria-hidden="true">◑</span>
-                            <span class="setting-name">Mode</span>
-                            <span class="setting-value" id="mode-value"></span>
+                            <span class="setting-text"><span class="setting-name">Mode</span><span class="setting-colon" aria-hidden="true">:</span> <span class="setting-value" id="mode-value"></span></span>
                         </button>
                         <div id="mode-options" class="setting-options" role="group" aria-label="Mode" hidden></div>
                     </div>
@@ -87,16 +83,8 @@
                 <button id="mute" class="button mute-button" type="button" title="Mute" aria-label="Mute" aria-pressed="false">
                     <span id="mute-icon" aria-hidden="true">🔊</span>
                 </button>
-                <!-- Reminders of the swipes, shown with the controls; my-clock.js
-                     places them over the board and over the surround. -->
-                <div id="board-hint" class="swipe-hint" aria-hidden="true">
-                    <span>◁ swipe to change the face ▷</span>
-                    <small>▽ swipe down to sweep the stones off</small>
-                    <small>hold a finger still, then drag it, to push the stones about</small>
-                </div>
-                <div id="background-hint" class="swipe-hint" aria-hidden="true">
-                    <span>◁ swipe to change the background ▷</span>
-                </div>
+                <!-- A reminder of the swipes, under the controls. -->
+                <div class="swipe-note" aria-hidden="true">Swipe to change the clock face or background</div>
             </div>
             <!-- What a swipe just chose, shown briefly at the top. -->
             <div id="swipe-toast" class="setting-summary swipe-toast" role="status" aria-live="polite" hidden>
