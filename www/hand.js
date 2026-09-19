@@ -2,7 +2,8 @@
 // pointer events. It is a disc two stones wide that follows the pointer.
 // Stones in its way are shoved aside and skid a little (physics.js),
 // knocking into each other; any pushed over the edge drop onto the
-// table and skid to a stop (or, in space, fly away: flight.js). The hand
+// table and skid to a stop (or, in space, fly away the moment they are
+// touched: flight.js). The hand
 // stops what it is doing (the stone it held drops where it is), waits
 // for the finger to go and the stones to lie still, and then carries on
 // with the board as it finds it: a stone stays where it was left, and
@@ -13,10 +14,10 @@
 // is still pressing.
 
 import {gridsize, nearestFreePoint} from './board.js';
-import {StoneWorld, flatBoard, spaceBoard, isTumbling} from './physics.js';
+import {StoneWorld, flatBoard} from './physics.js';
 import {$, setStyles, setVisible, setStoneShadow, cancelElementAnimations, elementCentre, colourOfImage, tableTransform,
         drawOnTable} from './stone-dom.js';
-import {drawTumbling, drawFlying, drawSettled, flyOn} from './flight.js';
+import {drawFlying, flyOn} from './flight.js';
 
 export function fingerDown(clock, clientX, clientY) {
     if (clock.sweeping_board || clock.finger || typeof document === 'undefined') {
@@ -29,13 +30,13 @@ export function fingerDown(clock, clientX, clientY) {
     window.clearTimeout(clock.idle_timer);
 
     // A shoved stone that goes over the edge tips outward as it falls,
-    // so it lands clear of the side. In space the board hardly holds a
-    // stone back: a shove sends it gliding off into the dark.
+    // so it lands clear of the side. In space nothing holds a stone to
+    // the board: a shove sends it straight off into the dark.
     var world = new StoneWorld({
         board: clock.boardRect(),
         screen: clock.screenRect(),
         diameter: diameter,
-        onBoard: clock.table_void ? spaceBoard : flatBoard,
+        onBoard: flatBoard,
         grip: clock.table_grip,
         isVoid: clock.table_void,
         edgeKick: diameter*5,
@@ -111,7 +112,7 @@ export function fingerDown(clock, clientX, clientY) {
         for (var pass = 0; pass < 3; ++pass) {
             var moved = false;
             world.stones.forEach((stone) => {
-                if (stone.gone || stone.falling) {
+                if (!world.reachable(stone)) {
                     return;
                 }
                 var dx = stone.x - px;
@@ -199,13 +200,6 @@ export function fingerDown(clock, clientX, clientY) {
             if (stone.offBoard) {
                 drawOnTable(stone.element, world.drop(stone));
             } else {
-                // In space a stone on the move turns over, and lies flat
-                // again once it stops.
-                if (isTumbling(stone)) {
-                    drawTumbling(stone.element, stone);
-                } else {
-                    drawSettled(stone.element);
-                }
                 sliding += Math.min(1, world.speedOf(stone)/(diameter*10));
             }
         });

@@ -8,11 +8,14 @@
 // A stone is a disc on a rectangular board standing proud of a table, all
 // of it seen from above. On the board it does whatever the board does to
 // it (`onBoard`: a slope or friction, below). Over the edge it drops, in
-// the air for `dropTime`, then lands on the table and skids to a stop,
-// unless there is no table (`isVoid`), in which case it flies on as it
-// was going, end over end and rising away from the board, and is out of
-// sight after `voidFlightTime`. Stones in each other's way push apart and
-// bounce a little. A stone off the screen is gone too.
+// the air for `dropTime`, then lands on the table and skids to a stop.
+// In space (`isVoid`) there is no table and nothing holds a stone to the
+// board either: the moment one is disturbed it is away, flying on as it
+// was going, end over end, skimming low over the board (the edge of the
+// board is nothing to it) and only slowly gaining height, until it is too
+// high to see. While it is low it still knocks into other stones, and a
+// knock sends both up. Stones in each other's way push apart and bounce a
+// little. A stone off the screen is gone too.
 //
 // Each stone is a plain object; the world reads and writes these fields
 // and ignores whatever else the caller keeps on it (an element, a colour):
@@ -22,10 +25,12 @@
 //               stones before they let go; the heap already on the table)
 //   offBoard    over the edge; leftAt is the world time it went
 //   landed      down on the table, after the drop
-//   falling     into the void instead of onto the table
+//   falling     into the void instead of onto the table; height, how high
+//               it has risen, 0 to 1 (too high to see), and climb, how
+//               fast that is going up, per second
 //   gone        off the screen, or fallen away: finished with
-// and, for a stone tumbling end over end (in space: on the move on the
-// board, or flying into the void), see setTumbling():
+// and, for a stone tumbling end over end (flying into the void), see
+// setTumbling():
 //   spin        rad/s, backwards if negative
 //   tumble      how far it has turned over, in radians; 0 lying flat
 //   heading     the angle (clockwise, y down) that puts the tumble along
@@ -34,15 +39,18 @@
 
 // The drop from the board's edge to the table, in seconds in the air.
 export const dropTime = 0.12;
-// How long a stone flies into space before it is too high to see.
-export const voidFlightTime = 1.8;
+// How long a stone left alone takes to rise out of sight in space.
+export const voidFlightTime = 4.5;
+// Below this height a flying stone is still low enough to hit others.
+export const lowHeight = 0.3;
 
 export class StoneWorld {
     // board: {left, top, right, bottom}; screen: {right, bottom}; diameter
     // of a stone; onBoard(stone, dt, world), what the board does to a
     // stone lying on it; grip, how hard the table drags, relative to
-    // wood; isVoid, no table at all; sidesKeepOn, a stone on the board can
-    // only leave over the top or bottom edge (the tipped board); edgeKick,
+    // wood; isVoid, space: no table, and no hold on the board; sidesKeepOn,
+    // a stone on the board can only leave over the top or bottom edge (the
+    // tipped board); edgeKick,
     // px/s outward for a stone going over the edge (a shoved stone tips
     // over it rather than rolling gently off); sound, something with
     // land(strength) and knock(strength); haptic, a function taking 'tick'.
@@ -83,12 +91,14 @@ export class StoneWorld {
             if (stone.gone || stone.asleep) {
                 return;
             }
-            if (!stone.offBoard && this.beyondEdge(stone)) {
+            if (!stone.offBoard && (this.beyondEdge(stone) || (this.isVoid && this.speedOf(stone) > 0))) {
                 this.leave(stone);
             }
             if (stone.falling) {
-                // Away into the dark: nothing slows it, nothing to land on.
-                if (this.elapsed - stone.leftAt >= voidFlightTime) {
+                // Away into the dark: nothing slows it, nothing to land on,
+                // and it rises as fast as it has been sent up.
+                stone.height += stone.climb*dt;
+                if (stone.height >= 1) {
                     stone.gone = true;
                 }
             } else if (!stone.offBoard) {
@@ -132,15 +142,19 @@ export class StoneWorld {
     }
 
     // Over the edge: off it goes, tipping outward as it falls (if kicked)
-    // so it lands clear of the side. Into space, it keeps its speed and
-    // goes end over end along its path, leading edge first, the faster
-    // the faster it went.
+    // so it lands clear of the side. In space (where it goes the moment it
+    // moves, wherever it is), it keeps its speed and goes end over end
+    // along its path, leading edge first, the faster the faster it went,
+    // starting low and climbing slowly, plus whatever a knock has already
+    // sent it up by.
     leave(stone) {
         const {board} = this;
         stone.offBoard = true;
         stone.leftAt = this.elapsed;
         stone.falling = this.isVoid;
         if (stone.falling) {
+            stone.height = stone.height || 0;
+            stone.climb = (stone.climb || 0) + 1/voidFlightTime;
             const rate = Math.min(18, Math.max(4, this.speedOf(stone)/stone.r*0.35))*(0.85 + Math.random()*0.3);
             setTumbling(stone, Math.atan2(stone.vy, stone.vx), rate);
             return;
@@ -237,19 +251,19 @@ export class StoneWorld {
     }
 
     // Stones in each other's way: push apart, and bounce a little (less
-    // on the table). A stone that is struck wakes. Returns whether any
-    // two touched.
+    // on the table). A stone that is struck wakes. In space a knock sends
+    // both stones up, the harder the more. Returns whether any two touched.
     collide() {
         let any = false;
         const {stones} = this;
         for (let a = 0; a < stones.length; ++a) {
             const p = stones[a];
-            if (p.gone || p.falling) {
+            if (!this.reachable(p)) {
                 continue;
             }
             for (let b = a + 1; b < stones.length; ++b) {
                 const q = stones[b];
-                if (q.gone || q.falling || (p.asleep && q.asleep)) {
+                if (!this.reachable(q) || (p.asleep && q.asleep)) {
                     continue;
                 }
                 const dx = q.x - p.x;
@@ -278,10 +292,21 @@ export class StoneWorld {
                     q.vy += impulse*ny;
                     p.asleep = false;
                     q.asleep = false;
+                    if (this.isVoid) {
+                        const lift = Math.min(1.2, -closing/this.boardHeight*1.5);
+                        p.climb = (p.climb || 0) + lift;
+                        q.climb = (q.climb || 0) + lift;
+                    }
                 }
             }
         }
         return any;
+    }
+
+    // Still in play for a knock or a shove: not gone, and not flown too
+    // high over the board to touch anything.
+    reachable(stone) {
+        return !stone.gone && !(stone.falling && stone.height >= lowHeight);
     }
 
     offScreen(stone) {
@@ -298,7 +323,7 @@ export class StoneWorld {
 
     // How far a stone has flown into space, 0 to 1: how high it has risen.
     fall(stone) {
-        return stone.falling ? Math.min(1, (this.elapsed - stone.leftAt)/voidFlightTime) : 0;
+        return stone.falling ? Math.min(1, stone.height) : 0;
     }
 
     // The stones still flying into the void, taken out of the world, for
@@ -361,43 +386,10 @@ export function isTumbling(stone) {
     return Boolean(stone.spin) || Boolean(stone.tumble);
 }
 
-// A stone that has stopped comes to lie flat: the tumble comes round to
-// the nearest face-up (a half turn on, the stone looks the same), at
-// `rate` rad/s.
-function settle(stone, rate, dt) {
-    stone.spin = 0;
-    if (!stone.tumble) {
-        return;
-    }
-    const flat = Math.round(stone.tumble/Math.PI)*Math.PI;
-    const away = flat - stone.tumble;
-    if (Math.abs(away) <= rate*dt) {
-        stone.tumble = 0;
-        stone.turned = 0;
-    } else {
-        stone.tumble += Math.sign(away)*rate*dt;
-    }
-}
-
 // What a flat board does to a stone lying on it: friction, a share of its
 // speed plus a constant, so that a shoved stone skids a little and stops.
 export function flatBoard(stone, dt, world) {
     world.slow(stone, world.speedOf(stone)*6.5 + world.diameter*32, dt);
-}
-
-// What the board does in space: next to nothing. A shoved stone glides
-// on, across the board and over the edge more often than not; only a
-// gentle nudge runs out before it gets there. Nothing holds it flat
-// either: on the move it tumbles, the faster the faster it goes, and
-// settles flat again when it stops.
-export function spaceBoard(stone, dt, world) {
-    world.slow(stone, world.speedOf(stone)*0.2 + world.diameter*0.8, dt);
-    const speed = world.speedOf(stone);
-    if (speed > 0) {
-        setTumbling(stone, Math.atan2(stone.vy, stone.vx), Math.min(18, speed/stone.r*0.35));
-    } else {
-        settle(stone, 12, dt);
-    }
 }
 
 // What a tipped board does: `gravity` px/s² down the slope, towards the

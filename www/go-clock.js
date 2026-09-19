@@ -5,7 +5,7 @@
 import {gridsize, white, go_bowl, go_table, minx, maxx, miny, maxy, emptyBoard} from './board.js';
 import {faceFor} from './faces.js';
 import {planMove} from './planner.js';
-import {setTumbling} from './physics.js';
+import {setTumbling, voidFlightTime} from './physics.js';
 import {flyOn} from './flight.js';
 import {sweepBoard} from './sweep.js';
 import {fingerDown, fingerMove, fingerUp, endFinger} from './hand.js';
@@ -263,6 +263,8 @@ export function GoClock(){
                 offBoard: true,
                 landed: true,
                 falling: true,
+                height: 0,
+                climb: 1/voidFlightTime,
                 leftAt: 0,
                 gone: false
             };

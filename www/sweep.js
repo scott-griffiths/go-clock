@@ -1,6 +1,6 @@
 // Sweeping the board: tip it, far edge up, and let the stones slide off
 // the near edge onto the table, where they skid to a stop (or, in space,
-// off into the dark: flight.js). A simulation
+// off into the dark as soon as they let go: flight.js). A simulation
 // (physics.js) rather than keyframes, so that stones that let go first can
 // knock the others loose on their way down, and the heap is whatever they
 // make of it. The view is from above: gravity is into the screen, so only
