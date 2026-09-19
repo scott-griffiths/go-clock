@@ -16,13 +16,16 @@ const maxy = 0.972;
 
 const ext = "images/";
 
-const primaryWhiteStoneSrc = ext + "white_stone0.png";
+// The stones are 160px, for a board on a retina screen where one is drawn
+// at up to 50 CSS pixels; resources/ has them at full size. The size is in
+// the name because the service worker caches images by name for good.
+const primaryWhiteStoneSrc = ext + "white_stone0_160.png";
 const alternateWhiteStoneSrcs = [
-    ext + "white_stone1.png",
-    ext + "white_stone2.png",
-    ext + "white_stone3.png"
+    ext + "white_stone1_160.png",
+    ext + "white_stone2_160.png",
+    ext + "white_stone3_160.png"
 ];
-const blackStoneSrc = ext + "black_stone1.png";
+const blackStoneSrc = ext + "black_stone1_160.png";
 
 // The board image, and the stone images fetched ahead of their first use.
 // Only in a browser: the faces (update) and the hand's arithmetic run

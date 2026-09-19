@@ -159,10 +159,13 @@ function haptic(kind) {
     }
 }
 
-function preloadBackgrounds() {
-    backgrounds.forEach(([file]) => {
+// The backgrounds either side of the current one, fetched ahead so a swipe
+// is instant; the rest wait to be needed. (All seven at once was four and
+// a half megabytes on every first visit, most of it never looked at.)
+function preloadNeighbouringBackgrounds(index) {
+    [index - 1, index + 1].forEach((neighbour) => {
         const image = new Image();
-        image.src = `images/${file}`;
+        image.src = `images/${backgrounds[wrap(neighbour, backgrounds.length)][0]}`;
     });
 }
 
@@ -205,7 +208,6 @@ window.addEventListener('DOMContentLoaded', () => {
     if (shellVersion) {
         $('#version').textContent = shellVersion;
     }
-    preloadBackgrounds();
 });
 
 window.addEventListener('load', () => {
@@ -410,6 +412,7 @@ window.addEventListener('load', () => {
     function setBackground(index) {
         background = wrap(index, backgrounds.length);
         $('#sb-site').style.backgroundImage = `url('images/${backgrounds[background][0]}')`;
+        preloadNeighbouringBackgrounds(background);
         goClock.table_grip = backgrounds[background][2];
         goClock.table_void = backgrounds[background][3] === 'void';
         if (goClock.table_void) {
