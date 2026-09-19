@@ -63,14 +63,21 @@ Hand.prototype.lands = function(duration) {
     this.startedAt = performance.now();
     this.landsAt = this.startedAt + duration*1000;
 };
-// Whether this hand is within `ms` of picking a stone up or putting it
-// down: the moments the other hand should not share.
-Hand.prototype.atAMoment = function(ms) {
+// How long from `now` until this hand is more than `ms` past picking its
+// stone up and not within `ms` of putting it down: the moments the other
+// hand should not share. Zero if it is clear of them now.
+Hand.prototype.clearOf = function(now, ms) {
     if (!this.moving) {
-        return false;
+        return 0;
     }
-    var now = performance.now();
-    return now - this.startedAt < ms || this.landsAt - now < ms;
+    var wait = 0;
+    if (now - this.startedAt < ms) {
+        wait = ms - (now - this.startedAt);
+    }
+    if (this.landsAt - now < ms && this.landsAt + ms > now + wait) {
+        wait = this.landsAt + ms - now;
+    }
+    return wait;
 };
 // The points this hand's move touches, for the other to keep clear of.
 Hand.prototype.points = function(clock) {
@@ -469,7 +476,9 @@ export function GoClock(){
     // doing (and the hand of it): the points a move touches are reserved
     // from the other's planning. The other hand takes a moment before each
     // stone, and works at a pace of its own, so the two never pick up or
-    // put down together.
+    // put down together. The moments are measured in moves: at a faster
+    // setting the moves are shorter, and so are the pauses, or the other
+    // hand would spend its time waiting and only one would seem to work.
     this.transform = function() {
         if (this.sweeping_board || this.finger) {
             return;
@@ -484,6 +493,12 @@ export function GoClock(){
             this.draw(this.pending_size[0], this.pending_size[1]);
         }
         this.update();
+        // How long a stone takes to move one point, at this speed; and how
+        // close to the other hand's picking up or putting down is too
+        // close — a fraction of that, or at the faster settings the moments
+        // would cover the whole move and the other hand never get a turn.
+        var beat = 1000/Math.sqrt(this.speed);
+        var guard = Math.max(25, beat*0.25);
         this.hands.forEach((hand) => {
             if (hand.moving || hand.reaching) {
                 return;
@@ -501,13 +516,21 @@ export function GoClock(){
             if (plan) {
                 // Not while the other hand is picking up or putting down,
                 // and not so as to put this stone down as the other does:
-                // a moment more, then look again. And the other hand takes
-                // its moment before every stone anyway.
+                // the least wait that clears those moments, then look
+                // again. And the other hand takes a moment of its own
+                // before every stone anyway.
                 var pace = hand === this.other ? 0.8 + Math.random()*0.4 : 1;
-                var landsAt = performance.now() + moveDuration(this, plan, this.speed*pace)*1000;
-                var clash = otherHand.atAMoment(120) || (otherHand.moving && Math.abs(otherHand.landsAt - landsAt) < 120);
-                var holdOff = clash ? 120 + Math.random()*120
-                    : (hand === this.other && !hand.ready ? 120 + Math.random()*380 : 0);
+                var holdOff = 0;
+                if (hand === this.other && !hand.ready) {
+                    holdOff = beat*(0.15 + Math.random()*0.5);
+                } else if (otherHand.moving) {
+                    var now = performance.now();
+                    holdOff = Math.max(otherHand.clearOf(now, guard), 0);
+                    var gap = now + holdOff + moveDuration(this, plan, this.speed*pace)*1000 - otherHand.landsAt;
+                    if (Math.abs(gap) < guard) {
+                        holdOff += guard - gap;
+                    }
+                }
                 if (holdOff > 0) {
                     hand.reaching = window.setTimeout(() => {
                         hand.reaching = null;
