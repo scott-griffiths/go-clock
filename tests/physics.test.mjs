@@ -110,8 +110,8 @@ test('two sleeping stones lying together are left alone', () => {
     assert.equal(b.x, 312);
 });
 
-test('in the void, a stone over the edge flies on, unslowed, and is gone after voidFlightTime', () => {
-    const w = world({isVoid: true});
+test('in the void, a stone over the edge flies on, unslowed and unkicked, and is gone after voidFlightTime', () => {
+    const w = world({isVoid: true, edgeKick: 100});
     const s = w.add(stone({x: 300, y: 501, vy: 30}));
     w.advance(0.016);
     assert.ok(s.falling);

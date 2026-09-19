@@ -1,7 +1,8 @@
 // The stones tumbling in space: on the space background nothing holds a
 // stone flat, so one on the move on the board goes end over end, and one
-// over the edge of the board, with no table to land on, flies away into
-// the dark, shrinking as it goes. A tumbling stone is drawn from a sprite
+// over the edge of the board, with no table to land on, flies away as it
+// was going, rising from the board (nothing is below it) until it is too
+// high to see. A tumbling stone is drawn from a sprite
 // sheet of the stone turning over (scripts/make-stone-sprites.swift
 // renders one for each stone image): a half turn in `frames` steps, which
 // is the whole tumble, a stone's two faces being alike; and turned on the
@@ -58,12 +59,13 @@ export function drawTumbling(element, stone, translate = '', more = '') {
     element.style.transform = `${translate} rotate(${stone.heading*stone.turned}rad) ${more}`.trim();
 }
 
-// A stone's element in flight: tumbling, and smaller and fainter the
-// further away it is.
+// A stone's element in flight: tumbling, and larger for rising towards
+// the eye, until at a certain height it fades from sight.
 export function drawFlying(element, stone, world, translate = '') {
-    const fall = world.fall(stone);
-    drawTumbling(element, stone, translate, `scale(${1 - 0.55*fall})`);
-    element.style.opacity = String(fall < 0.7 ? 1 : 1 - (fall - 0.7)/0.3);
+    const height = world.fall(stone);
+    element.classList.add('rising');
+    drawTumbling(element, stone, translate, `scale(${1 + 0.5*height})`);
+    element.style.opacity = String(height < 0.55 ? 1 : 1 - (height - 0.55)/0.45);
 }
 
 // An element done with tumbling: back to an image and a shadow.

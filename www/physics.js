@@ -9,10 +9,10 @@
 // of it seen from above. On the board it does whatever the board does to
 // it (`onBoard`: a slope or friction, below). Over the edge it drops, in
 // the air for `dropTime`, then lands on the table and skids to a stop,
-// unless there is no table (`isVoid`), in which case it flies on, end
-// over end, and is out of sight after `voidFlightTime`. Stones in each
-// other's way push apart and bounce a little. A stone off the screen is
-// gone too.
+// unless there is no table (`isVoid`), in which case it flies on as it
+// was going, end over end and rising away from the board, and is out of
+// sight after `voidFlightTime`. Stones in each other's way push apart and
+// bounce a little. A stone off the screen is gone too.
 //
 // Each stone is a plain object; the world reads and writes these fields
 // and ignores whatever else the caller keeps on it (an element, a colour):
@@ -34,7 +34,7 @@
 
 // The drop from the board's edge to the table, in seconds in the air.
 export const dropTime = 0.12;
-// How long a stone flies into the void before it is out of sight.
+// How long a stone flies into space before it is too high to see.
 export const voidFlightTime = 1.8;
 
 export class StoneWorld {
@@ -132,19 +132,20 @@ export class StoneWorld {
     }
 
     // Over the edge: off it goes, tipping outward as it falls (if kicked)
-    // so it lands clear of the side. Into the void, it goes end over end
-    // along its path, leading edge first, the faster the faster it went.
+    // so it lands clear of the side. Into space, it keeps its speed and
+    // goes end over end along its path, leading edge first, the faster
+    // the faster it went.
     leave(stone) {
         const {board} = this;
         stone.offBoard = true;
         stone.leftAt = this.elapsed;
         stone.falling = this.isVoid;
-        if (!stone.falling) {
-            this.haptic?.('tick');
-        } else {
+        if (stone.falling) {
             const rate = Math.min(18, Math.max(4, this.speedOf(stone)/stone.r*0.35))*(0.85 + Math.random()*0.3);
             setTumbling(stone, Math.atan2(stone.vy, stone.vx), rate);
+            return;
         }
+        this.haptic?.('tick');
         if (this.edgeKick) {
             if (stone.x < board.left) {
                 stone.vx -= this.edgeKick;
@@ -295,7 +296,7 @@ export class StoneWorld {
         return stone.offBoard ? Math.min(1, (this.elapsed - stone.leftAt)/dropTime) : 1;
     }
 
-    // How far a stone has flown into the void, 0 to 1.
+    // How far a stone has flown into space, 0 to 1: how high it has risen.
     fall(stone) {
         return stone.falling ? Math.min(1, (this.elapsed - stone.leftAt)/voidFlightTime) : 0;
     }
