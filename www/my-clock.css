@@ -76,6 +76,7 @@ body {
 
 .board_pos,
 #moving_stone,
+#moving_stone2,
 #pushed_stone {
     pointer-events: none;
 }
@@ -98,7 +99,8 @@ body {
     transition: opacity 160ms ease, transform 160ms ease;
 }
 
-#moving_stone {
+#moving_stone,
+#moving_stone2 {
     z-index: 4;
     background: transparent;
 }

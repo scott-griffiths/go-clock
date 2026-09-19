@@ -30,8 +30,10 @@ The public GitHub Pages URL is expected to remain `https://scott-griffiths.githu
 
 - `www/index.html` is the static app shell.
 - `www/my-clock.js` owns browser UI, settings, persistence, and layout lifecycle.
-- `www/go-clock.js` is the clock: what is on the board, the board on the page, and each move
-  from decision to landing. The modules it draws on, in the order a stone meets them:
+- `www/go-clock.js` is the clock: what is on the board, the board on the page, its two hands (the
+  hand does everything; the other only moves stones already on the screen, and never in step with
+  the first), and each move from decision to landing. The modules it draws on, in the order a
+  stone meets them:
   - `www/board.js` — the grid as numbers: sizes, colours, indices, distances, lines.
   - `www/faces.js` — the clock faces: the stones a time wants, per view.
   - `www/planner.js` — the hand's next move, from the board as it is and as the face wants it.

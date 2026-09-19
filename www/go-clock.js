@@ -9,7 +9,7 @@ import {voidFadeTime} from './physics.js';
 import {sweepBoard} from './sweep.js';
 import {fingerDown, fingerMove, fingerUp, endFinger} from './hand.js';
 import {setLandingOffset, alignIdleStone} from './placement.js';
-import {moveStone} from './moves.js';
+import {moveStone, moveDuration} from './moves.js';
 import {$, gobanImage, tableTransform, setStyles, setVisible, setStoneShadow, stoneImageSrc,
         cancelElementAnimations, animateElement, elementCentre, stoneElement, looseStone} from './stone-dom.js';
 
@@ -31,16 +31,71 @@ function displacedCoords(fromCoords, toCoords) {
     ];
 }
 
+// A hand: what it is carrying, and where. The clock has two. The hand does
+// everything — stones from the bowl and back to it, swaps, the nudges
+// straighter — and the other hand only moves stones already on the screen,
+// from point to point and up from the table. Each carries its stone in an
+// element of its own, made by draw().
+function Hand(name, elementId, position) {
+    this.name = name;
+    this.elementId = elementId;
+    this.moving = false;
+    this.from = [0, 0]; // Board coordinates; go_bowl or go_table when not on the board
+    this.to = [0, 0];
+    this.colour = white;
+    this.clear_route = true; // Slid, rather than lifted over what is in the way
+    this.src = null; // The image of the stone being carried
+    this.pending_swap = null;
+    this.alignment_move = null;
+    this.table_pickup = null;
+    this.position = position; // The point the hand is at, for the next move's reckoning
+    this.pace = 1; // This move's speed, as a share of the clock's
+    this.reaching = null; // A timer: the hand holding off for a moment before a stone
+    this.ready = false; // The other hand, having taken its moment
+    this.startedAt = 0; // When this move's stone was picked up (performance.now())
+    this.landsAt = 0; // ...and when it is put down
+}
+Hand.prototype.element = function() {
+    return $(this.elementId);
+};
+// A move is under way that will take `duration` seconds (moves.js).
+Hand.prototype.lands = function(duration) {
+    this.startedAt = performance.now();
+    this.landsAt = this.startedAt + duration*1000;
+};
+// Whether this hand is within `ms` of picking a stone up or putting it
+// down: the moments the other hand should not share.
+Hand.prototype.atAMoment = function(ms) {
+    if (!this.moving) {
+        return false;
+    }
+    var now = performance.now();
+    return now - this.startedAt < ms || this.landsAt - now < ms;
+};
+// The points this hand's move touches, for the other to keep clear of.
+Hand.prototype.points = function(clock) {
+    var points = new Set();
+    if (this.moving) {
+        [this.from, this.to].forEach((coords) => {
+            if (coords[0] < gridsize) {
+                points.add(clock.get_index(coords));
+            }
+        });
+    }
+    return points;
+};
+
 export function GoClock(){
     this.stones = []; // The current (desired) state
     this.stones_shown = []; // The stones last drawn
-    this.moving_stone = false;
-    this.stone_from = [0, 0]; // Board coordinates
-    this.stone_to = [0, 0]; // Board coordinates
-    this.clear_route = true; // Is the route from stone_from to stone_to clear of obstacles?
-    this.stone_colour = white;
-    this.pending_swap = null;
-    this.alignment_move = null;
+    var centre = 9*19 + 9;
+    this.hand = new Hand('hand', '#moving_stone', centre);
+    this.other = new Hand('other', '#moving_stone2', centre);
+    this.hands = [this.hand, this.other];
+    // Whether either hand is carrying a stone.
+    this.busy = function() {
+        return this.hands.some((hand) => hand.moving);
+    };
     // Something with place/slide/nudge/bowl/knock/land/setRumble methods
     // (see sounds.js), or null for a silent board.
     this.sound = null;
@@ -55,8 +110,6 @@ export function GoClock(){
     // dark and fades, silently, rather than landing (the space background).
     this.table_void = false;
     this.sweeping_board = false;
-
-    this.hand_position = 9*19 + 9; // Position of hand that's moving the stones.
 
     this.offsets = []; // The small offsets of each stone position to make it less regular-looking
 
@@ -136,7 +189,6 @@ export function GoClock(){
     // before it goes to the bowl. Each has a colour, src, coords (board
     // coordinates, beyond the grid) and an element of its own.
     this.table_stones = [];
-    this.table_pickup = null;
 
     this.fingerRadius = function() {
         return this.goban_width/16;
@@ -206,38 +258,44 @@ export function GoClock(){
         return looseStone($('#goban'), this.goban_width/20, src, colour, x, y);
     };
 
-    // Whatever the hand is doing stops, and the stone it holds drops where
-    // it is, as a loose stone of its own; so does one it is pushing aside.
-    // Returns the loose stones, for the finger or the sweep to take on.
+    // Whatever the hands are doing stops, and the stones they hold drop
+    // where they are, as loose stones of their own; so does one being
+    // pushed aside. Returns the loose stones, for the finger or the sweep
+    // to take on.
     this.dropHeldStones = function() {
         var stones = [];
-        if (!this.moving_stone) {
-            return stones;
-        }
-        var movingStone = $('#moving_stone');
         var pushedStone = $('#pushed_stone');
-        var swap = this.pending_swap;
-        if (!movingStone.hidden) {
-            var at = elementCentre(movingStone, this.goban_width/20);
-            var colour = swap && swap.phase == 'return' ? swap.displaced_colour : this.stone_colour;
-            stones.push(this.looseStone(movingStone.querySelector('img').src, colour, at[0], at[1]));
-        }
-        if (swap && swap.phase == 'push' && !pushedStone.hidden) {
-            var at = elementCentre(pushedStone, this.goban_width/20);
-            stones.push(this.looseStone(swap.displaced_src, swap.displaced_colour, at[0], at[1]));
-            // The board still records that stone at the point it is leaving.
-            this.stones_shown[swap.target] = 0;
-        }
-        cancelElementAnimations(movingStone);
-        setVisible(movingStone, false);
-        movingStone.style.opacity = '1.0';
+        this.hands.forEach((hand) => {
+            window.clearTimeout(hand.reaching);
+            hand.reaching = null;
+            hand.ready = false;
+            if (!hand.moving) {
+                return;
+            }
+            var movingStone = hand.element();
+            var swap = hand.pending_swap;
+            if (!movingStone.hidden) {
+                var at = elementCentre(movingStone, this.goban_width/20);
+                var colour = swap && swap.phase == 'return' ? swap.displaced_colour : hand.colour;
+                stones.push(this.looseStone(movingStone.querySelector('img').src, colour, at[0], at[1]));
+            }
+            if (swap && swap.phase == 'push' && !pushedStone.hidden) {
+                var at = elementCentre(pushedStone, this.goban_width/20);
+                stones.push(this.looseStone(swap.displaced_src, swap.displaced_colour, at[0], at[1]));
+                // The board still records that stone at the point it is leaving.
+                this.stones_shown[swap.target] = 0;
+            }
+            cancelElementAnimations(movingStone);
+            setVisible(movingStone, false);
+            movingStone.style.opacity = '1.0';
+            hand.moving = false;
+            hand.pending_swap = null;
+            hand.alignment_move = null;
+            hand.src = null;
+            hand.table_pickup = null;
+        });
         cancelElementAnimations(pushedStone);
         setVisible(pushedStone, false);
-        this.moving_stone = false;
-        this.pending_swap = null;
-        this.alignment_move = null;
-        this.moving_stone_src = null;
-        this.table_pickup = null;
         return stones;
     };
 
@@ -267,7 +325,7 @@ export function GoClock(){
     this.onDraw = null;
     this.pending_size = null;
     this.draw = function(width, height) {
-        if (this.sweeping_board || this.moving_stone || this.finger) {
+        if (this.sweeping_board || this.busy() || this.finger) {
             this.pending_size = [width, height];
             return false;
         }
@@ -303,8 +361,8 @@ export function GoClock(){
 
 
         // An element for every point of the grid, sized and placed for its
-        // stone; then one for the stone in the hand, and one for a stone it
-        // pushes aside.
+        // stone; then one for the stone in each hand, and one for a stone
+        // the hand pushes aside.
         for (var i = 0; i < gridsize*gridsize; ++i) {
             var coords = this.get_coords(i);
             var p = this.stonePosition(coords[0], coords[1], 0);
@@ -313,6 +371,7 @@ export function GoClock(){
             goban.append(point);
         }
         goban.append(stoneElement({id: 'moving_stone', imageHidden: true}));
+        goban.append(stoneElement({id: 'moving_stone2', imageHidden: true}));
         goban.append(stoneElement({id: 'pushed_stone', hidden: true}));
 
         // The hand's disc, and the stones on the table.
@@ -403,71 +462,107 @@ export function GoClock(){
         return [xpos - diameter/2 + this.x_offset | 0, ypos - diameter/2 + this.y_offset | 0, diameter, diameter];
     };
     
-    // One move towards the board the face wants, and the next once it
-    // has landed; or, with the board right, a stone nudged straighter, or
-    // a look again as the second turns.
+    // A move towards the board the face wants for each hand that is free,
+    // and the next once it has landed; or, with the board right, a stone
+    // nudged straighter; or a look again as the second turns. The hand
+    // plans first, and the other hand keeps clear of whatever the hand is
+    // doing (and the hand of it): the points a move touches are reserved
+    // from the other's planning. The other hand takes a moment before each
+    // stone, and works at a pace of its own, so the two never pick up or
+    // put down together.
     this.transform = function() {
-        if (this.moving_stone == true || this.sweeping_board == true || this.finger) {
+        if (this.sweeping_board || this.finger) {
             return;
         }
         window.clearTimeout(this.idle_timer);
         if (this.pending_size) {
-            // A resize that came while the board was busy.
+            // A resize that came while the board was busy: once the other
+            // hand has landed too.
+            if (this.busy()) {
+                return;
+            }
             this.draw(this.pending_size[0], this.pending_size[1]);
         }
         this.update();
-        var plan = planMove({
-            shown: this.stones_shown,
-            wanted: this.stones,
-            hand: this.hand_position,
-            tableStones: this.table_stones
+        this.hands.forEach((hand) => {
+            if (hand.moving || hand.reaching) {
+                return;
+            }
+            var otherHand = hand === this.hand ? this.other : this.hand;
+            var reserved = otherHand.points(this);
+            var plan = planMove({
+                shown: this.stones_shown,
+                wanted: this.stones,
+                hand: hand.position,
+                tableStones: this.table_stones,
+                reserved: reserved,
+                movesOnly: hand === this.other
+            });
+            if (plan) {
+                // Not while the other hand is picking up or putting down,
+                // and not so as to put this stone down as the other does:
+                // a moment more, then look again. And the other hand takes
+                // its moment before every stone anyway.
+                var pace = hand === this.other ? 0.8 + Math.random()*0.4 : 1;
+                var landsAt = performance.now() + moveDuration(this, plan, this.speed*pace)*1000;
+                var clash = otherHand.atAMoment(120) || (otherHand.moving && Math.abs(otherHand.landsAt - landsAt) < 120);
+                var holdOff = clash ? 120 + Math.random()*120
+                    : (hand === this.other && !hand.ready ? 120 + Math.random()*380 : 0);
+                if (holdOff > 0) {
+                    hand.reaching = window.setTimeout(() => {
+                        hand.reaching = null;
+                        hand.ready = true;
+                        this.transform();
+                    }, holdOff);
+                    return;
+                }
+                hand.ready = false;
+                hand.pace = pace;
+                this.startMove(hand, plan);
+                moveStone(this, hand);
+            } else if (hand === this.hand && alignIdleStone(this, hand, reserved)) {
+                moveStone(this, hand);
+            }
         });
-        if (plan) {
-            this.startMove(plan);
-        } else {
-            alignIdleStone(this);
-        }
-        if (this.moving_stone == true) {
-            moveStone(this);
-        } else {
+        if (!this.busy()) {
             // Nothing to do: look again just after the next second turns,
             // which is the soonest any face can change.
             this.idle_timer = setTimeout(this.transform.bind(this), 1000 - Date.now() % 1000 + 5);
         }
     };
 
-    // A plan from planner.js, taken up: the stone in the hand, where it is
-    // going, and what the board records meanwhile.
-    this.startMove = function(plan) {
-        this.moving_stone = true;
+    // A plan from planner.js, taken up by a hand: the stone it carries,
+    // where it is going, and what the board records meanwhile.
+    this.startMove = function(hand, plan) {
+        hand.moving = true;
         switch (plan.kind) {
         case 'table':
             this.table_stones.splice(this.table_stones.indexOf(plan.entry), 1);
-            this.table_pickup = plan.entry;
-            this.stone_from = [go_table, go_table];
-            this.stone_colour = plan.entry.colour;
-            this.hand_position = plan.to;
+            hand.table_pickup = plan.entry;
+            hand.from = [go_table, go_table];
+            hand.colour = plan.entry.colour;
+            hand.position = plan.to;
             setLandingOffset(this, plan.to);
-            this.stone_to = this.get_coords(plan.to);
-            this.clear_route = false;
+            hand.to = this.get_coords(plan.to);
+            hand.clear_route = false;
             break;
         case 'move':
-            this.stone_from = this.get_coords(plan.from);
-            this.hand_position = plan.to;
-            this.stone_colour = this.stones_shown[plan.from];
+            hand.from = this.get_coords(plan.from);
+            hand.position = plan.to;
+            hand.colour = this.stones_shown[plan.from];
             this.stones_shown[plan.from] = 0;
             setLandingOffset(this, plan.to);
-            this.stone_to = this.get_coords(plan.to);
-            this.clear_route = !plan.lift;
+            hand.to = this.get_coords(plan.to);
+            hand.clear_route = !plan.lift;
             break;
         case 'swap': {
             var source_coords = this.get_coords(plan.source);
             var target_coords = this.get_coords(plan.target);
-            this.stone_from = source_coords;
-            this.stone_to = target_coords;
-            this.hand_position = plan.target;
-            this.stone_colour = this.stones_shown[plan.source];
-            this.pending_swap = {
+            hand.from = source_coords;
+            hand.to = target_coords;
+            hand.position = plan.target;
+            hand.colour = this.stones_shown[plan.source];
+            hand.pending_swap = {
                 phase: 'push',
                 source: plan.source,
                 target: plan.target,
@@ -478,22 +573,22 @@ export function GoClock(){
                 displaced_src: this.getDrawnStoneSrc(target_coords)
             };
             this.stones_shown[plan.source] = 0;
-            this.clear_route = true;
+            hand.clear_route = true;
             break;
         }
         case 'remove':
-            this.stone_from = this.get_coords(plan.from);
-            this.stone_colour = this.stones_shown[plan.from];
-            this.stone_to = [go_bowl, go_bowl];
-            this.hand_position = plan.from;
+            hand.from = this.get_coords(plan.from);
+            hand.colour = this.stones_shown[plan.from];
+            hand.to = [go_bowl, go_bowl];
+            hand.position = plan.from;
             this.stones_shown[plan.from] = 0;
             break;
         case 'add':
-            this.stone_colour = plan.colour;
-            this.stone_from = [go_bowl, go_bowl];
+            hand.colour = plan.colour;
+            hand.from = [go_bowl, go_bowl];
             setLandingOffset(this, plan.to);
-            this.stone_to = this.get_coords(plan.to);
-            this.hand_position = plan.to;
+            hand.to = this.get_coords(plan.to);
+            hand.position = plan.to;
             break;
         }
     };

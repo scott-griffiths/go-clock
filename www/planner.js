@@ -13,7 +13,10 @@ function isWrongColourPair(diff) {
 
 // `shown` and `wanted` are boards (see board.js); `hand` the index of the
 // point the hand is at; `tableStones` the stones lying on the table, each
-// with a colour and `coords` in board units (beyond the grid). Returns:
+// with a colour and `coords` in board units (beyond the grid); `reserved`
+// the points another hand's move is touching, which this one keeps clear
+// of; and `movesOnly` for a hand that only moves stones already on the
+// screen (no bowl, no swaps). Returns:
 //   {kind: 'table', entry, to}      the table stone `entry`, to the point `to`
 //   {kind: 'move', from, to, lift}  a spare stone from one point to another;
 //                                   slid, or lifted over if the way is
@@ -24,10 +27,11 @@ function isWrongColourPair(diff) {
 //   {kind: 'remove', from}          a stone to the bowl
 //   {kind: 'add', to, colour}       a stone from the bowl
 //   null                            the board is right
-export function planMove({shown, wanted, hand, tableStones = []}) {
+export function planMove({shown, wanted, hand, tableStones = [], reserved = new Set(), movesOnly = false}) {
     var diff = [];
     for (var i = 0; i < shown.length; ++i) {
-        diff.push(shown[i] - wanted[i]);
+        // A point another hand is at is neither wrong nor spare.
+        diff.push(reserved.has(i) ? 0 : shown[i] - wanted[i]);
     }
     var trip = (from, to) => dist(hand, from) + dist(from, to);
 
@@ -91,7 +95,10 @@ export function planMove({shown, wanted, hand, tableStones = []}) {
         return {kind: 'table', entry: best_table, to: best_table_i};
     }
     if (best_j != -1) {
-        return {kind: 'move', from: best_j, to: best_i, lift: !routeIsClear(shown, best_j, best_i)};
+        return {kind: 'move', from: best_j, to: best_i, lift: !routeIsClear(shown, best_j, best_i, reserved)};
+    }
+    if (movesOnly) {
+        return null;
     }
 
     // No spare to be had: a wrong-coloured stone and a point wanting its
@@ -134,8 +141,9 @@ export function planMove({shown, wanted, hand, tableStones = []}) {
 
 // Whether a stone can slide from one point to another: the line between
 // them, with the corners of each diagonal step, has no stone on it (the
-// stone's own point aside), and it is not far — a long move is a lift.
-export function routeIsClear(shown, from, to) {
+// stone's own point aside) and none about to land there (`reserved`), and
+// it is not far — a long move is a lift.
+export function routeIsClear(shown, from, to, reserved = new Set()) {
     if (dist(from, to) > 5) {
         return false;
     }
@@ -150,6 +158,6 @@ export function routeIsClear(shown, from, to) {
     }
     return points.every(([x, y]) => {
         var index = pointIndex(x, y);
-        return index == from || shown[index] == 0;
+        return index == from || (shown[index] == 0 && !reserved.has(index));
     });
 }

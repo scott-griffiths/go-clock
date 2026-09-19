@@ -159,8 +159,10 @@ export function sweepBoard(clock) {
         for (var i = 0; i < gridsize*gridsize; ++i) {
             clock.updateBoardPosition(i, false);
         }
-        // The hand is at the heap, below the middle of the near edge.
-        clock.hand_position = (gridsize - 1)*gridsize + (gridsize - 1)/2;
+        // The hands are at the heap, below the middle of the near edge.
+        clock.hands.forEach((hand) => {
+            hand.position = (gridsize - 1)*gridsize + (gridsize - 1)/2;
+        });
 
         // Let the board settle flat before the stones come back.
         window.setTimeout(() => {

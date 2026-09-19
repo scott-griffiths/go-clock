@@ -122,7 +122,7 @@ function alignedOffset(clock, index) {
     return [offset[0]/radius*newRadius, offset[1]/radius*newRadius];
 }
 
-function findAlignmentMove(clock) {
+function findAlignmentMove(clock, hand, reserved) {
     if (clock.placement >= 2) {
         return null;
     }
@@ -130,7 +130,7 @@ function findAlignmentMove(clock) {
     var best = null;
     var triggerRadius = alignmentTriggerRadius(clock);
     for (var i = 0; i < clock.stones_shown.length; ++i) {
-        if (clock.stones_shown[i] == 0) {
+        if (clock.stones_shown[i] == 0 || reserved.has(i)) {
             continue;
         }
 
@@ -140,7 +140,7 @@ function findAlignmentMove(clock) {
             continue;
         }
 
-        var handDistance = dist(clock.hand_position, i);
+        var handDistance = dist(hand.position, i);
         var score = (handDistance + 1)/(excess*excess);
         if (!best || score < best.score) {
             best = {
@@ -153,23 +153,26 @@ function findAlignmentMove(clock) {
     return best;
 }
 
-export function alignIdleStone(clock) {
-    var move = findAlignmentMove(clock);
+// The stone furthest off its point (beyond the trigger), if any, taken
+// up by `hand` to be put down straighter; `reserved` points are another
+// hand's business. Returns whether there was one.
+export function alignIdleStone(clock, hand, reserved = new Set()) {
+    var move = findAlignmentMove(clock, hand, reserved);
     if (!move) {
         return false;
     }
 
-    clock.moving_stone = true;
-    clock.stone_from = clock.get_coords(move.index);
-    clock.stone_to = coordsForOffset(clock, move.index, move.offset);
-    clock.hand_position = move.index;
-    clock.stone_colour = clock.stones_shown[move.index];
-    clock.alignment_move = {
+    hand.moving = true;
+    hand.from = clock.get_coords(move.index);
+    hand.to = coordsForOffset(clock, move.index, move.offset);
+    hand.position = move.index;
+    hand.colour = clock.stones_shown[move.index];
+    hand.alignment_move = {
         index: move.index,
         offset: move.offset
     };
     clock.stones_shown[move.index] = 0;
-    clock.clear_route = true;
+    hand.clear_route = true;
     return true;
 }
 
