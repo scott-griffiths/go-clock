@@ -14,13 +14,17 @@ const tipsOfTheDay = [
 
 ];
 
+// File, name, and how much the table drags on a stone skidding across it,
+// relative to wood: stones stop short in grass and slide on wet glass. In
+// space there is no table, and a stone over the edge falls away.
 const backgrounds = [
-    ['wood1.jpg', 'Dark wood'],
-    ['wood2.jpg', 'Light wood'],
-    ['stone1.jpg', 'Stone'],
-    ['mosaic1.jpg', 'Mosaic'],
-    ['grass.jpg', 'Grass'],
-    ['droplets.jpg', 'Droplets']
+    ['wood1.jpg', 'Dark wood', 1],
+    ['wood2.jpg', 'Light wood', 1],
+    ['stone1.jpg', 'Stone', 1],
+    ['mosaic1.jpg', 'Mosaic', 1],
+    ['grass.jpg', 'Grass', 4],
+    ['droplets.jpg', 'Droplets', 0.35],
+    ['space.jpg', 'Space', 1, 'void']
 ];
 
 const views = ['Analogue', 'Jumping hour', 'Digital', 'Hybrid'];
@@ -40,6 +44,10 @@ const controlsHideDelay = 3600;
 const openControlHideDelay = 8000;
 // A drag at least this far (in CSS pixels) is a swipe rather than a tap.
 const swipeDistance = 48;
+// A finger held on the board this long, moving less than this far, is the
+// hand: a drag from then on pushes the stones about rather than swiping.
+const holdDelay = 250;
+const holdTolerance = 10;
 
 const cookieKeys = new Map([
     ['background', 'goban_background'],
@@ -121,6 +129,32 @@ function fadeTo(element, opacity, duration = 300, onFinish) {
             onFinish?.();
         }
     });
+}
+
+// A tap of feedback under the finger, where there is something to give it:
+// the iOS shell (ios/GoClock/WebAppView.swift) answers `goClockHaptic`
+// messages with the taptic engine; elsewhere, a phone that can vibrate does.
+// 'grab' is the hand landing; 'tick' a stone going over the edge, of which
+// a good shove makes several at once, so those are thinned out.
+let lastTick = 0;
+function haptic(kind) {
+    if (kind === 'tick') {
+        const now = performance.now();
+        if (now - lastTick < 60) {
+            return;
+        }
+        lastTick = now;
+    }
+    try {
+        const handler = window.webkit?.messageHandlers?.goClockHaptic;
+        if (handler) {
+            handler.postMessage(kind);
+        } else {
+            navigator.vibrate?.(kind === 'grab' ? 15 : 5);
+        }
+    } catch {
+        // No feedback to give.
+    }
 }
 
 function preloadBackgrounds() {
@@ -346,6 +380,12 @@ window.addEventListener('load', () => {
     function setBackground(index) {
         background = wrap(index, backgrounds.length);
         $('#sb-site').style.backgroundImage = `url('images/${backgrounds[background][0]}')`;
+        goClock.table_grip = backgrounds[background][2];
+        goClock.table_void = backgrounds[background][3] === 'void';
+        if (goClock.table_void) {
+            // Whatever was lying on the table has nothing under it now.
+            goClock.dropTableStones();
+        }
         writeSetting('background', background);
     }
 
@@ -449,39 +489,87 @@ window.addEventListener('load', () => {
     setMode(mode);
     setPlacement(placement);
     setSound(sound);
+    goClock.haptic = haptic;
 
-    // Swipes: sideways across the board changes the face, sideways across the
-    // surround changes the background, and down the board sweeps it clear. A
-    // shorter drag is a tap.
+    // Swipes and the hand. Sideways across the board changes the face,
+    // sideways across the surround changes the background, and down the board
+    // sweeps it clear; a shorter drag is a tap. A finger that stays put for
+    // a moment instead becomes the hand (go-clock.js): from then until it
+    // lifts, it pushes the stones about.
     let swipe = null;
-    let swiped = false;
+    let hand = null;
+    let holdTimer = null;
+    let dragged = false;
 
     function isOnBoard(x, y) {
         const board = $('#goban-image')?.getBoundingClientRect();
         return Boolean(board) && x >= board.left && x <= board.right && y >= board.top && y <= board.bottom;
     }
 
+    function cancelHold() {
+        window.clearTimeout(holdTimer);
+        holdTimer = null;
+    }
+
     goban.addEventListener('pointerdown', (event) => {
         if (!event.isPrimary) {
             return;
         }
-        swiped = false;
+        dragged = false;
+        hand = null;
+        cancelHold();
         swipe = {id: event.pointerId, x: event.clientX, y: event.clientY, onBoard: isOnBoard(event.clientX, event.clientY)};
+        // A hold anywhere becomes the hand: on the surround it has the
+        // stones on the table to push about.
+        const {pointerId, clientX, clientY} = event;
+        holdTimer = window.setTimeout(() => {
+            holdTimer = null;
+            if (!swipe || swipe.id !== pointerId || !goClock.fingerDown(clientX, clientY)) {
+                // Gone, or the board is being swept.
+                return;
+            }
+            hand = {id: pointerId};
+            swipe = null;
+            dragged = true;
+            haptic('grab');
+            // The hand is about the board, not the controls: if they are up, they go.
+            hideControls();
+        }, holdDelay);
         // So the release is heard even if it lands on the toolbar.
         goban.setPointerCapture(event.pointerId);
     });
-    goban.addEventListener('pointerup', (event) => {
+    goban.addEventListener('pointermove', (event) => {
+        // A mouse moving over the page brings the controls up; a finger does
+        // not, so a swipe leaves the board as it was.
+        if (event.pointerType === 'mouse') {
+            wakeControlsForActivity();
+        }
+        if (hand && event.pointerId === hand.id) {
+            goClock.fingerMove(event.clientX, event.clientY);
+        } else if (holdTimer !== null && swipe && event.pointerId === swipe.id
+                   && Math.hypot(event.clientX - swipe.x, event.clientY - swipe.y) >= holdTolerance) {
+            // Off before the hold was up: a swipe or a tap, not the hand.
+            cancelHold();
+        }
+    });
+    function endPointer(event) {
+        if (hand && event.pointerId === hand.id) {
+            goClock.fingerUp();
+            hand = null;
+            return;
+        }
         if (!swipe || event.pointerId !== swipe.id) {
             return;
         }
+        cancelHold();
         const dx = event.clientX - swipe.x;
         const dy = event.clientY - swipe.y;
         const {onBoard} = swipe;
         swipe = null;
-        if (Math.max(Math.abs(dx), Math.abs(dy)) < swipeDistance) {
+        if (event.type !== 'pointerup' || Math.max(Math.abs(dx), Math.abs(dy)) < swipeDistance) {
             return;
         }
-        swiped = true;
+        dragged = true;
         if (Math.abs(dx) > Math.abs(dy)) {
             // Swiping left brings on the next one, as with pages.
             const step = dx < 0 ? 1 : -1;
@@ -498,28 +586,20 @@ window.addEventListener('load', () => {
         } else if (dy > 0 && onBoard) {
             goClock.resetBoard();
         }
-    });
-    goban.addEventListener('pointercancel', () => {
-        swipe = null;
-    });
+    }
+    goban.addEventListener('pointerup', endPointer);
+    goban.addEventListener('pointercancel', endPointer);
     // Browsers that ignore -webkit-user-drag would otherwise pick the board
     // image up and cancel the swipe.
     goban.addEventListener('dragstart', (event) => event.preventDefault());
     goban.addEventListener('click', () => {
-        // The click that follows a mouse swipe is the swipe, not a tap.
-        if (swiped) {
-            swiped = false;
+        // The click that follows a mouse drag is the drag, not a tap.
+        if (dragged) {
+            dragged = false;
             return;
         }
         wakeControls();
         goClock.update();
-    });
-    // A mouse moving over the page brings the controls up; a finger does
-    // not, so a swipe leaves the board as it was.
-    goban.addEventListener('pointermove', (event) => {
-        if (event.pointerType === 'mouse') {
-            wakeControlsForActivity();
-        }
     });
     toolbar.addEventListener('pointermove', wakeControlsForActivity);
     document.addEventListener('keydown', (event) => {

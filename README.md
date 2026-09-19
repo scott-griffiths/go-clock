@@ -70,9 +70,11 @@ xcrun simctl spawn booted log show --last 5m --predicate 'eventMessage CONTAINS 
 
 Things the shell does that the website cannot: it keeps the screen awake while
 the app is in front, hides the status bar and home indicator, opens the GitHub
-link in Safari rather than navigating away from the board, and disables pinch
+link in Safari rather than navigating away from the board, disables pinch
 and double-tap zoom (`user-scalable=no` in the viewport meta, which Safari
-ignores and `WKWebView` honours).
+ignores and `WKWebView` honours), and gives a tap of haptic feedback when a
+held finger becomes the hand (the page posts to the `goClockHaptic` message
+handler; on the web, `navigator.vibrate` where it exists, which is not iOS).
 
 ```sh
 open ios/GoClock.xcodeproj                            # in Xcode

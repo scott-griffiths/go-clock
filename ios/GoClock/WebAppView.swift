@@ -7,9 +7,10 @@ import WebKit
  A `WKWebView` showing `www/index.html` out of the app bundle.
 
  Each setting on the web view is here because this page needs it, and the
- comment says which part of it. There is no bridge: the page never asks the
- shell for anything, and the one thing the shell tells the page — its version,
- for the about box — goes in as a user script before the page runs.
+ comment says which part of it. The bridge is as small as it can be: the shell
+ tells the page its version, for the about box, as a user script before the
+ page runs; the page asks the shell for one thing, a tap of haptic feedback
+ when the hand lands on the board (`Haptics`).
  */
 struct WebAppView: UIViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator() }
@@ -26,9 +27,14 @@ struct WebAppView: UIViewRepresentable {
      */
     final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler {
         /// What the page said (`PageLog.script`), on the same log line the
-        /// navigation events are on, so one `log stream` shows both.
+        /// navigation events are on, so one `log stream` shows both; or a
+        /// request for haptic feedback (`Haptics`).
         func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
-            NSLog("[goclock] page: %@", String(describing: message.body))
+            if message.name == Haptics.name {
+                Haptics.play(String(describing: message.body))
+            } else {
+                NSLog("[goclock] page: %@", String(describing: message.body))
+            }
         }
 
         /**
@@ -96,6 +102,11 @@ struct WebAppView: UIViewRepresentable {
         config.userContentController.addUserScript(
             WKUserScript(source: PageLog.script, injectionTime: .atDocumentStart, forMainFrameOnly: true)
         )
+
+        // The one thing the page asks for: a tap under the finger when a hold
+        // on the board becomes the hand (my-clock.js, `haptic`). A web view
+        // has no way to reach the taptic engine itself.
+        config.userContentController.add(context.coordinator, name: Haptics.name)
 
         // The stones may click without anyone touching the screen (sounds.js,
         // when sound is on): a web view otherwise refuses to play anything
@@ -190,6 +201,24 @@ enum ShellInfo {
         let version = info["CFBundleShortVersionString"] as? String ?? "?"
         let build = info["CFBundleVersion"] as? String ?? "?"
         return "window.goClockShell = { version: \"\(version)\", build: \"\(build)\" };"
+    }
+}
+
+/**
+ Haptic feedback the page asks for by posting a kind to `goClockHaptic`:
+ `grab` when a held finger becomes the hand, anything else a lighter tick.
+ The generators are made once and kept warm, since the first tap after a
+ pause is otherwise late.
+ */
+enum Haptics {
+    static let name = "goClockHaptic"
+    private static let grab = UIImpactFeedbackGenerator(style: .medium)
+    private static let tick = UIImpactFeedbackGenerator(style: .light)
+
+    static func play(_ kind: String) {
+        let generator = kind == "grab" ? grab : tick
+        generator.prepare()
+        generator.impactOccurred()
     }
 }
 

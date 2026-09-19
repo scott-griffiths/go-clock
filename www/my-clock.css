@@ -108,6 +108,22 @@ body {
     background: transparent;
 }
 
+/* The hand pushing the stones about, and the stones while they are loose
+   under it or lying on the table. */
+#finger {
+    position: absolute;
+    z-index: 5;
+    border: 1px solid rgb(255 255 255 / 0.45);
+    border-radius: 50%;
+    background: rgb(255 255 255 / 0.16);
+    box-shadow: inset 0 0 12px rgb(255 255 255 / 0.25), 0 2px 8px rgb(0 0 0 / 0.25);
+    pointer-events: none;
+}
+
+.loose-stone {
+    z-index: 3;
+}
+
 .stone {
     position: relative;
     z-index: 1;
