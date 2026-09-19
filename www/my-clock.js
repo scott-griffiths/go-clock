@@ -638,15 +638,12 @@ window.addEventListener('load', () => {
     toolbar.addEventListener('pointermove', wakeControlsForActivity);
     // Keys, for a keyboard and for a desktop where a swipe is a drag: the
     // arrows change the face (left and right) and the background (up and
-    // down), S or Backspace sweeps the board, M mutes, I is the about box.
+    // down), M mutes, I is the about box.
     const keyActions = {
         ArrowRight: () => changeView(1),
         ArrowLeft: () => changeView(-1),
         ArrowDown: () => changeBackground(1),
         ArrowUp: () => changeBackground(-1),
-        s: () => goClock.resetBoard(),
-        Backspace: () => goClock.resetBoard(),
-        Delete: () => goClock.resetBoard(),
         m: () => setSound(sound === 1 ? 0 : 1),
         i: () => aboutButton.click()
     };
