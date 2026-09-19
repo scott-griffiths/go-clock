@@ -157,7 +157,7 @@ body {
     gap: 8px;
     width: max-content;
     /* Room on the right for the two toggles. */
-    max-width: calc(100vw - 20px - 92px - env(safe-area-inset-right));
+    max-width: calc(100vw - 20px - 90px - env(safe-area-inset-right));
     opacity: 1;
     transition: opacity 360ms ease;
     /* The toolbar's own box is see-through to touches: only its controls
@@ -169,10 +169,9 @@ body {
     pointer-events: auto;
 }
 
-/* The about button and the setting buttons: a row, wrapping if it must. */
+/* The about button and the setting buttons: a row. */
 .toolbar-actions {
     display: flex;
-    flex-wrap: wrap;
     max-width: 100%;
     align-items: center;
     gap: 6px;
@@ -251,8 +250,8 @@ body {
     font-weight: 700;
 }
 
-/* A setting is a button named for it; open, its choices drop down beneath
-   it (or, in landscape, out to its right), the current one marked. */
+/* A setting is a button wearing its icon; open, its choices drop down
+   beneath it (or, in landscape, out to its right), the current one marked. */
 .setting-control {
     position: relative;
     color: white;
@@ -265,8 +264,10 @@ body {
 .setting-summary {
     display: grid;
     align-items: center;
+    justify-items: center;
+    width: 42px;
     min-height: 42px;
-    padding: 0 10px;
+    padding: 0;
     border: 0;
     border-radius: 6px;
     background: rgb(0 0 0 / 0.7);
@@ -292,7 +293,7 @@ body {
 .setting-icon {
     width: 22px;
     font-family: "Times New Roman", Georgia, serif;
-    font-size: 19px;
+    font-size: 22px;
     line-height: 1;
     text-align: center;
 }
@@ -373,6 +374,7 @@ body {
     top: max(10px, env(safe-area-inset-top));
     left: 50%;
     z-index: 25;
+    width: auto;
     grid-template-columns: 22px max-content;
     gap: 9px;
     padding: 0 12px 0 8px;

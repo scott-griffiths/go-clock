@@ -34,10 +34,10 @@
         </div>
         <div id="sb-site">
             <div id="toolbar" class="toolbar" role="toolbar" aria-label="Clock controls" data-visible="true">
-                <!-- The about button, then a button per setting, each dropping down
-                     its choices (created by my-clock.js); only one is open at a
-                     time. A button's accessible name is its setting and current
-                     value ("Board: Oak"). In a row across the top in portrait, in a
+                <!-- The about button, then a button per setting, an icon each,
+                     dropping down its choices (created by my-clock.js); only one
+                     is open at a time. A button's accessible name is its setting
+                     and current value ("Board: Oak"). In a row across the top in portrait, in a
                      column down the left in landscape, where the board leaves the
                      sides free. The clock face and background have no button: they
                      are changed by swiping, which the note says. -->
@@ -46,15 +46,21 @@
                         <span aria-hidden="true">i</span>
                     </button>
                     <div id="speed-control" class="setting-control" data-open="false">
-                        <button class="setting-summary" type="button" aria-expanded="false" aria-controls="speed-options">Speed</button>
+                        <button class="setting-summary" type="button" title="Speed" aria-label="Speed" aria-expanded="false" aria-controls="speed-options">
+                            <span class="setting-icon" aria-hidden="true">🐇</span>
+                        </button>
                         <div id="speed-options" class="setting-options" role="group" aria-label="Speed" hidden></div>
                     </div>
                     <div id="wood-control" class="setting-control" data-open="false">
-                        <button class="setting-summary" type="button" aria-expanded="false" aria-controls="wood-options">Board</button>
+                        <button class="setting-summary" type="button" title="Board" aria-label="Board" aria-expanded="false" aria-controls="wood-options">
+                            <span class="setting-icon" aria-hidden="true">▦</span>
+                        </button>
                         <div id="wood-options" class="setting-options" role="group" aria-label="Board" hidden></div>
                     </div>
                     <div id="placement-control" class="setting-control" data-open="false">
-                        <button class="setting-summary" type="button" aria-expanded="false" aria-controls="placement-options">Precision</button>
+                        <button class="setting-summary" type="button" title="Precision" aria-label="Precision" aria-expanded="false" aria-controls="placement-options">
+                            <span class="setting-icon" aria-hidden="true">⌖</span>
+                        </button>
                         <div id="placement-options" class="setting-options" role="group" aria-label="Precision" hidden></div>
                     </div>
                 </div>

@@ -246,7 +246,7 @@ window.addEventListener('load', () => {
         const control = $(`#${name}-control`);
         const summary = $('.setting-summary', control);
         const options = $('.setting-options', control);
-        const settingName = summary.textContent.trim();
+        const settingName = summary.getAttribute('aria-label');
 
         labels.forEach((label, index) => {
             const button = document.createElement('button');
@@ -275,7 +275,7 @@ window.addEventListener('load', () => {
 
         return (activeIndex) => {
             summary.setAttribute('aria-label', `${settingName}: ${values[activeIndex]}`);
-            summary.title = values[activeIndex];
+            summary.title = `${settingName}: ${values[activeIndex]}`;
             $$('.choice-button', options).forEach((button) => {
                 button.setAttribute('aria-pressed', String(Number(button.dataset.index) === activeIndex));
             });
