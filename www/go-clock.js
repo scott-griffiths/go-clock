@@ -2,13 +2,15 @@
  * Created by scott on 15/05/2014.
  */
 
-import {gridsize, white, black, go_bowl, go_table, minx, maxx, miny, maxy, dist, emptyBoard} from './board.js';
+import {gridsize, white, go_bowl, go_table, minx, maxx, miny, maxy, emptyBoard} from './board.js';
 import {faceFor} from './faces.js';
 import {planMove} from './planner.js';
 import {voidFadeTime} from './physics.js';
 import {sweepBoard} from './sweep.js';
 import {fingerDown, fingerMove, fingerUp, endFinger} from './hand.js';
-import {$, gobanImage, tableTransform, tableStoneScale, setStyles, setVisible, setStoneShadow, stoneImageSrc,
+import {setLandingOffset, alignIdleStone} from './placement.js';
+import {moveStone} from './moves.js';
+import {$, gobanImage, tableTransform, setStyles, setVisible, setStoneShadow, stoneImageSrc,
         cancelElementAnimations, animateElement, elementCentre, stoneElement, looseStone} from './stone-dom.js';
 
 function displacedCoords(fromCoords, toCoords) {
@@ -86,79 +88,6 @@ export function GoClock(){
         return Math.round(p[0]) + gridsize*Math.round(p[1]);
     };
 
-    this.disorderRadius = function() {
-        if (this.placement == 0) {
-            return 0;
-        }
-        var speedRatio = Math.min(1, Math.sqrt(Math.max(this.speed, 1)/120));
-        if (this.placement == 3) {
-            return 0.08 + 0.26*speedRatio;
-        }
-        if (this.placement == 2) {
-            return 0.045 + 0.145*speedRatio;
-        }
-        return 0.02 + 0.085*speedRatio;
-    };
-
-    this.maxOffsetRadius = function() {
-        if (this.placement == 0) {
-            return 0;
-        }
-        if (this.placement == 3) {
-            return 0.4;
-        }
-        if (this.placement == 2) {
-            return 0.28;
-        }
-        return 0.18;
-    };
-
-    this.randomOffset = function() {
-        if (this.placement == 0) {
-            return [0, 0];
-        }
-        var radius = this.disorderRadius()*Math.sqrt(Math.random());
-        var angle = Math.random()*Math.PI*2;
-        return [Math.cos(angle)*radius, Math.sin(angle)*radius];
-    };
-
-    // Within the radius, and never so far along either axis that the stone
-    // rounds to the next point: everything that finds a stone's element by
-    // its coordinates (drawStone, eraseStone, getDrawnStoneSrc) relies on
-    // get_index(get_coords(i)) being i.
-    this.clampOffset = function(offset, maxRadius = this.maxOffsetRadius()) {
-        var radius = Math.sqrt(offset[0]*offset[0] + offset[1]*offset[1]);
-        if (radius > maxRadius) {
-            offset = [offset[0]/radius*maxRadius, offset[1]/radius*maxRadius];
-        }
-        return [
-            Math.max(-0.49, Math.min(0.49, offset[0])),
-            Math.max(-0.49, Math.min(0.49, offset[1]))
-        ];
-    };
-
-    this.setOffset = function(index, offset) {
-        this.offsets[index] = this.clampOffset(offset);
-    };
-
-    this.adjustOffset = function(index, dx, dy) {
-        var current = this.offsets[index];
-        // A stone a finger left well off its point is not pulled in by a nudge.
-        var maxRadius = Math.max(this.maxOffsetRadius(), Math.hypot(current[0], current[1]));
-        this.offsets[index] = this.clampOffset([current[0] + dx, current[1] + dy], maxRadius);
-    };
-
-    this.coordsForOffset = function(index, offset) {
-        var x = index % gridsize;
-        var y = (index - x)/gridsize;
-        return [x + offset[0], y + offset[1]];
-    };
-
-    this.offsetRadius = function(index) {
-        var offset = this.offsets[index];
-        return Math.sqrt(offset[0]*offset[0] + offset[1]*offset[1]);
-    };
-
     this.updateBoardPosition = function(index, animate = false) {
         if (typeof document === 'undefined') {
             return;
@@ -185,163 +114,6 @@ export function GoClock(){
                 height: p[3]
             });
         }
-    };
-
-    this.setLandingOffset = function(index) {
-        this.setOffset(index, this.randomOffset());
-        this.updateBoardPosition(index, false);
-    };
-
-    this.alignmentTargetRadius = function() {
-        if (this.placement == 0) {
-            return 0.004;
-        }
-        if (this.placement == 3) {
-            return 0.095;
-        }
-        if (this.placement == 2) {
-            return 0.07;
-        }
-        return 0.04;
-    };
-
-    this.alignmentTriggerRadius = function() {
-        return this.alignmentTargetRadius() + 0.01;
-    };
-
-    this.alignedOffset = function(index) {
-        var offset = this.offsets[index];
-        var radius = this.offsetRadius(index);
-        if (this.placement == 0 || radius == 0) {
-            return [0, 0];
-        }
-
-        var targetRadius = this.alignmentTargetRadius();
-        var newRadius = Math.min(radius*0.3, targetRadius*0.45);
-        return [offset[0]/radius*newRadius, offset[1]/radius*newRadius];
-    };
-
-    this.findAlignmentMove = function() {
-        if (this.placement >= 2) {
-            return null;
-        }
-
-        var best = null;
-        var triggerRadius = this.alignmentTriggerRadius();
-        for (var i = 0; i < this.stones_shown.length; ++i) {
-            if (this.stones_shown[i] == 0) {
-                continue;
-            }
-
-            var radius = this.offsetRadius(i);
-            var excess = radius - triggerRadius;
-            if (excess <= 0) {
-                continue;
-            }
-
-            var handDistance = dist(this.hand_position, i);
-            var score = (handDistance + 1)/(excess*excess);
-            if (!best || score < best.score) {
-                best = {
-                    index: i,
-                    score: score,
-                    offset: this.alignedOffset(i)
-                };
-            }
-        }
-        return best;
-    };
-
-    this.alignIdleStone = function() {
-        var move = this.findAlignmentMove();
-        if (!move) {
-            return false;
-        }
-
-        this.moving_stone = true;
-        this.stone_from = this.get_coords(move.index);
-        this.stone_to = this.coordsForOffset(move.index, move.offset);
-        this.hand_position = move.index;
-        this.stone_colour = this.stones_shown[move.index];
-        this.alignment_move = {
-            index: move.index,
-            offset: move.offset
-        };
-        this.stones_shown[move.index] = 0;
-        this.clear_route = true;
-        return true;
-    };
-
-    this.stoneCollisionDistance = function() {
-        return (gridsize - 1)/(20*(maxx - minx))*0.98;
-    };
-
-    this.nearbyOccupiedIndexes = function(seedIndex) {
-        var indexes = new Set([seedIndex]);
-        var seedX = seedIndex % gridsize;
-        var seedY = (seedIndex - seedX)/gridsize;
-        for (var i = 0; i < this.stones_shown.length; ++i) {
-            if (this.stones_shown[i] == 0 || i == seedIndex) {
-                continue;
-            }
-            var x = i % gridsize;
-            var y = (i - x)/gridsize;
-            if (Math.abs(x - seedX) <= 2 && Math.abs(y - seedY) <= 2) {
-                indexes.add(i);
-            }
-        }
-        return [...indexes];
-    };
-
-    this.relaxOverlaps = function(seedIndex) {
-        if (this.placement == 0) {
-            return new Set();
-        }
-        var changed = new Set();
-        var minDistance = this.stoneCollisionDistance();
-        var indexes = this.nearbyOccupiedIndexes(seedIndex);
-        for (var pass = 0; pass < 4; ++pass) {
-            for (var a = 0; a < indexes.length; ++a) {
-                for (var b = a + 1; b < indexes.length; ++b) {
-                    var indexA = indexes[a];
-                    var indexB = indexes[b];
-                    if (this.stones_shown[indexA] == 0 || this.stones_shown[indexB] == 0) {
-                        continue;
-                    }
-                    var coordsA = this.get_coords(indexA);
-                    var coordsB = this.get_coords(indexB);
-                    var dx = coordsB[0] - coordsA[0];
-                    var dy = coordsB[1] - coordsA[1];
-                    var distance = Math.sqrt(dx*dx + dy*dy);
-                    if (distance >= minDistance) {
-                        continue;
-                    }
-                    if (distance == 0) {
-                        dx = (indexB % gridsize) - (indexA % gridsize) || 1;
-                        dy = ((indexB - indexB%gridsize) - (indexA - indexA%gridsize))/gridsize;
-                        distance = Math.sqrt(dx*dx + dy*dy);
-                    }
-                    var push = (minDistance - distance + 0.01)/distance;
-                    var pushA = indexA == seedIndex ? 0 : 0.5;
-                    var pushB = indexB == seedIndex ? 0 : 0.5;
-                    if (indexA == seedIndex || indexB == seedIndex) {
-                        pushA = indexA == seedIndex ? 0 : 1;
-                        pushB = indexB == seedIndex ? 0 : 1;
-                    }
-                    this.adjustOffset(indexA, -dx*push*pushA, -dy*push*pushA);
-                    this.adjustOffset(indexB, dx*push*pushB, dy*push*pushB);
-                    changed.add(indexA);
-                    changed.add(indexB);
-                }
-            }
-        }
-        return changed;
-    };
-
-    this.settleAfterLanding = function(index) {
-        this.relaxOverlaps(index).forEach((changedIndex) => {
-            this.updateBoardPosition(changedIndex, true);
-        });
     };
 
     // Sweeping the board: sweep.js.
@@ -594,88 +366,6 @@ export function GoClock(){
         return $('#p' + i).querySelector('img').src;
     };
 
-    this.showPushedStone = function(swap, delay, duration) {
-        var pushedStone = $('#pushed_stone');
-        var pushedStoneImage = $('#pushed_stone img');
-        var pushedStoneShadow = $('#pushed_stone .stone-shadow');
-        var fromPosition = this.stonePosition(swap.target_coords[0], swap.target_coords[1], 0);
-        var toPosition = this.stonePosition(swap.displaced_coords[0], swap.displaced_coords[1], 0);
-        var targetPosition = $('#p' + swap.target);
-
-        setVisible(targetPosition.querySelector('.stone-shadow'), false);
-        setVisible(targetPosition.querySelector('img'), false);
-        setStyles(pushedStone, {
-            left: fromPosition[0],
-            top: fromPosition[1],
-            width: fromPosition[2],
-            height: fromPosition[3],
-            opacity: 1
-        });
-        pushedStoneImage.src = swap.displaced_src;
-        setStoneShadow(pushedStoneShadow, 0);
-        setVisible(pushedStone, true);
-        setVisible(pushedStoneShadow, true);
-        setVisible(pushedStoneImage, true);
-        if (this.sound) {
-            var self = this;
-            window.setTimeout(function() {
-                self.sound?.nudge(swap.displaced_colour == white ? 'white' : 'black');
-            }, delay*1000);
-        }
-        animateElement(pushedStone, duration, {
-            delay: delay,
-            left: toPosition[0],
-            top: toPosition[1],
-            easing: 'ease-out',
-            cancelExisting: false
-        });
-    };
-
-    this.returnPushedStone = function() {
-        var swap = this.pending_swap;
-        var fromPosition = this.stonePosition(swap.displaced_coords[0], swap.displaced_coords[1], 0);
-        var toCoords = this.get_coords(swap.source);
-        var toPosition = this.stonePosition(toCoords[0], toCoords[1], 0);
-        var movingStone = $('#moving_stone');
-        var movingStoneImage = $('#moving_stone img');
-        var movingStoneShadow = $('#moving_stone .stone-shadow');
-        var duration = Math.sqrt(dist(swap.target, swap.source)/this.speed);
-        var self = this;
-
-        cancelElementAnimations($('#pushed_stone'));
-        setVisible($('#pushed_stone'), false);
-        setStyles(movingStone, {
-            left: fromPosition[0],
-            top: fromPosition[1],
-            width: fromPosition[2],
-            height: fromPosition[3],
-            opacity: 1
-        });
-        movingStoneImage.src = swap.displaced_src;
-        setStoneShadow(movingStoneShadow, 0);
-        setVisible(movingStone, true);
-        setVisible(movingStoneShadow, true);
-        setVisible(movingStoneImage, true);
-
-        animateElement(movingStone, duration, {
-            left: toPosition[0],
-            top: toPosition[1],
-            onComplete: function() {
-                self.stones_shown[swap.source] = swap.displaced_colour;
-                setVisible(movingStone, false);
-                setVisible(movingStoneShadow, false);
-                self.drawStone(toCoords, swap.displaced_colour, 0, swap.displaced_src);
-                self.sound?.place(swap.displaced_colour == white ? 'white' : 'black');
-                self.settleAfterLanding(swap.source);
-                self.hand_position = swap.source;
-                self.pending_swap = null;
-                self.moving_stone_src = null;
-                self.moving_stone = false;
-                self.transform();
-            }
-        });
-    };
-
     // Remove a stone from the buffered board
     this.eraseStone = function(coords) {
         var i = this.get_index(coords);
@@ -713,253 +403,6 @@ export function GoClock(){
         return [xpos - diameter/2 + this.x_offset | 0, ypos - diameter/2 + this.y_offset | 0, diameter, diameter];
     };
     
-    this.move_stone = function() {
-        var movingStone = $("#moving_stone");
-        cancelElementAnimations(movingStone);
-        movingStone.style.opacity = '1.0';
-        setVisible(movingStone, true);
-        $('#moving_stone img').style.removeProperty('filter');
-        setVisible($('#moving_stone .stone-shadow'), true);
-        if (this.stone_from[0] == go_table) {
-            this.moving_stone_src = this.table_pickup.src;
-            this.liftFromTable(this.table_pickup, this.stone_to, this.stone_colour, this.speed);
-            return;
-        }
-        this.moving_stone_src = this.stone_from[0] == go_bowl
-            ? stoneImageSrc(this.stone_colour)
-            : this.getDrawnStoneSrc(this.stone_from);
-        if (this.stone_from[0] != go_bowl) {
-            this.eraseStone(this.stone_from);
-        }
-
-        if (this.stone_from[0] == go_bowl) {
-            this.dropStone(this.stone_to, this.stone_colour, this.speed);
-        }
-        if (this.stone_to[0] == go_bowl) {
-            this.pickupStone(this.stone_from, this.stone_colour, this.speed);
-        }
-        
-        if (this.stone_from[0] != go_bowl && this.stone_to[0] != go_bowl) {
-            this.repositionStone(this.stone_from, this.stone_to, this.stone_colour, this.speed);
-        }
-    };
-
-    // A stone lifted from the table and carried to a point on
-    // the board, in an arc, as a long move is.
-    this.liftFromTable = function(entry, coords2, colour, speed) {
-        var self = this;
-        var p1 = this.pixelStonePosition(entry.x, entry.y, 0);
-        // From its size on the table, which is that little further away.
-        p1 = [p1[0] + p1[2]*(1 - tableStoneScale)/2, p1[1] + p1[3]*(1 - tableStoneScale)/2, p1[2]*tableStoneScale, p1[3]*tableStoneScale];
-        var p2 = this.stonePosition(coords2[0], coords2[1], 0);
-        var distance = Math.hypot(coords2[0] - entry.coords[0], coords2[1] - entry.coords[1]);
-        var duration = Math.sqrt(distance/speed);
-        var max_height = Math.min(12, 8 + distance/2);
-        var middle = this.pixelStonePosition((entry.x + p2[0] + p2[2]/2)/2, (entry.y + p2[1] + p2[3]/2)/2, max_height);
-        var end_tasks = function() {
-            var landingIndex = Math.round(self.stone_to[0]) + gridsize*Math.round(self.stone_to[1]);
-            self.stones_shown[landingIndex] = self.stone_colour;
-            setVisible($("#moving_stone"), false);
-            setVisible($('#moving_stone .stone-shadow'), false);
-            self.drawStone(self.stone_to, self.stone_colour, 0, self.moving_stone_src);
-            self.sound?.place(self.stone_colour == white ? 'white' : 'black');
-            self.settleAfterLanding(landingIndex);
-            self.table_pickup = null;
-            self.moving_stone_src = null;
-            self.moving_stone = false;
-            self.transform();
-        };
-
-        entry.element.remove();
-        setStyles($("#moving_stone"), {left: p1[0], top: p1[1], width: p1[2], height: p1[3]});
-        var movingShadow = $('#moving_stone .stone-shadow');
-        setStoneShadow(movingShadow, 0);
-        var movingStoneImage = $("#moving_stone img");
-        movingStoneImage.src = entry.src;
-        setVisible(movingStoneImage, true);
-        requestAnimationFrame(function() {
-            setStoneShadow(movingShadow, max_height);
-        });
-        animateElement("#moving_stone", duration/2, {
-            left: middle[0],
-            top: middle[1],
-            width: middle[2],
-            height: middle[3],
-            easing: 'ease-in',
-            onComplete: function() {
-                setStoneShadow(movingShadow, 0);
-                animateElement("#moving_stone", duration/2, {
-                    left: p2[0],
-                    top: p2[1],
-                    width: p2[2],
-                    height: p2[3],
-                    easing: 'ease-out',
-                    onComplete: end_tasks
-                });
-            }
-        });
-    };
-
-    this.repositionStone = function(coords1, coords2, colour, speed) {
-        var p1 = this.stonePosition(coords1[0], coords1[1], 0);
-        var p2 = this.stonePosition(coords2[0], coords2[1], 0);
-        var self = this;
-        var end_tasks = function() {
-            // add stone to board
-            var landingIndex = Math.round(self.stone_to[0]) + gridsize*Math.round(self.stone_to[1]);
-            self.stones_shown[landingIndex] = self.stone_colour;
-            setVisible($("#moving_stone"), false);
-            setVisible($('#moving_stone .stone-shadow'), false);
-            if (self.alignment_move) {
-                self.setOffset(landingIndex, self.alignment_move.offset);
-                self.updateBoardPosition(landingIndex, false);
-            }
-            self.drawStone(self.alignment_move ? self.get_coords(landingIndex) : self.stone_to, self.stone_colour, 0, self.moving_stone_src);
-            if (!self.alignment_move && !self.clear_route) {
-                self.sound?.place(self.stone_colour == white ? 'white' : 'black');
-            }
-            if (self.pending_swap && self.pending_swap.phase == 'push') {
-                self.pending_swap.phase = 'return';
-                self.returnPushedStone();
-                return;
-            }
-            if (self.alignment_move) {
-                self.alignment_move = null;
-            } else {
-                self.settleAfterLanding(landingIndex);
-            }
-            self.moving_stone_src = null;
-            self.moving_stone = false;
-            self.transform();
-        };
-        
-        setStyles($("#moving_stone"), {left: p1[0], top: p1[1], width: p1[2], height: p1[3]});
-        var movingShadow = $('#moving_stone .stone-shadow');
-        setStoneShadow(movingShadow, 0);
-        var src = stoneImageSrc(colour, this.moving_stone_src);
-        var movingStoneImage = $("#moving_stone img");
-        movingStoneImage.src = src;
-        setVisible(movingStoneImage, true);
-        var distance = dist(this.get_index(coords1), this.get_index(coords2));
-        var coordinateDistance = Math.sqrt((coords2[0] - coords1[0])*(coords2[0] - coords1[0]) +
-                                           (coords2[1] - coords1[1])*(coords2[1] - coords1[1]));
-        var duration = Math.sqrt(distance/speed);
-        if (this.alignment_move) {
-            duration = Math.max(0.16, Math.min(0.45, Math.sqrt((coordinateDistance*7)/speed)));
-        }
-        if (this.pending_swap && this.pending_swap.phase == 'push') {
-            var pushDuration = Math.max(0.12, Math.min(duration*0.28, 0.35));
-            this.showPushedStone(this.pending_swap, Math.max(0, duration - pushDuration), pushDuration);
-        }
-        if (this.clear_route) {
-            if (!this.alignment_move) {
-                this.sound?.slide(duration);
-            }
-            animateElement("#moving_stone", duration, {
-                left: p2[0],
-                top: p2[1],
-                onComplete: end_tasks});
-        } else {
-            var max_height = 8 + distance/2;
-            if (max_height > 12) {
-                max_height = 12;
-            }
-            var middle = this.stonePosition((coords1[0] + coords2[0])/2, (coords1[1] + coords2[1])/2, max_height);
-            requestAnimationFrame(function() {
-                setStoneShadow(movingShadow, max_height);
-            });
-            animateElement("#moving_stone", duration/2, {
-                left: middle[0],
-                top: middle[1],
-                width: middle[2],
-                height: middle[3],
-                easing: 'ease-in',
-                onComplete: function() {
-                    setStoneShadow(movingShadow, 0);
-                    animateElement("#moving_stone", duration/2, {
-                        left: p2[0],
-                        top: p2[1],
-                        width: p2[2],
-                        height: p2[3],
-                        easing: 'ease-out',
-                        onComplete: end_tasks
-                    });
-                }
-            });
-        }
-    };
-    this.dropStone = function(coords, colour, speed) {
-        var duration = Math.sqrt(1/speed);
-        var p1 = this.stonePosition(coords[0], coords[1], 10);
-        var p2 = this.stonePosition(coords[0], coords[1], 0);
-        var self = this;
-        var end_tasks = function() {
-            // add stone to board
-            var landingIndex = Math.round(self.stone_to[0]) + gridsize*Math.round(self.stone_to[1]);
-            self.stones_shown[landingIndex] = self.stone_colour;
-            setVisible($("#moving_stone"), false);
-            setVisible($('#moving_stone .stone-shadow'), false);
-            self.drawStone(self.stone_to, self.stone_colour, 0, self.moving_stone_src);
-            self.sound?.place(self.stone_colour == white ? 'white' : 'black');
-            self.settleAfterLanding(landingIndex);
-            self.moving_stone_src = null;
-            self.moving_stone = false;
-            self.transform();
-        };
-        
-        setStyles($("#moving_stone"), {left: p1[0], top: p1[1], width: p1[2], height: p1[3]});
-        var movingShadow = $('#moving_stone .stone-shadow');
-        setStoneShadow(movingShadow, 10);
-        var src = stoneImageSrc(colour, this.moving_stone_src);
-        var movingStoneImage = $("#moving_stone img");
-        movingStoneImage.src = src;
-        setVisible(movingStoneImage, true);
-        $("#moving_stone").style.opacity = '0.3';
-        requestAnimationFrame(function() {
-            setStoneShadow(movingShadow, 0);
-        });
-        animateElement("#moving_stone", duration, {
-            left: p2[0],
-            top: p2[1],
-            width: p2[2],
-            height: p2[3],
-            opacity: 1.0,
-            onComplete: end_tasks});
-    }
-    this.pickupStone = function(coords, colour, speed) {
-        var duration = Math.sqrt(1/speed);
-        var p1 = this.stonePosition(coords[0], coords[1], 0);
-        var p2 = this.stonePosition(coords[0], coords[1], 10);
-        var self = this;
-        var end_tasks = function() {
-            setVisible($("#moving_stone"), false);
-            setVisible($('#moving_stone .stone-shadow'), false);
-            self.moving_stone = false;
-            self.moving_stone_src = null;
-            $("#moving_stone").style.opacity = '1.0';
-            self.sound?.bowl(colour == white ? 'white' : 'black');
-            self.transform();
-        };
-        
-        setStyles($("#moving_stone"), {left: p1[0], top: p1[1], width: p1[2], height: p1[3]});
-        var movingShadow = $('#moving_stone .stone-shadow');
-        setStoneShadow(movingShadow, 0);
-        var src = stoneImageSrc(colour, this.moving_stone_src);
-        var movingStoneImage = $("#moving_stone img");
-        movingStoneImage.src = src;
-        setVisible(movingStoneImage, true);
-        requestAnimationFrame(function() {
-            setStoneShadow(movingShadow, 10);
-        });
-        animateElement("#moving_stone", duration, {
-            left: p2[0],
-            top: p2[1],
-            width: p2[2],
-            height: p2[3],
-            opacity: 0.3,
-            onComplete: end_tasks});
-    };
-
     // One move towards the board the face wants, and the next once it
     // has landed; or, with the board right, a stone nudged straighter, or
     // a look again as the second turns.
@@ -982,10 +425,10 @@ export function GoClock(){
         if (plan) {
             this.startMove(plan);
         } else {
-            this.alignIdleStone();
+            alignIdleStone(this);
         }
         if (this.moving_stone == true) {
-            this.move_stone();
+            moveStone(this);
         } else {
             // Nothing to do: look again just after the next second turns,
             // which is the soonest any face can change.
@@ -1004,7 +447,7 @@ export function GoClock(){
             this.stone_from = [go_table, go_table];
             this.stone_colour = plan.entry.colour;
             this.hand_position = plan.to;
-            this.setLandingOffset(plan.to);
+            setLandingOffset(this, plan.to);
             this.stone_to = this.get_coords(plan.to);
             this.clear_route = false;
             break;
@@ -1013,7 +456,7 @@ export function GoClock(){
             this.hand_position = plan.to;
             this.stone_colour = this.stones_shown[plan.from];
             this.stones_shown[plan.from] = 0;
-            this.setLandingOffset(plan.to);
+            setLandingOffset(this, plan.to);
             this.stone_to = this.get_coords(plan.to);
             this.clear_route = !plan.lift;
             break;
@@ -1048,7 +491,7 @@ export function GoClock(){
         case 'add':
             this.stone_colour = plan.colour;
             this.stone_from = [go_bowl, go_bowl];
-            this.setLandingOffset(plan.to);
+            setLandingOffset(this, plan.to);
             this.stone_to = this.get_coords(plan.to);
             this.hand_position = plan.to;
             break;

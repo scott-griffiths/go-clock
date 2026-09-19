@@ -30,13 +30,19 @@ The public GitHub Pages URL is expected to remain `https://scott-griffiths.githu
 
 - `www/index.html` is the static app shell.
 - `www/my-clock.js` owns browser UI, settings, persistence, and layout lifecycle.
-- `www/go-clock.js` owns the board: what is on it, the hand's moves, the sweep and the finger.
-- `www/board.js` is the grid as numbers: sizes, colours, indices, distances, lines.
-- `www/faces.js` is the clock faces: the stones a time wants, per view.
-- `www/planner.js` chooses the hand's next move from the board as it is and as the face wants it.
-- `www/physics.js` is the stone simulation the sweep and the hand share.
+- `www/go-clock.js` is the clock: what is on the board, the board on the page, and each move
+  from decision to landing. The modules it draws on, in the order a stone meets them:
+  - `www/board.js` — the grid as numbers: sizes, colours, indices, distances, lines.
+  - `www/faces.js` — the clock faces: the stones a time wants, per view.
+  - `www/planner.js` — the hand's next move, from the board as it is and as the face wants it.
+  - `www/placement.js` — where a stone lies on its point: the scatter, the nudges, the shoves.
+  - `www/moves.js` — a move animated: slid, lifted, dropped in, lifted out, and the push of a swap.
+  - `www/stone-dom.js` — the stones on the page: images, elements, shadows, the animation helper.
+  - `www/physics.js` — the stone simulation the sweep and the hand share.
+  - `www/sweep.js` — the board tipped and the stones sliding off it.
+  - `www/hand.js` — a finger held on the board, pushing the stones about.
 
-The last four have no DOM in them and are tested under node.
+  `board.js`, `faces.js`, `planner.js` and `physics.js` have no DOM in them and are tested under node.
 - `www/my-clock.css` owns all visual styling.
 - `www/service-worker.js` caches the static app for offline use.
 - `www/manifest.webmanifest` makes the web version installable to a home screen.
