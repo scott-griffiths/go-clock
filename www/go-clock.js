@@ -22,17 +22,20 @@ const alternateWhiteStoneSrcs = [
     ext + "white_stone2.png",
     ext + "white_stone3.png"
 ];
-const whiteStoneSrcs = [primaryWhiteStoneSrc, ...alternateWhiteStoneSrcs];
-whiteStoneSrcs.forEach((src) => {
-    const image = new Image();
-    image.src = src;
-});
+const blackStoneSrc = ext + "black_stone1.png";
 
-var black_stone = new Image();
-black_stone.src = ext + "black_stone1.png";
-
-var goban_1200 = new Image();
-goban_1200.src = ext + "goban_1200.jpg";
+// The board image, and the stone images fetched ahead of their first use.
+// Only in a browser: the faces (update) and the hand's arithmetic run
+// under node for the tests, where there is no Image.
+var goban_1200 = null;
+if (typeof Image !== 'undefined') {
+    [primaryWhiteStoneSrc, ...alternateWhiteStoneSrcs, blackStoneSrc].forEach((src) => {
+        const image = new Image();
+        image.src = src;
+    });
+    goban_1200 = new Image();
+    goban_1200.src = ext + "goban_1200.jpg";
+}
 
 const white = 1;
 const black = 3;
@@ -72,7 +75,7 @@ function stoneImageSrc(colour, preferredSrc = null) {
     if (colour == white) {
         return preferredSrc || randomWhiteStoneSrc();
     }
-    return black_stone.src;
+    return blackStoneSrc;
 }
 
 function isWrongColourPair(diff) {

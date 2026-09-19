@@ -43,9 +43,13 @@ The public GitHub Pages URL is expected to remain `https://scott-griffiths.githu
 Useful checks:
 
 ```sh
+node --test tests/      # the clock faces at the awkward times, and the hand's arithmetic
 node --check www/my-clock.js
 node --check www/go-clock.js
 ```
+
+The tests import `www/go-clock.js` under node, which is why that module
+only makes its `Image`s when there is an `Image` to make.
 
 ## iOS app
 
