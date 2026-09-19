@@ -126,9 +126,14 @@ body {
     z-index: 3;
 }
 
-/* A stone flying off into space wears a frame of its tumble sheet (flight.js). */
+/* A stone tumbling in space wears a frame of its tumble sheet (flight.js);
+   one risen off the board passes over everything else. */
 .flying {
     background-repeat: no-repeat;
+}
+
+.rising {
+    z-index: 6;
 }
 
 .stone {
@@ -146,17 +151,17 @@ body {
     left: max(10px, env(safe-area-inset-left));
     z-index: 20;
     display: grid;
-    /* Shrinkable, so the slider can give way on a narrow phone. */
+    /* Shrinkable, so the row of buttons can wrap on a narrow phone. */
     grid-template-columns: minmax(0, max-content);
     justify-items: start;
     gap: 8px;
     width: max-content;
-    /* Room on the right for the mute button. */
-    max-width: calc(100vw - 20px - 50px - env(safe-area-inset-right));
+    /* Room on the right for the two toggles. */
+    max-width: calc(100vw - 20px - 92px - env(safe-area-inset-right));
     opacity: 1;
     transition: opacity 360ms ease;
     /* The toolbar's own box is see-through to touches: only its controls
-       take them, so a tap between chips reaches the board. */
+       take them, so a tap between buttons reaches the board. */
     pointer-events: none;
 }
 
@@ -164,111 +169,22 @@ body {
     pointer-events: auto;
 }
 
+/* The about button and the setting buttons: a row, wrapping if it must. */
 .toolbar-actions {
     display: flex;
+    flex-wrap: wrap;
     max-width: 100%;
     align-items: center;
-    gap: 8px;
-}
-
-.speed-control {
-    display: flex;
-    min-width: 0;
-    flex: 1 1 auto;
-    align-items: center;
     gap: 6px;
-    height: 42px;
-    padding: 0 10px;
-    border-radius: 6px;
-    background: rgb(0 0 0 / 0.7);
-    box-shadow: 0 3px 14px rgb(0 0 0 / 0.32);
 }
 
-.speed-end {
-    font-size: 18px;
-    line-height: 1;
-}
-
-/* The slider: a plain track, with the five notches drawn alongside it so
-   they sit exactly where the thumb's centre can be — half a thumb (9px)
-   in from either end of the track. */
-.speed-track {
-    position: relative;
-    display: block;
-    flex: 1 1 180px;
-    min-width: 72px;
-    max-width: 180px;
-    height: 28px;
-}
-
-.speed-notches {
-    position: absolute;
-    top: 50%;
-    right: 6px;
-    left: 6px;
+/* The two toggles, in the top right corner. */
+.toolbar-toggles {
+    position: fixed;
+    top: max(10px, env(safe-area-inset-top));
+    right: max(10px, env(safe-area-inset-right));
     display: flex;
-    height: 6px;
-    margin-top: -3px;
-    justify-content: space-between;
-    pointer-events: none;
-}
-
-.speed-notches i {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: rgb(255 255 255 / 0.9);
-}
-
-#speed-slider {
-    position: relative;
-    display: block;
-    width: 100%;
-    height: 28px;
-    margin: 0;
-    background: transparent;
-    cursor: pointer;
-    -webkit-appearance: none;
-    appearance: none;
-}
-
-#speed-slider::-webkit-slider-runnable-track {
-    height: 4px;
-    border-radius: 2px;
-    background: rgb(255 255 255 / 0.35);
-}
-
-#speed-slider::-moz-range-track {
-    height: 4px;
-    border-radius: 2px;
-    background: rgb(255 255 255 / 0.35);
-}
-
-#speed-slider::-webkit-slider-thumb {
-    width: 18px;
-    height: 18px;
-    margin-top: -7px;
-    border: 0;
-    border-radius: 50%;
-    background: white;
-    box-shadow: 0 1px 4px rgb(0 0 0 / 0.5);
-    -webkit-appearance: none;
-    appearance: none;
-}
-
-#speed-slider::-moz-range-thumb {
-    width: 18px;
-    height: 18px;
-    border: 0;
-    border-radius: 50%;
-    background: white;
-    box-shadow: 0 1px 4px rgb(0 0 0 / 0.5);
-}
-
-#speed-slider:focus-visible {
-    outline: 2px solid rgb(255 255 255 / 0.8);
-    outline-offset: 2px;
-    border-radius: 4px;
+    gap: 6px;
 }
 
 .button {
@@ -305,7 +221,7 @@ body {
 }
 
 .about-button,
-.settings-button,
+.mode-button,
 .mute-button {
     width: 42px;
     height: 42px;
@@ -315,14 +231,17 @@ body {
 }
 
 .mute-button {
-    position: fixed;
-    top: max(10px, env(safe-area-inset-top));
-    right: max(10px, env(safe-area-inset-right));
     font-size: 20px;
 }
 
 .mute-button[aria-pressed="true"] {
     opacity: 0.75;
+}
+
+.mode-button {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 14px;
+    font-weight: 700;
 }
 
 .about-button {
@@ -332,52 +251,25 @@ body {
     font-weight: 700;
 }
 
-.settings-button {
-    font-family: "Times New Roman", Georgia, serif;
-    font-size: 24px;
-}
-
-.settings-button[aria-expanded="true"] {
-    background: rgb(255 255 255 / 0.93);
-    color: #261917;
-}
-
-.settings-menu {
-    display: grid;
-    justify-items: start;
-    gap: 8px;
-}
-
-/* A setting is a chip showing its current value. Open, it grows into a panel
-   with the choices beneath the chip. */
+/* A setting is a button named for it; open, its choices drop down beneath
+   it (or, in landscape, out to its right), the current one marked. */
 .setting-control {
-    display: grid;
-    gap: 6px;
-    max-width: 100%;
-    border-radius: 6px;
+    position: relative;
     color: white;
     font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 700;
     line-height: 1.1;
 }
 
-.setting-control[data-open="true"] {
-    padding: 6px;
-    background: rgb(0 0 0 / 0.68);
-    box-shadow: 0 3px 14px rgb(0 0 0 / 0.32);
-}
-
 .setting-summary {
     display: grid;
-    grid-template-columns: 22px max-content;
     align-items: center;
-    gap: 9px;
-    min-height: 38px;
-    padding: 0 12px 0 8px;
+    min-height: 42px;
+    padding: 0 10px;
     border: 0;
     border-radius: 6px;
-    background: rgb(0 0 0 / 0.68);
+    background: rgb(0 0 0 / 0.7);
     color: inherit;
     cursor: pointer;
     font: inherit;
@@ -393,20 +285,8 @@ body {
 }
 
 .setting-control[data-open="true"] .setting-summary {
-    padding-left: 2px;
-    background: transparent;
-    box-shadow: none;
-}
-
-/* A closed chip shows the setting's name and value ("Board: Oak"); an open
-   one, with every value on show beneath it, shows the name alone. */
-.setting-control[data-open="true"] .setting-colon,
-.setting-control[data-open="true"] .setting-value {
-    display: none;
-}
-
-.setting-control[data-open="true"] .setting-summary:focus-visible {
-    background: rgb(255 255 255 / 0.12);
+    background: rgb(255 255 255 / 0.93);
+    color: #261917;
 }
 
 .setting-icon {
@@ -418,24 +298,34 @@ body {
 }
 
 .setting-options {
-    display: flex;
-    flex-wrap: wrap;
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    z-index: 1;
+    display: grid;
+    /* One column as wide as the widest choice, which the rest fill. */
+    grid-template-columns: max-content;
     gap: 4px;
-    min-width: 0;
+    padding: 6px;
+    border-radius: 6px;
+    background: rgb(0 0 0 / 0.75);
+    box-shadow: 0 3px 14px rgb(0 0 0 / 0.32);
 }
 
 .choice-button {
     display: grid;
+    width: 100%;
     min-width: 34px;
-    min-height: 28px;
-    padding: 0 7px;
+    min-height: 32px;
+    padding: 0 10px;
     border: 0;
     border-radius: 4px;
-    place-items: center;
+    justify-items: start;
+    align-items: center;
     background: rgb(255 255 255 / 0.16);
     color: white;
     cursor: pointer;
-    font: 700 12px/1 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font: 700 13px/1 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     white-space: nowrap;
 }
 
@@ -460,7 +350,12 @@ body {
     outline-offset: -2px;
 }
 
-/* The swipe reminder, under the controls, coming and going with them. */
+/* The swipe reminder, under the controls, coming and going with them, and
+   out of the way while a setting's choices are showing. */
+.toolbar:has(.setting-control[data-open="true"]) .swipe-note {
+    display: none;
+}
+
 .swipe-note {
     padding: 6px 12px;
     border-radius: 6px;
@@ -478,10 +373,47 @@ body {
     top: max(10px, env(safe-area-inset-top));
     left: 50%;
     z-index: 25;
+    grid-template-columns: 22px max-content;
+    gap: 9px;
+    padding: 0 12px 0 8px;
     transform: translateX(-50%);
     color: white;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.1;
     cursor: default;
     pointer-events: none;
+}
+
+/* Landscape: the board leaves the sides free, so the buttons run down the
+   left and the toggles down the right, a setting's choices open out to
+   its right, and the swipe reminder sits at the foot of the screen. */
+@media (orientation: landscape) {
+    .toolbar {
+        max-width: none;
+    }
+
+    .toolbar-actions {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .toolbar-toggles {
+        flex-direction: column;
+    }
+
+    .setting-options {
+        top: 0;
+        left: calc(100% + 6px);
+    }
+
+    .swipe-note {
+        position: fixed;
+        bottom: max(10px, env(safe-area-inset-bottom));
+        left: 50%;
+        transform: translateX(-50%);
+    }
 }
 
 /* Hover styles only where something can hover: on iOS a :hover rule makes
@@ -494,7 +426,7 @@ body {
     }
 
     .setting-control[data-open="true"] .setting-summary:hover {
-        background: rgb(255 255 255 / 0.12);
+        background: white;
     }
 
     .choice-button:hover {
@@ -556,12 +488,6 @@ body {
     gap: 1rem;
     margin-bottom: 0;
     font-size: 0.85rem;
-}
-
-@media (max-width: 520px) {
-    .setting-control[data-open="true"] {
-        width: min(320px, calc(100vw - 20px));
-    }
 }
 
 @media (prefers-reduced-motion: reduce) {

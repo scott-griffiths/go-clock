@@ -34,7 +34,7 @@ const stoneSpeeds = [['Torpid', 5], ['Slow', 10], ['Normal', 20], ['Fast', 55], 
 const placements = ['Exact', 'Organic', 'Careless', 'Haphazard'];
 const placementOptionLabels = ['Exact', 'Organic', 'Careless', 'Meh'];
 const modes = ['12-hour', '24-hour'];
-const modeOptionLabels = ['12h', '24h'];
+const modeLabels = ['12h', '24h'];
 const woods = [
     ['Oak', 'saturate(0.8) hue-rotate(-12deg) sepia(0.5)'],
     ['Kaya', 'saturate(1.3) hue-rotate(-7deg)'],
@@ -226,11 +226,10 @@ window.addEventListener('load', () => {
 
     const goban = $('#goban');
     const toolbar = $('#toolbar');
-    const speedSlider = $('#speed-slider');
-    const settingsButton = $('#settings');
+    const modeButton = $('#mode');
+    const modeLabel = $('#mode-label');
     const muteButton = $('#mute');
     const muteIcon = $('#mute-icon');
-    const settingsMenu = $('#settings-menu');
     const swipeToast = $('#swipe-toast');
     const aboutButton = $('#about');
     const aboutBox = $('#about_box');
@@ -240,14 +239,14 @@ window.addEventListener('load', () => {
     // The one setting whose choices are showing, if any.
     let openControl = null;
 
-    // A setting control is a chip (`.setting-summary`) that shows the current
-    // value and opens the choices beneath it. Returns a setter that marks the
-    // chosen option and updates the chip.
+    // A setting control is a button (`.setting-summary`) named for the
+    // setting that drops its choices down. Returns a setter that marks the
+    // chosen option and puts the value in the button's accessible name.
     function createSettingControl(name, labels, values, onSelect) {
         const control = $(`#${name}-control`);
         const summary = $('.setting-summary', control);
         const options = $('.setting-options', control);
-        const valueLabel = $(`#${name}-value`);
+        const settingName = summary.textContent.trim();
 
         labels.forEach((label, index) => {
             const button = document.createElement('button');
@@ -275,7 +274,8 @@ window.addEventListener('load', () => {
         });
 
         return (activeIndex) => {
-            valueLabel.textContent = values[activeIndex];
+            summary.setAttribute('aria-label', `${settingName}: ${values[activeIndex]}`);
+            summary.title = values[activeIndex];
             $$('.choice-button', options).forEach((button) => {
                 button.setAttribute('aria-pressed', String(Number(button.dataset.index) === activeIndex));
             });
@@ -299,15 +299,6 @@ window.addEventListener('load', () => {
         wakeControls();
     }
 
-    function setSettingsOpen(open) {
-        settingsMenu.hidden = !open;
-        settingsButton.setAttribute('aria-expanded', String(open));
-        if (!open) {
-            setOpenControl(null);
-        }
-        wakeControls();
-    }
-
     // What a swipe just chose, in the chip's dress, at the top for a moment.
     function showSwipeToast(icon, value) {
         $('#swipe-toast-icon').textContent = icon;
@@ -319,27 +310,23 @@ window.addEventListener('load', () => {
         swipeToastTimer = window.setTimeout(() => fadeTo(swipeToast, 0, 400), 1400);
     }
 
+    const showSpeed = createSettingControl('speed', stoneSpeeds.map(([name]) => name), stoneSpeeds.map(([name]) => name), setClockSpeed);
     const showWood = createSettingControl('wood', woods.map(([name]) => name), woods.map(([name]) => name), setWood);
     const showPlacement = createSettingControl('placement', placementOptionLabels, placements, setPlacement);
-    const showMode = createSettingControl('mode', modeOptionLabels, modes, (index) => {
-        setMode(index);
-        goClock.transform();
-    });
 
     function setClockSpeed(index) {
         stoneSpeed = wrap(index, stoneSpeeds.length);
-        const [name, speed] = stoneSpeeds[stoneSpeed];
-        goClock.speed = speed;
-        speedSlider.value = String(stoneSpeed);
-        speedSlider.setAttribute('aria-valuetext', name);
-        speedSlider.title = name;
+        goClock.speed = stoneSpeeds[stoneSpeed][1];
+        showSpeed(stoneSpeed);
         writeSetting('speed', stoneSpeed);
     }
 
+    // The mode button is a toggle showing the clock it is on.
     function setMode(index) {
         mode = wrap(index, modes.length);
         goClock.twenty_four_hour = mode === 1;
-        showMode(mode);
+        modeLabel.textContent = modeLabels[mode];
+        modeButton.setAttribute('aria-pressed', String(mode === 1));
         writeSetting('mode', mode);
         describeBoard();
     }
@@ -440,8 +427,6 @@ window.addEventListener('load', () => {
                 setControlOpen(openControl, false);
                 openControl = null;
             }
-            settingsMenu.hidden = true;
-            settingsButton.setAttribute('aria-expanded', 'false');
             toolbar.dataset.visible = 'false';
         }, openControl ? openControlHideDelay : controlsHideDelay);
     }
@@ -454,8 +439,6 @@ window.addEventListener('load', () => {
     // The controls out of the way at once, menus and all.
     function hideControls() {
         setOpenControl(null);
-        settingsMenu.hidden = true;
-        settingsButton.setAttribute('aria-expanded', 'false');
         // setOpenControl woke the controls; that is not wanted here.
         clearControlsFade();
         toolbar.dataset.visible = 'false';
@@ -523,8 +506,6 @@ window.addEventListener('load', () => {
         setGobanState(storedState);
     }
 
-    speedSlider.max = String(stoneSpeeds.length - 1);
-    speedSlider.addEventListener('input', () => setClockSpeed(Number(speedSlider.value)));
     setClockSpeed(stoneSpeed);
     setView(view);
     setBackground(background);
@@ -652,10 +633,9 @@ window.addEventListener('load', () => {
     };
     document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') {
-            setSettingsOpen(false);
+            setOpenControl(null);
             hideAbout();
-        } else if (!event.metaKey && !event.ctrlKey && !event.altKey
-                   && !(event.target === speedSlider && event.key.startsWith('Arrow'))) {
+        } else if (!event.metaKey && !event.ctrlKey && !event.altKey) {
             const action = keyActions[event.key.length === 1 ? event.key.toLowerCase() : event.key];
             if (action) {
                 // These are about the board, not the controls.
@@ -666,9 +646,8 @@ window.addEventListener('load', () => {
         }
         wakeControlsForActivity();
     });
-    $$('#toolbar button, #toolbar input').forEach((control) => {
+    $$('#toolbar button').forEach((control) => {
         control.addEventListener('click', wakeControls);
-        control.addEventListener('input', wakeControls);
         control.addEventListener('focus', wakeControls);
     });
     // A touch anywhere outside an open setting closes it; likewise the about
@@ -679,9 +658,6 @@ window.addEventListener('load', () => {
         if (openControl && !openControl.contains(event.target)) {
             setOpenControl(null);
         }
-        if (!settingsMenu.hidden && !settingsMenu.contains(event.target) && !settingsButton.contains(event.target)) {
-            setSettingsOpen(false);
-        }
         if (!aboutBox.hidden && !aboutBox.contains(event.target) && !aboutButton.contains(event.target)) {
             hideAbout();
         }
@@ -691,7 +667,10 @@ window.addEventListener('load', () => {
     document.addEventListener('click', closeOutside);
 
     muteButton.addEventListener('click', () => setSound(sound === 1 ? 0 : 1));
-    settingsButton.addEventListener('click', () => setSettingsOpen(settingsMenu.hidden));
+    modeButton.addEventListener('click', () => {
+        setMode(mode === 1 ? 0 : 1);
+        goClock.transform();
+    });
     aboutButton.addEventListener('click', () => {
         if (aboutBox.hidden) {
             showAbout();

@@ -34,56 +34,41 @@
         </div>
         <div id="sb-site">
             <div id="toolbar" class="toolbar" role="toolbar" aria-label="Clock controls" data-visible="true">
+                <!-- The about button, then a button per setting, each dropping down
+                     its choices (created by my-clock.js); only one is open at a
+                     time. A button's accessible name is its setting and current
+                     value ("Board: Oak"). In a row across the top in portrait, in a
+                     column down the left in landscape, where the board leaves the
+                     sides free. The clock face and background have no button: they
+                     are changed by swiping, which the note says. -->
                 <div class="toolbar-actions">
                     <button id="about" class="button about-button" type="button" title="About" aria-label="About" aria-expanded="false" aria-controls="about_box">
                         <span aria-hidden="true">i</span>
                     </button>
-                    <button id="settings" class="button settings-button" type="button" title="Settings" aria-label="Settings" aria-expanded="false" aria-controls="settings-menu">
-                        <span aria-hidden="true">⚙&#xFE0E;</span>
-                    </button>
-                    <div id="speed-control" class="speed-control" role="group" aria-label="Stone speed">
-                        <span class="speed-end" aria-hidden="true">🐢</span>
-                        <span class="speed-track">
-                            <span class="speed-notches" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
-                            <input id="speed-slider" type="range" min="0" max="4" step="1" value="2" aria-label="Stone speed">
-                        </span>
-                        <span class="speed-end" aria-hidden="true">🐇</span>
+                    <div id="speed-control" class="setting-control" data-open="false">
+                        <button class="setting-summary" type="button" aria-expanded="false" aria-controls="speed-options">Speed</button>
+                        <div id="speed-options" class="setting-options" role="group" aria-label="Speed" hidden></div>
                     </div>
-                </div>
-                <!-- The settings button drops these down. Each is a chip showing its
-                     name and current value ("Board: Oak"); tapping the chip opens
-                     that setting's choices beneath it, under the name alone, and
-                     only one is open at a time. The choice buttons are created by
-                     my-clock.js. The clock face and background have no chip: they
-                     are changed by swiping, which the note beneath says. -->
-                <div id="settings-menu" class="settings-menu" hidden>
                     <div id="wood-control" class="setting-control" data-open="false">
-                        <button class="setting-summary" type="button" aria-expanded="false" aria-controls="wood-options">
-                            <span class="setting-icon" aria-hidden="true">▦</span>
-                            <span class="setting-text"><span class="setting-name">Board</span><span class="setting-colon" aria-hidden="true">:</span> <span class="setting-value" id="wood-value"></span></span>
-                        </button>
+                        <button class="setting-summary" type="button" aria-expanded="false" aria-controls="wood-options">Board</button>
                         <div id="wood-options" class="setting-options" role="group" aria-label="Board" hidden></div>
                     </div>
                     <div id="placement-control" class="setting-control" data-open="false">
-                        <button class="setting-summary" type="button" aria-expanded="false" aria-controls="placement-options">
-                            <span class="setting-icon" aria-hidden="true">⌖</span>
-                            <span class="setting-text"><span class="setting-name">Precision</span><span class="setting-colon" aria-hidden="true">:</span> <span class="setting-value" id="placement-value"></span></span>
-                        </button>
+                        <button class="setting-summary" type="button" aria-expanded="false" aria-controls="placement-options">Precision</button>
                         <div id="placement-options" class="setting-options" role="group" aria-label="Precision" hidden></div>
                     </div>
-                    <div id="mode-control" class="setting-control" data-open="false">
-                        <button class="setting-summary" type="button" aria-expanded="false" aria-controls="mode-options">
-                            <span class="setting-icon" aria-hidden="true">◑</span>
-                            <span class="setting-text"><span class="setting-name">Mode</span><span class="setting-colon" aria-hidden="true">:</span> <span class="setting-value" id="mode-value"></span></span>
-                        </button>
-                        <div id="mode-options" class="setting-options" role="group" aria-label="Mode" hidden></div>
-                    </div>
                 </div>
-                <!-- Sound on or off, in the top right corner. -->
-                <button id="mute" class="button mute-button" type="button" title="Mute" aria-label="Mute" aria-pressed="false">
-                    <span id="mute-icon" aria-hidden="true">🔊</span>
-                </button>
-                <!-- A reminder of the swipes, under the controls. -->
+                <!-- Two toggles in the top right corner: the 24-hour clock, and sound. -->
+                <div class="toolbar-toggles">
+                    <button id="mode" class="button mode-button" type="button" title="24-hour clock" aria-label="24-hour clock" aria-pressed="true">
+                        <span id="mode-label" aria-hidden="true">24h</span>
+                    </button>
+                    <button id="mute" class="button mute-button" type="button" title="Mute" aria-label="Mute" aria-pressed="false">
+                        <span id="mute-icon" aria-hidden="true">🔊</span>
+                    </button>
+                </div>
+                <!-- A reminder of the swipes: under the controls, or, in landscape,
+                     at the foot of the screen; gone while a setting is open. -->
                 <div class="swipe-note" aria-hidden="true">Swipe to change the clock face or background</div>
             </div>
             <!-- What a swipe just chose, shown briefly at the top. -->
