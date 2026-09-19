@@ -164,6 +164,25 @@ function preloadBackgrounds() {
     });
 }
 
+// Keeps the screen on while the clock is showing, where the browser allows
+// it (a secure context, and not the iOS shell, which does this itself).
+// The browser lets the lock go when the page is hidden, so it is asked for
+// again each time the page comes back.
+let wakeLock = null;
+async function keepScreenAwake() {
+    if (!navigator.wakeLock || document.visibilityState !== 'visible' || wakeLock) {
+        return;
+    }
+    try {
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release', () => {
+            wakeLock = null;
+        });
+    } catch {
+        // Low battery, or not allowed here: the screen dims as it usually would.
+    }
+}
+
 function registerServiceWorker() {
     if (!('serviceWorker' in navigator)) {
         return;
@@ -713,6 +732,8 @@ window.addEventListener('load', () => {
     resizeClock();
     wakeControls();
     registerServiceWorker();
+    keepScreenAwake();
+    document.addEventListener('visibilitychange', keepScreenAwake);
     window.addEventListener('resize', scheduleResize);
     setInterval(() => {
         storeGobanState();

@@ -2370,8 +2370,9 @@ export function GoClock(){
         if (this.moving_stone == true) {
             this.move_stone();
         } else {
-            // Set up next call to transform
-            this.idle_timer = setTimeout(this.transform.bind(this), 500);
+            // Nothing to do: look again just after the next second turns,
+            // which is the soonest any face can change.
+            this.idle_timer = setTimeout(this.transform.bind(this), 1000 - Date.now() % 1000 + 5);
         }
     }
 }
