@@ -346,6 +346,13 @@ export function flatBoard(stone, dt, world) {
     world.slow(stone, world.speedOf(stone)*6.5 + world.diameter*32, dt);
 }
 
+// What the board does in space: next to nothing. A shoved stone glides
+// on, across the board and over the edge more often than not; only a
+// gentle nudge runs out before it gets there.
+export function spaceBoard(stone, dt, world) {
+    world.slow(stone, world.speedOf(stone)*0.2 + world.diameter*0.8, dt);
+}
+
 // What a tipped board does: `gravity` px/s² down the slope, towards the
 // near edge; a lean towards the middle of that edge too, `gather` px/s²
 // per px from it, so the stones come together and land in one heap; and

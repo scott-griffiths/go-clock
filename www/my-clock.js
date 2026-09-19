@@ -17,7 +17,8 @@ const tipsOfTheDay = [
 
 // File, name, and how much the table drags on a stone skidding across it,
 // relative to wood: stones stop short in grass and slide on wet glass. In
-// space there is no table, and a stone over the edge falls away.
+// space the board has no grip and there is no table: a shoved stone glides
+// off the edge and away.
 const backgrounds = [
     ['wood1.jpg', 'Dark wood', 1],
     ['wood2.jpg', 'Light wood', 1],

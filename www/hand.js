@@ -13,7 +13,7 @@
 // is still pressing.
 
 import {gridsize, nearestFreePoint} from './board.js';
-import {StoneWorld, flatBoard} from './physics.js';
+import {StoneWorld, flatBoard, spaceBoard} from './physics.js';
 import {$, setStyles, setVisible, setStoneShadow, cancelElementAnimations, elementCentre, colourOfImage, tableTransform,
         drawOnTable} from './stone-dom.js';
 import {drawFlying, flyOn} from './flight.js';
@@ -29,12 +29,13 @@ export function fingerDown(clock, clientX, clientY) {
     window.clearTimeout(clock.idle_timer);
 
     // A shoved stone that goes over the edge tips outward as it falls,
-    // so it lands clear of the side.
+    // so it lands clear of the side. In space the board hardly holds a
+    // stone back: a shove sends it gliding off into the dark.
     var world = new StoneWorld({
         board: clock.boardRect(),
         screen: clock.screenRect(),
         diameter: diameter,
-        onBoard: flatBoard,
+        onBoard: clock.table_void ? spaceBoard : flatBoard,
         grip: clock.table_grip,
         isVoid: clock.table_void,
         edgeKick: diameter*5,
