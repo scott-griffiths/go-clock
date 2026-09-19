@@ -20,7 +20,8 @@ export class Sounds {
         this.keepAlive = null;
         this.enabled = false;
         this.lastPlayed = new Map();
-        this.voices = 0;
+        // When each sound now playing will end, in context time.
+        this.voiceEnds = [];
         this.unlock = () => this.ensureContext();
     }
 
@@ -92,10 +93,17 @@ export class Sounds {
     // awake, this kind has not played within `gap` seconds, and there are not
     // too many sounds already going (a sweep asks for a great many).
     ready(kind, gap = 0) {
-        if (!this.enabled || !this.ensureContext() || this.voices >= 14) {
+        if (!this.enabled || !this.ensureContext()) {
             return false;
         }
         const now = this.context.currentTime;
+        // Counted by the clock rather than by 'ended' events: a context
+        // that is interrupted mid-sound never sends those, and the count
+        // would sit at the cap for good.
+        this.voiceEnds = this.voiceEnds.filter((end) => end > now);
+        if (this.voiceEnds.length >= 14) {
+            return false;
+        }
         if (gap > 0 && now - (this.lastPlayed.get(kind) ?? -1) < gap) {
             return false;
         }
@@ -105,20 +113,19 @@ export class Sounds {
 
     // Keeps count of what is playing, for the polyphony cap.
     voice(source, until) {
-        this.voices += 1;
-        source.addEventListener('ended', () => {
-            this.voices -= 1;
-        }, {once: true});
+        this.voiceEnds.push(until);
         source.stop(until);
     }
 
     // A burst of noise through a filter: the crack of an impact or a scrape.
+    // Started somewhere in the first half of the second of noise, so that
+    // no two cracks are the same; looped, so a long scrape does not run
+    // out of it.
     burst({start, duration, gain, attack = 0.002, filter = 'bandpass', frequency = 2500, q = 1}) {
         const context = this.context;
         const source = context.createBufferSource();
         source.buffer = this.noise;
         source.loop = true;
-        source.loopStart = Math.random()*0.5;
         const shape = context.createBiquadFilter();
         shape.type = filter;
         shape.frequency.value = frequency;
@@ -128,7 +135,7 @@ export class Sounds {
         envelope.gain.exponentialRampToValueAtTime(gain, start + attack);
         envelope.gain.exponentialRampToValueAtTime(0.0001, start + duration);
         source.connect(shape).connect(envelope).connect(this.master);
-        source.start(start);
+        source.start(start, Math.random()*0.5);
         this.voice(source, start + duration + 0.02);
     }
 
