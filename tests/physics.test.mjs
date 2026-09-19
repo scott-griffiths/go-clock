@@ -6,7 +6,7 @@
 
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {StoneWorld, flatBoard, spaceBoard, tippedBoard, dropTime, voidFlightTime} from '../www/physics.js';
+import {StoneWorld, flatBoard, spaceBoard, tippedBoard, setTumbling, isTumbling, dropTime, voidFlightTime} from '../www/physics.js';
 
 const board = {left: 100, top: 100, right: 500, bottom: 500};
 const screen = {right: 600, bottom: 800};
@@ -135,6 +135,30 @@ test('in space, a shoved stone glides across the board and over the edge; a nudg
     run(nudged, 3, () => nudged.speedOf(n) === 0);
     assert.equal(nudged.speedOf(n), 0);
     assert.ok(!n.offBoard && n.x > 310 && n.x < 400);
+});
+
+test('in space, a stone on the move tumbles, and lies flat again once it stops', () => {
+    const w = world({isVoid: true, onBoard: spaceBoard});
+    const s = w.add(stone({x: 300, y: 300, vx: 40}));
+    w.advance(0.016);
+    assert.ok(isTumbling(s) && s.spin > 0 && s.turned > 0);
+    assert.ok(!w.still());
+    run(w, 3, () => w.speedOf(s) === 0);
+    assert.ok(isTumbling(s));
+    run(w, 1, () => !isTumbling(s));
+    assert.equal(s.tumble, 0);
+    assert.equal(s.turned, 0);
+    assert.ok(w.still());
+});
+
+test('a stone turned round keeps its tumble, read the other way', () => {
+    const s = stone({x: 300, y: 300});
+    setTumbling(s, -Math.PI/2, 6);
+    s.tumble = 1;
+    setTumbling(s, Math.PI/2, 6);
+    assert.equal(s.tumble, -1);
+    assert.ok(s.spin < 0);
+    assert.equal(s.heading, 0);
 });
 
 test('a flying stone tumbles leading edge first, turned the nearer way round', () => {

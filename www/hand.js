@@ -13,10 +13,10 @@
 // is still pressing.
 
 import {gridsize, nearestFreePoint} from './board.js';
-import {StoneWorld, flatBoard, spaceBoard} from './physics.js';
+import {StoneWorld, flatBoard, spaceBoard, isTumbling} from './physics.js';
 import {$, setStyles, setVisible, setStoneShadow, cancelElementAnimations, elementCentre, colourOfImage, tableTransform,
         drawOnTable} from './stone-dom.js';
-import {drawFlying, flyOn} from './flight.js';
+import {drawTumbling, drawFlying, drawSettled, flyOn} from './flight.js';
 
 export function fingerDown(clock, clientX, clientY) {
     if (clock.sweeping_board || clock.finger || typeof document === 'undefined') {
@@ -199,6 +199,13 @@ export function fingerDown(clock, clientX, clientY) {
             if (stone.offBoard) {
                 drawOnTable(stone.element, world.drop(stone));
             } else {
+                // In space a stone on the move turns over, and lies flat
+                // again once it stops.
+                if (isTumbling(stone)) {
+                    drawTumbling(stone.element, stone);
+                } else {
+                    drawSettled(stone.element);
+                }
                 sliding += Math.min(1, world.speedOf(stone)/(diameter*10));
             }
         });

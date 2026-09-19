@@ -22,12 +22,15 @@
 //               stones before they let go; the heap already on the table)
 //   offBoard    over the edge; leftAt is the world time it went
 //   landed      down on the table, after the drop
-//   falling     into the void instead of onto the table, and then:
-//   spin        rad/s end over end, backwards if negative
-//   tumble      how far it has turned over, in radians
-//   heading     the way it went, as the angle (clockwise, y down) that
-//               puts the tumble along its path; see leave()
+//   falling     into the void instead of onto the table
 //   gone        off the screen, or fallen away: finished with
+// and, for a stone tumbling end over end (in space: on the move on the
+// board, or flying into the void), see setTumbling():
+//   spin        rad/s, backwards if negative
+//   tumble      how far it has turned over, in radians; 0 lying flat
+//   heading     the angle (clockwise, y down) that puts the tumble along
+//               its path
+//   turned      how far the heading has taken, 0 to 1: it eases in
 
 // The drop from the board's edge to the table, in seconds in the air.
 export const dropTime = 0.12;
@@ -85,7 +88,6 @@ export class StoneWorld {
             }
             if (stone.falling) {
                 // Away into the dark: nothing slows it, nothing to land on.
-                stone.tumble += stone.spin*dt;
                 if (this.elapsed - stone.leftAt >= voidFlightTime) {
                     stone.gone = true;
                 }
@@ -100,6 +102,10 @@ export class StoneWorld {
             }
             stone.x += stone.vx*dt;
             stone.y += stone.vy*dt;
+            if (stone.spin) {
+                stone.tumble += stone.spin*dt;
+                stone.turned = Math.min(1, stone.turned + dt/0.12);
+            }
             if (!stone.offBoard) {
                 if (this.sidesKeepOn) {
                     this.keepWithinSides(stone);
@@ -311,19 +317,22 @@ export class StoneWorld {
         return this.stones.filter((stone) => !stone.gone && !stone.offBoard).length;
     }
 
-    // Nothing is moving or dropping. A stone flying into the void is no
-    // longer anyone's concern here (see takeFalling).
+    // Nothing is moving, dropping or tumbling. A stone flying into the
+    // void is no longer anyone's concern here (see takeFalling).
     still() {
         return this.stones.every((stone) => stone.gone || stone.falling
-            || (!(stone.offBoard && !stone.landed) && this.speedOf(stone) === 0));
+            || (!(stone.offBoard && !stone.landed) && this.speedOf(stone) === 0 && !isTumbling(stone)));
     }
 }
 
 // A stone going the way of `direction` (an angle, clockwise, y down) set
-// tumbling end over end at `rate` rad/s. The tumble is drawn turning about
-// the horizontal, so the heading turns it to put that across the path: by
-// the nearer way round, tumbling backwards if need be, so the stone hardly
-// turns on the page as it goes over.
+// tumbling end over end at `rate` rad/s, or kept tumbling that way if it
+// already was. The tumble is drawn turning about the horizontal, so the
+// heading turns it to put that across the path: by the nearer way round,
+// tumbling backwards if need be, so the stone hardly turns on the page as
+// it sets off. A stone tumbling one way about an axis looks the same as
+// one tumbling the other way about the axis turned right round, so when
+// the way round changes the tumble so far is read the other way too.
 export function setTumbling(stone, direction, rate) {
     let heading = direction + Math.PI/2;
     let forwards = 1;
@@ -335,9 +344,38 @@ export function setTumbling(stone, direction, rate) {
         heading += Math.PI;
         forwards = -forwards;
     }
+    if (!isTumbling(stone)) {
+        stone.tumble = 0;
+        stone.turned = 0;
+    } else if (forwards !== stone.forwards) {
+        stone.tumble = -stone.tumble;
+    }
     stone.heading = heading;
+    stone.forwards = forwards;
     stone.spin = forwards*rate;
-    stone.tumble = 0;
+}
+
+// Turning over, or not yet lying flat again.
+export function isTumbling(stone) {
+    return Boolean(stone.spin) || Boolean(stone.tumble);
+}
+
+// A stone that has stopped comes to lie flat: the tumble comes round to
+// the nearest face-up (a half turn on, the stone looks the same), at
+// `rate` rad/s.
+function settle(stone, rate, dt) {
+    stone.spin = 0;
+    if (!stone.tumble) {
+        return;
+    }
+    const flat = Math.round(stone.tumble/Math.PI)*Math.PI;
+    const away = flat - stone.tumble;
+    if (Math.abs(away) <= rate*dt) {
+        stone.tumble = 0;
+        stone.turned = 0;
+    } else {
+        stone.tumble += Math.sign(away)*rate*dt;
+    }
 }
 
 // What a flat board does to a stone lying on it: friction, a share of its
@@ -348,9 +386,17 @@ export function flatBoard(stone, dt, world) {
 
 // What the board does in space: next to nothing. A shoved stone glides
 // on, across the board and over the edge more often than not; only a
-// gentle nudge runs out before it gets there.
+// gentle nudge runs out before it gets there. Nothing holds it flat
+// either: on the move it tumbles, the faster the faster it goes, and
+// settles flat again when it stops.
 export function spaceBoard(stone, dt, world) {
     world.slow(stone, world.speedOf(stone)*0.2 + world.diameter*0.8, dt);
+    const speed = world.speedOf(stone);
+    if (speed > 0) {
+        setTumbling(stone, Math.atan2(stone.vy, stone.vx), Math.min(18, speed/stone.r*0.35));
+    } else {
+        settle(stone, 12, dt);
+    }
 }
 
 // What a tipped board does: `gravity` px/s² down the slope, towards the

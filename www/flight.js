@@ -1,14 +1,16 @@
-// The stones flying off into space: on the space background there is no
-// table, and a stone over the edge of the board goes end over end away
-// into the dark, shrinking as it goes. It is drawn from a sprite sheet of
-// the stone turning over (scripts/make-stone-sprites.swift renders one
-// for each stone image): a half turn in `frames` steps, which is the
-// whole tumble, a stone's two faces being alike; and turned on the page
-// to put the tumble along its path (`heading`, physics.js).
+// The stones tumbling in space: on the space background nothing holds a
+// stone flat, so one on the move on the board goes end over end, and one
+// over the edge of the board, with no table to land on, flies away into
+// the dark, shrinking as it goes. A tumbling stone is drawn from a sprite
+// sheet of the stone turning over (scripts/make-stone-sprites.swift
+// renders one for each stone image): a half turn in `frames` steps, which
+// is the whole tumble, a stone's two faces being alike; and turned on the
+// page to put the tumble along its path (`heading`, physics.js).
 //
-// The sweep and the hand draw their flying stones with drawFlying() while
-// they last, and hand any still in the air to flyOn() when they finish,
-// which sees them out of sight in a world of its own.
+// The hand draws its tumbling stones with drawTumbling() and its flying
+// ones with drawFlying() while they last (the sweep only the latter), and
+// both hand any still in the air to flyOn() when they finish, which sees
+// them out of sight in a world of its own.
 
 import {StoneWorld} from './physics.js';
 import {setStyles, setVisible, stoneSrcs} from './stone-dom.js';
@@ -36,17 +38,13 @@ export function preloadTumbleSheets() {
     });
 }
 
-// A stone's element in flight: the frame of the tumble it has reached,
-// turned along its path (over its first moments, so it does not jump as
-// it goes over), and smaller and fainter the further away it is. Its
-// image and shadow give way to the sheet. `translate` is any transform
-// the element already needs.
-export function drawFlying(element, stone, world, translate = '') {
-    const fall = world.fall(stone);
-    const age = world.elapsed - stone.leftAt;
-    const turned = stone.tumble/Math.PI*frames;
-    const frame = ((Math.round(turned) % frames) + frames) % frames;
-    const heading = stone.heading*Math.min(1, age/0.12);
+// A stone's element tumbling on the board: the frame of the tumble it
+// has reached, turned along its path (easing in, so it does not jump as
+// it sets off). Its image and shadow give way to the sheet. `translate`
+// is any transform the element already needs; `more` any more transform
+// to follow.
+export function drawTumbling(element, stone, translate = '', more = '') {
+    const frame = ((Math.round(stone.tumble/Math.PI*frames) % frames) + frames) % frames;
     if (!element.classList.contains('flying')) {
         element.classList.add('flying');
         setVisible(element.querySelector('.stone-shadow'), false);
@@ -57,16 +55,36 @@ export function drawFlying(element, stone, world, translate = '') {
     const column = frame % columns;
     const row = (frame - column)/columns;
     element.style.backgroundPosition = `${columns > 1 ? column/(columns - 1)*100 : 0}% ${rows > 1 ? row/(rows - 1)*100 : 0}%`;
-    element.style.opacity = String(fall < 0.7 ? 1 : 1 - (fall - 0.7)/0.3);
-    element.style.transform = `${translate} rotate(${heading}rad) scale(${1 - 0.55*fall})`.trim();
+    element.style.transform = `${translate} rotate(${stone.heading*stone.turned}rad) ${more}`.trim();
 }
 
-// An element done with flying: back to an image and a shadow.
+// A stone's element in flight: tumbling, and smaller and fainter the
+// further away it is.
+export function drawFlying(element, stone, world, translate = '') {
+    const fall = world.fall(stone);
+    drawTumbling(element, stone, translate, `scale(${1 - 0.55*fall})`);
+    element.style.opacity = String(fall < 0.7 ? 1 : 1 - (fall - 0.7)/0.3);
+}
+
+// An element done with tumbling: back to an image and a shadow.
 export function clearFlying(element) {
     element.classList.remove('flying');
     element.style.removeProperty('background-image');
     element.style.removeProperty('background-size');
     element.style.removeProperty('background-position');
+}
+
+// A stone's element lying flat on the board again after tumbling: its
+// image and shadow back, the sheet gone.
+export function drawSettled(element) {
+    if (!element.classList.contains('flying')) {
+        return;
+    }
+    clearFlying(element);
+    element.style.removeProperty('transform');
+    element.style.removeProperty('opacity');
+    setVisible(element.querySelector('img'), true);
+    setVisible(element.querySelector('.stone-shadow'), true);
 }
 
 // The stones still in the air when their world is done with them (see
