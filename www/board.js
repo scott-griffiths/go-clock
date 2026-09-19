@@ -97,3 +97,23 @@ export function line(x0, x1, y0, y1) {
     }
     return points;
 }
+
+// The nearest point to the coordinates (in board units) that `taken` does
+// not have, anywhere on the board: a heap shoved into a corner has more
+// stones than the corner has points, and each still needs one. -1 only
+// when the whole board is taken.
+export function nearestFreePoint(coords, taken) {
+    var best = -1;
+    var bestDistance = Infinity;
+    for (var index = 0; index < gridsize*gridsize; ++index) {
+        if (taken.has(index)) {
+            continue;
+        }
+        var distance = Math.hypot(coords[0] - pointX(index), coords[1] - pointY(index));
+        if (distance < bestDistance) {
+            best = index;
+            bestDistance = distance;
+        }
+    }
+    return best;
+}

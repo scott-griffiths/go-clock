@@ -10,6 +10,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {GoClock} from '../www/go-clock.js';
 import {faceFor, ANALOGUE, JUMPING_HOUR, DIGITAL, HYBRID, hourMarkers} from '../www/faces.js';
+import {nearestFreePoint} from '../www/board.js';
 
 function face(view, time, twentyFourHour = true) {
     const [hours, minutes, seconds = 0] = time.split(':').map(Number);
@@ -246,7 +247,6 @@ test('the clock asks for the face of the moment, in its own mode', () => {
 });
 
 test('the hand takes the nearest free point, however crowded the corner', () => {
-    const clock = new GoClock();
     // Everything the old five-by-five search window could see, taken.
     const taken = new Set();
     for (let y = 0; y <= 2; y++) {
@@ -254,8 +254,8 @@ test('the hand takes the nearest free point, however crowded the corner', () => 
             taken.add(x + 19*y);
         }
     }
-    assert.equal(clock.freePointNear([0.3, 0.2], taken), 3);
-    assert.equal(clock.freePointNear([5.4, 7.6], new Set()), 5 + 19*8);
+    assert.equal(nearestFreePoint([0.3, 0.2], taken), 3);
+    assert.equal(nearestFreePoint([5.4, 7.6], new Set()), 5 + 19*8);
     const everything = new Set(Array.from({length: 361}, (_, i) => i));
-    assert.equal(clock.freePointNear([9, 9], everything), -1);
+    assert.equal(nearestFreePoint([9, 9], everything), -1);
 });
