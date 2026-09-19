@@ -2,19 +2,10 @@
  * Created by scott on 15/05/2014.
  */
 
+import {gridsize, white, black, go_bowl, go_table, minx, maxx, miny, maxy, dist, emptyBoard} from './board.js';
+import {faceFor} from './faces.js';
+import {planMove} from './planner.js';
 import {StoneWorld, flatBoard, tippedBoard, voidFadeTime} from './physics.js';
-
-const gridsize = 19;
-
-const go_bowl = 999;
-// A stone lying on the table beside the board, where a finger left it.
-const go_table = 998;
-
-// These give the relative positions of the sides of the goban grid as a proportion of the goban image
-const minx = 0.026;
-const maxx = 0.974;
-const miny = 0.03;
-const maxy = 0.972;
 
 const ext = "images/";
 
@@ -41,9 +32,6 @@ if (typeof Image !== 'undefined') {
     goban_1200 = new Image();
     goban_1200.src = ext + "goban_1200.jpg";
 }
-
-const white = 1;
-const black = 3;
 
 const $ = (selector, scope = document) => scope.querySelector(selector);
 
@@ -81,10 +69,6 @@ function stoneImageSrc(colour, preferredSrc = null) {
         return preferredSrc || randomWhiteStoneSrc();
     }
     return blackStoneSrc;
-}
-
-function isWrongColourPair(diff) {
-    return diff == black - white || diff == white - black;
 }
 
 function displacedCoords(fromCoords, toCoords) {
@@ -145,46 +129,6 @@ function animateElement(target, duration, vars) {
 }
 
 
-// Small numbers, 5 wide by 7 tall
-var s0 = [[3, 0], [2, 0], [1, 0], [0, 1], [0, 2], [0, 3], [0, 4], [0, 5], [1, 6], [2, 6], [3, 6], [4, 5], [4, 4], [4, 3], [4, 2], [4, 1]];
-var s1 = [[1, 1], [2, 0], [2, 1], [2, 2], [2, 3], [2, 4], [2, 5], [2, 6], [1, 6], [3, 6]];
-var s2 = [[0, 1], [1, 0], [2, 0], [3, 0], [4, 1], [4, 2], [3, 3], [2, 3], [1, 3], [0, 4], [0, 5], [0, 6], [1, 6], [2, 6], [3, 6], [4, 6]];
-var s3 = [[0, 1], [1, 0], [2, 0], [3, 0], [4, 1], [4, 2], [3, 3], [2, 3], [4, 4], [4, 5], [3, 6], [2, 6], [1, 6], [0, 5]];
-var s4 = [[4, 4], [3, 4], [2, 4], [1, 4], [0, 4], [0, 3], [1, 2], [2, 1], [3, 0], [3, 1], [3, 2], [3, 3], [3, 5], [3, 6]];
-var s5 = [[4, 0], [3, 0], [2, 0], [1, 0], [0, 0], [0, 1], [0, 2], [1, 2], [2, 2], [3, 2], [4, 3], [4, 4], [4, 5], [3, 6], [2, 6], [1, 6], [0, 5]];
-var s6 = [[3, 0], [2, 0], [1, 0], [0, 1], [0, 2], [0, 3], [0, 4], [0, 5], [1, 6], [2, 6], [3, 6], [4, 5], [4, 4], [3, 3], [2, 3], [1, 3]];
-var s7 = [[0, 0], [1, 0], [2, 0], [3, 0], [4, 0], [4, 1], [3, 2], [2, 3], [1, 4], [1, 5], [1, 6]];
-var s8 = [[3, 0], [2, 0], [1, 0], [0, 1], [0, 2], [1, 3], [2, 3], [3, 3], [4, 4], [4, 5], [3, 6], [2, 6], [1, 6], [0, 5], [0, 4], [4, 2], [4, 1]];
-var s9 = [[3, 3], [2, 3], [1, 3], [0, 2], [0, 1], [1, 0], [2, 0], [3, 0], [4, 1], [4, 2], [4, 3], [4, 4], [4, 5], [3, 6], [2, 6], [1, 6]];
-var small_num = [s0, s1, s2, s3, s4, s5, s6, s7, s8, s9];
-
-// Big numbers, 6 wide by 9 tall
-s0 = [[4, 0], [3, 0], [2, 0], [1, 0], [0, 1], [0, 2], [0, 3], [0, 4], [0, 5], [0, 6], [0, 7], [1, 8], [2, 8], [3, 8], [4, 8], [5, 7], [5, 6], [5, 5], [5, 4], [5, 3], [5, 2], [5, 1]];
-s1 = [[1, 2], [2, 1], [3, 0], [3, 1], [3, 2], [3, 3], [3, 4], [3, 5], [3, 6], [3, 7], [3, 8], [2, 8], [4, 8], [5, 8], [1, 8]];
-s2 = [[0, 1], [1, 0], [2, 0], [3, 0], [4, 0], [5, 1], [5, 2], [5, 3], [4, 4], [3, 4], [2, 4], [1, 4], [0, 5], [0, 6], [0, 7], [0, 8], [1, 8], [2, 8], [3, 8], [4, 8], [5, 8]];
-s3 = [[0, 1], [1, 0], [2, 0], [3, 0], [4, 0], [5, 1], [5, 2], [4, 3], [3, 4], [2, 4], [4, 5], [5, 6], [5, 7], [4, 8], [3, 8], [2, 8], [1, 8], [0, 7]];
-s4 = [[3, 1], [2, 2], [1, 3], [0, 4], [0, 5], [1, 5], [2, 5], [3, 5], [5, 5], [4, 0], [4, 1], [4, 2], [4, 3], [4, 4], [4, 5], [4, 6], [4, 7], [4, 8]];
-s5 = [[5, 0], [4, 0], [3, 0], [2, 0], [1, 0], [0, 0], [0, 1], [0, 2], [0, 3], [1, 3], [2, 3], [3, 3], [4, 3], [5, 4], [5, 5], [5, 6], [5, 7], [4, 8], [3, 8], [2, 8], [1, 8], [0, 7]];
-s6 = [[4, 0], [3, 0], [2, 0], [1, 1], [0, 2], [0, 3], [0, 4], [0, 5], [0, 6], [0, 7], [1, 8], [2, 8], [3, 8], [4, 8], [5, 7], [5, 6], [5, 5], [4, 4], [3, 4], [2, 4], [1, 4]];
-s7 = [[0, 0], [1, 0], [2, 0], [3, 0], [4, 0], [5, 0], [5, 1], [5, 2], [4, 3], [3, 4], [2, 5], [2, 6], [2, 7], [2, 8]];
-s8 = [[4, 0], [3, 0], [2, 0], [1, 0], [0, 1], [0, 2], [5, 1], [5, 2], [5, 6], [5, 7], [0, 6], [0, 7], [1, 8], [2, 8], [3, 8], [4, 8], [1, 3], [4, 3], [2, 4], [3, 4], [1, 5], [4, 5]];
-s9 = [[4, 0], [3, 0], [2, 0], [0, 1], [0, 2], [0, 3], [5, 4], [1, 0], [5, 1], [5, 2], [1, 8], [2, 8], [3, 8], [4, 7], [5, 3], [5, 6], [5, 5], [4, 4], [3, 4], [2, 4], [1, 4]];
-var big_num = [s0, s1, s2, s3, s4, s5, s6, s7, s8, s9];
-
-// Tiny numbers, 3 wide by 5 tall
-s0 = [[2, 0], [1, 0], [0, 0], [0, 1], [0, 2], [0, 3], [0, 4], [1, 4], [2, 4], [2, 3], [2, 2], [2, 1]];
-s1 = [[2, 0], [2, 1], [2, 2], [2, 3], [2, 4]];
-s2 = [[0, 0], [1, 0], [2, 0], [2, 1], [2, 2], [1, 2], [0, 2], [0, 3], [0, 4], [1, 4], [2, 4]];
-s3 = [[0, 0], [1, 0], [2, 0], [2, 1], [2, 2], [1, 2], [2, 3], [2, 4], [1, 4], [0, 4]];
-s4 = [[0, 0], [0, 1], [0, 2], [1, 2], [2, 0], [2, 1], [2, 2], [2, 3], [2, 4]];
-s5 = [[2, 0], [1, 0], [0, 0], [0, 1], [0, 2], [1, 2], [2, 2], [2, 3], [2, 4], [1, 4], [0, 4]];
-s6 = [[2, 0], [1, 0], [0, 0], [0, 1], [0, 2], [0, 3], [0, 4], [1, 4], [2, 4], [2, 3], [2, 2], [1, 2]];
-s7 = [[0, 0], [1, 0], [2, 0], [2, 1], [2, 2], [2, 3], [2, 4]];
-s8 = [[2, 0], [1, 0], [0, 0], [0, 1], [0, 2], [0, 3], [0, 4], [1, 4], [2, 4], [2, 3], [2, 2], [2, 1], [1, 2]];
-s9 = [[1, 2], [0, 2], [0, 1], [0, 0], [1, 0], [2, 0], [2, 1], [2, 2], [2, 3], [2, 4], [1, 4], [0, 4]];
-
-var tiny_num = [s0, s1, s2, s3, s4, s5, s6, s7, s8, s9];
-
 export function GoClock(){
     this.stones = []; // The current (desired) state
     this.stones_shown = []; // The stones last drawn
@@ -227,13 +171,6 @@ export function GoClock(){
 
     this.twenty_four_hour = true; // 24 hour mode for views that make sense
 
-    this.clear = function() {
-        this.stones = [];
-        for (var i = 0; i < gridsize*gridsize; ++i){
-            this.stones.push(0); // empty space
-        }
-    };
-
     this.reset_offsets = function() {
         this.offsets = [];
         for (var i = 0; i < gridsize*gridsize; ++i){
@@ -241,12 +178,9 @@ export function GoClock(){
         }
     };
 
-    this.clear();
+    this.stones = emptyBoard();
+    this.stones_shown = emptyBoard();
     this.reset_offsets();
-
-    for (var i = 0; i < gridsize*gridsize; ++i){
-        this.stones_shown.push(0); // empty space
-    }
 
     // The coordinates of a point with a given index
     this.get_coords = function(p) {
@@ -1424,18 +1358,6 @@ export function GoClock(){
         return true;
     };
 
-    this.drawNumber = function(number, x_offset, y_offset, size, colour) {
-        var num;
-        if (size == 1) num = tiny_num[number];
-        if (size == 2) num = small_num[number];
-        if (size == 3) num = big_num[number];
-        for (var i = 0; i < num.length; ++i) {
-            this.addStone(num[i][0] + x_offset, num[i][1] + y_offset, colour);
-        }
-    };
-    this.addStone = function(x, y, colour){
-        this.stones[y*gridsize + x] = colour;
-    };
     this.drawStone = function(coords, colour, height, src = null) {
         if (coords[0] <= -0.5 || coords[0] >= gridsize - 0.5 || coords[1] <= -0.5 || coords[1] >= gridsize - 0.5) {
             return;
@@ -1553,111 +1475,16 @@ export function GoClock(){
         return;
     };
 
-    // Update the desired state of the clock
+    // The board the face wants now (or at the given time, for the tests).
     this.update = function(seconds, minutes, hours, days) {
         var now = new Date();
-
-        hours = typeof hours !== 'undefined' ? hours : now.getHours();
-        minutes = typeof minutes !== 'undefined' ? minutes : now.getMinutes();
-        seconds = typeof seconds !== 'undefined' ? seconds : now.getSeconds();
-        days = typeof days !== 'undefined' ? days : 0;
-
-        if (!this.twenty_four_hour) {
-            hours %= 12;
-            if (hours == 0) {
-                hours = 12;
-            }
-        }
-
-        var views = 4;
-        this.view %= views;
-        this.clear();
-        if (this.view == 0) {
-            var hour_stones = [[9, 1], [13, 2], [16, 5], [17, 9], [16, 13], [13, 16], [9, 17], [5, 16], [2, 13], [1, 9], [2, 5], [5, 2]];
-            for (var i = 0; i < hour_stones.length; ++i) {
-                this.addStone(hour_stones[i][0], hour_stones[i][1], black);
-            }
-            var min_pos = 60*minutes + seconds;
-            var theta = 2*Math.PI*min_pos / 3600;
-            var R = 7.0;
-            var endX = Math.round(9 + R*Math.sin(theta));
-            var endY = Math.round(9 - R*Math.cos(theta));
-            var hand_stones = line(9, endX, 9, endY);
-            for (var i = 0; i < hand_stones.length; ++i) {
-                this.addStone(hand_stones[i][0], hand_stones[i][1], white);
-            }
-
-            hours %= 12;
-            hours *= 5;
-            hours += minutes/12;
-            theta = 2*Math.PI*hours / 60;
-            R = 4.5;
-            endX = Math.round(9 + R*Math.sin(theta));
-            endY = Math.round(9 - R*Math.cos(theta));
-            hand_stones = line(9, endX, 9, endY);
-            for (var i = 0; i < hand_stones.length; ++i) {
-                this.addStone(hand_stones[i][0], hand_stones[i][1], black);
-            }
-        }
-        else if (this.view == 1) {
-            hour_stones = [[9, 1], [13, 2], [16, 5], [17, 9], [16, 13], [13, 16], [9, 17], [5, 16], [2, 13], [1, 9], [2, 5], [5, 2]];
-            for (var i = 0; i < hour_stones.length; ++i) {
-                this.addStone(hour_stones[i][0], hour_stones[i][1], hours%12 == i ? white : black);
-            }
-            this.drawNumber((minutes - minutes%10)/10, 6, 4, 1, black);
-            this.drawNumber(minutes%10, 10, 4, 1, black);
-            this.drawNumber((seconds - seconds%10)/10, 6, 10, 1, white);
-            this.drawNumber(seconds%10, 10, 10, 1, white);
-        }
-        else if (this.view == 2) {
-            var tensOfHours = (hours - hours%10)/10;
-            hours %= 10;
-            if (tensOfHours != 0 || this.twenty_four_hour) {
-
-                this.drawNumber(tensOfHours, 3, 1, 3, black);
-                this.drawNumber(hours, (hours == 1) ? 9 : 10, 1, 3, black);
-            } else {
-                this.drawNumber(hours, (hours == 1) ? 6 : 7, 1, 3, black);
-            }
-            this.drawNumber((minutes - minutes%10)/10, 4, 11, 2, white);
-            this.drawNumber(minutes%10, 10, 11, 2, white);
-        }
-        else if (this.view == 3) {
-            var tensOfHours = (hours - hours%10)/10;
-            if (tensOfHours != 0) {
-                this.drawNumber((hours - hours%10)/10, 1, 1, 1, black);
-            }
-            this.drawNumber(hours%10, 5, 1, 1, black);
-            this.addStone(9, 2, black);
-            this.addStone(9, 4, black);
-            this.drawNumber((minutes - minutes%10)/10, 11, 1, 1, black);
-            this.drawNumber(minutes%10, 15, 1, 1, black);
-
-            var second_stones = [[9, 6], [12, 7], [14, 9], [15, 12], [14, 15], [12, 17], [9, 18], [6, 17], [4, 15], [3, 12], [4, 9], [6, 7]];
-            for (var i=0; i < second_stones.length; ++i) {
-                this.addStone(second_stones[i][0], second_stones[i][1], i == Math.floor(seconds/5) ? black : white);
-            }
-
-            var theta = 2*Math.PI*seconds / 60;
-            var R = 4;
-            var endX = Math.round(9 + R*Math.sin(theta));
-            var endY = Math.round(12 - R*Math.cos(theta));
-            var hand_stones = line(9, endX, 12, endY);
-            for (var i=0; i < hand_stones.length; ++i) {
-                this.addStone(hand_stones[i][0], hand_stones[i][1], white);
-            }
-        }
-        else if (this.view == 4) {
-            var u = days%10;
-            var t = (days - u)/10;
-            this.drawNumber((t - t%10)/10, 1, 1, 1, black);
-            this.drawNumber(t%10, 5, 1, 1, black);
-            this.drawNumber(u, 9, 1, 1, black);
-            this.drawNumber((hours - hours%10)/10, 5, 7, 1, white);
-            this.drawNumber(hours%10, 9, 7, 1, white);
-            this.drawNumber((minutes - minutes%10)/10, 5, 13, 1, black);
-            this.drawNumber(minutes%10, 9, 13, 1, black);
-        }
+        this.view %= 4;
+        this.stones = faceFor(this.view, {
+            hours: hours ?? now.getHours(),
+            minutes: minutes ?? now.getMinutes(),
+            seconds: seconds ?? now.getSeconds(),
+            days: days ?? 0
+        }, this.twenty_four_hour);
     };
 
     // Given board coordinates and a height, return the stone's pixel x, y, w, h
@@ -1921,7 +1748,9 @@ export function GoClock(){
             onComplete: end_tasks});
     };
 
-    // Incrementally change the displayed goban to the desired configuration
+    // One move towards the board the face wants, and the next once it
+    // has landed; or, with the board right, a stone nudged straighter, or
+    // a look again as the second turns.
     this.transform = function() {
         if (this.moving_stone == true || this.sweeping_board == true || this.finger) {
             return;
@@ -1932,191 +1761,15 @@ export function GoClock(){
             this.draw(this.pending_size[0], this.pending_size[1]);
         }
         this.update();
-        // Work out what, if anything, needs to change
-        var diff = [];
-        for (var i = 0; i < this.stones_shown.length; ++i) {
-            diff.push(this.stones_shown[i] - this.stones[i]);
-        }
-        var best_i = -1;
-        var best_j = -1;
-        // First look for stones on a spot where the opposite colour wants to be
-        for (var j = 0; j < diff.length; ++j) {
-            if (diff[j] == black - white || diff[j] == white - black) {
-                var wanted = (diff[j] == black - white) ? -black : -white;
-                for (var i = 0; i < diff.length; ++i) {
-                    if (diff[i] == wanted) {
-                        if (best_j == -1 || dist(this.hand_position, j) + dist(j, i) < dist(this.hand_position, best_j) + dist(best_j, best_i)) {
-                            best_i = i;
-                            best_j = j;
-                        }
-                    }
-                }
-            }
-        }
-        for (var i = 0; i < diff.length; ++i) {
-            if (diff[i] == -white || diff[i] == -black) {
-                // we want a white or black stone here - search for the nearest excess white or black
-                for (var j = 0; j < diff.length; ++j) {
-                    if (diff[j] == -diff[i]) {
-                        if (best_j == -1 ||
-                               dist(this.hand_position, j) + dist(j, i) < dist(this.hand_position, best_j) + dist(best_j, best_i)) {
-                            // Shortest distance from hand to stone start to stone end
-                            best_j = j;
-                            best_i = i;
-                        }
-                    }
-                }
-            }
-        }
-        // A stone on the table is as good as a spare on the board,
-        // by the same measure: hand to stone to where it is wanted.
-        var best_table = null;
-        var best_table_i = -1;
-        var best_table_score = Infinity;
-        if (this.table_stones.length > 0) {
-            var hand = [this.hand_position % gridsize, (this.hand_position - this.hand_position % gridsize)/gridsize];
-            for (var i = 0; i < diff.length; ++i) {
-                if (diff[i] != -white && diff[i] != -black) {
-                    continue;
-                }
-                var target = [i % gridsize, (i - i % gridsize)/gridsize];
-                this.table_stones.forEach((entry) => {
-                    if (entry.colour != -diff[i]) {
-                        return;
-                    }
-                    var score = Math.hypot(hand[0] - entry.coords[0], hand[1] - entry.coords[1])
-                        + Math.hypot(target[0] - entry.coords[0], target[1] - entry.coords[1]);
-                    if (score < best_table_score) {
-                        best_table = entry;
-                        best_table_i = i;
-                        best_table_score = score;
-                    }
-                });
-            }
-            if (best_table && best_j != -1 && dist(this.hand_position, best_j) + dist(best_j, best_i) <= best_table_score) {
-                best_table = null;
-            }
-        }
-        if (best_table) {
-            this.moving_stone = true;
-            this.table_stones.splice(this.table_stones.indexOf(best_table), 1);
-            this.table_pickup = best_table;
-            this.stone_from = [go_table, go_table];
-            this.stone_colour = best_table.colour;
-            this.hand_position = best_table_i;
-            this.setLandingOffset(best_table_i);
-            this.stone_to = this.get_coords(best_table_i);
-            this.clear_route = false;
-        } else if (best_j != -1) {
-            // Move stone from best_j to best_i
-            this.moving_stone = true;
-            this.stone_from = this.get_coords(best_j);
-            this.hand_position = best_i;
-            this.stone_colour = this.stones_shown[best_j];
-            this.stones_shown[best_j] = 0;
-            this.setLandingOffset(best_i);
-            this.stone_to = this.get_coords(best_i);
-            // Should we lift the stone or drag it?
-            // See if there are any other stones on the route.
-            var points = line(Math.round(this.stone_from[0]), Math.round(this.stone_to[0]),
-                              Math.round(this.stone_from[1]), Math.round(this.stone_to[1]));
-            var num_points = points.length;
-            for (var i=0; i < num_points - 1; ++i) {
-                if (points[i][0] != points[i+1][0] && points[i][1] != points[i+1][1]) {
-                    // Both x and y have changed, so add in the corner points
-                    points.push([points[i][0], points[i+1][1]]);
-                    points.push([points[i+1][0], points[i][1]]);
-                }
-            }
-            this.clear_route = true;
-            // For long distances always pick up the stone
-            if (dist(best_i, best_j) > 5) {
-                this.clear_route = false;
-            }
-            for (var i=0; i < points.length; ++i) {
-                if (this.stones_shown[points[i][0] + gridsize*points[i][1]] != 0) {
-                    this.clear_route = false;
-                    break;
-                }
-            }
+        var plan = planMove({
+            shown: this.stones_shown,
+            wanted: this.stones,
+            hand: this.hand_position,
+            tableStones: this.table_stones
+        });
+        if (plan) {
+            this.startMove(plan);
         } else {
-            var best_swap = null;
-            for (var j = 0; j < diff.length; ++j) {
-                if (!isWrongColourPair(diff[j])) {
-                    continue;
-                }
-                for (var i = 0; i < diff.length; ++i) {
-                    if (diff[i] != -diff[j]) {
-                        continue;
-                    }
-                    var score = dist(this.hand_position, j) + dist(j, i) + dist(i, j);
-                    if (!best_swap || score < best_swap.score) {
-                        best_swap = {
-                            source: j,
-                            target: i,
-                            score: score
-                        };
-                    }
-                }
-            }
-
-            if (best_swap) {
-                var source_coords = this.get_coords(best_swap.source);
-                var target_coords = this.get_coords(best_swap.target);
-                this.moving_stone = true;
-                this.stone_from = source_coords;
-                this.stone_to = target_coords;
-                this.hand_position = best_swap.target;
-                this.stone_colour = this.stones_shown[best_swap.source];
-                this.pending_swap = {
-                    phase: 'push',
-                    source: best_swap.source,
-                    target: best_swap.target,
-                    source_coords: source_coords,
-                    target_coords: target_coords,
-                    displaced_coords: displacedCoords(source_coords, target_coords),
-                    displaced_colour: this.stones_shown[best_swap.target],
-                    displaced_src: this.getDrawnStoneSrc(target_coords)
-                };
-                this.stones_shown[best_swap.source] = 0;
-                this.clear_route = true;
-            }
-        }
-        if (best_j == -1 && !this.moving_stone) {
-            // No more moving will help. Find stone to remove.
-            // Prefer removing stones which are where the opposite colour wants to be
-            var to_remove_first = [];
-            var to_remove_next = [];
-            var to_add = [];
-            var best_i = -1;
-            for (var i = 0; i < diff.length; ++i) {
-                if (diff[i] != 0) {
-                    if (best_i == -1 || dist(this.hand_position, i) < dist(this.hand_position, best_i)) {
-                        best_i = i;
-                    }
-                }
-            }
-            if (best_i != -1) {
-                if (diff[best_i] != -white && diff[best_i] != -black) {
-                    // Remove a stone
-                    this.moving_stone = true;
-                    this.stone_from = this.get_coords(best_i);
-                    this.stone_colour = this.stones_shown[best_i];
-                    this.stone_to = [go_bowl, go_bowl];
-                    this.hand_position = best_i;
-                    this.stones_shown[best_i] = 0;
-                } else {
-                    // Add a stone
-                    this.moving_stone = true;
-                    this.stone_colour = -diff[best_i];
-                    this.stone_from = [go_bowl, go_bowl];
-                    this.setLandingOffset(best_i);
-                    this.stone_to = this.get_coords(best_i);
-                    this.hand_position = best_i;
-                }
-            }
-        }
-        if (!this.moving_stone && diff.every((value) => value == 0)) {
             this.alignIdleStone();
         }
         if (this.moving_stone == true) {
@@ -2126,68 +1779,67 @@ export function GoClock(){
             // which is the soonest any face can change.
             this.idle_timer = setTimeout(this.transform.bind(this), 1000 - Date.now() % 1000 + 5);
         }
-    }
-}
+    };
 
-// find integer points that form the line from x0, y0 to x1, y1
-function line(x0, x1, y0, y1) {
-    var deltax = x1 - x0;
-    var deltay = y1 - y0;
-    var error = 0.0;
-    var points = [];
-    if (deltax == 0 && deltay == 0) {
-        return [[x0, y0]];
-    }
-    if (Math.abs(deltax) >= Math.abs(deltay)) {
-        if (x1 < x0) {
-            var tmp = x1;
-            x1 = x0;
-            x0 = tmp;
-            tmp = y1;
-            y1 = y0;
-            y0 = tmp;
+    // A plan from planner.js, taken up: the stone in the hand, where it is
+    // going, and what the board records meanwhile.
+    this.startMove = function(plan) {
+        this.moving_stone = true;
+        switch (plan.kind) {
+        case 'table':
+            this.table_stones.splice(this.table_stones.indexOf(plan.entry), 1);
+            this.table_pickup = plan.entry;
+            this.stone_from = [go_table, go_table];
+            this.stone_colour = plan.entry.colour;
+            this.hand_position = plan.to;
+            this.setLandingOffset(plan.to);
+            this.stone_to = this.get_coords(plan.to);
+            this.clear_route = false;
+            break;
+        case 'move':
+            this.stone_from = this.get_coords(plan.from);
+            this.hand_position = plan.to;
+            this.stone_colour = this.stones_shown[plan.from];
+            this.stones_shown[plan.from] = 0;
+            this.setLandingOffset(plan.to);
+            this.stone_to = this.get_coords(plan.to);
+            this.clear_route = !plan.lift;
+            break;
+        case 'swap': {
+            var source_coords = this.get_coords(plan.source);
+            var target_coords = this.get_coords(plan.target);
+            this.stone_from = source_coords;
+            this.stone_to = target_coords;
+            this.hand_position = plan.target;
+            this.stone_colour = this.stones_shown[plan.source];
+            this.pending_swap = {
+                phase: 'push',
+                source: plan.source,
+                target: plan.target,
+                source_coords: source_coords,
+                target_coords: target_coords,
+                displaced_coords: displacedCoords(source_coords, target_coords),
+                displaced_colour: this.stones_shown[plan.target],
+                displaced_src: this.getDrawnStoneSrc(target_coords)
+            };
+            this.stones_shown[plan.source] = 0;
+            this.clear_route = true;
+            break;
         }
-        var ydir = (y0 < y1) ? 1 : -1;
-        var deltaerr = Math.abs(deltay / deltax);
-        var y = y0;
-        for (var x = x0; x <= x1; ++x) {
-            points.push([x, y]);
-            error += deltaerr;
-            if (error >= 0.5) {
-                y += ydir;
-                error -= 1.0;
-            }
+        case 'remove':
+            this.stone_from = this.get_coords(plan.from);
+            this.stone_colour = this.stones_shown[plan.from];
+            this.stone_to = [go_bowl, go_bowl];
+            this.hand_position = plan.from;
+            this.stones_shown[plan.from] = 0;
+            break;
+        case 'add':
+            this.stone_colour = plan.colour;
+            this.stone_from = [go_bowl, go_bowl];
+            this.setLandingOffset(plan.to);
+            this.stone_to = this.get_coords(plan.to);
+            this.hand_position = plan.to;
+            break;
         }
-    }
-    if (Math.abs(deltay) > Math.abs(deltax)) {
-        if (y1 < y0) {
-            var tmp = y1;
-            y1 = y0;
-            y0 = tmp;
-            tmp = x1;
-            x1 = x0;
-            x0 = tmp;
-        }
-        var xdir = (x0 < x1) ? 1 : -1;
-        var deltaerr = Math.abs(deltax / deltay);
-        var x = x0;
-        for (var y = y0; y <= y1; ++y) {
-            points.push([x, y]);
-            error += deltaerr;
-            if (error >= 0.5) {
-                x += xdir;
-                error -= 1.0;
-            }
-        }
-    }
-    return points;
-}
-
-// The distance between points on the board with given indices
-function dist(i, j) {
-    var xi = i % gridsize;
-    var yi = (i - xi)/gridsize;
-    var xj = j % gridsize;
-    var yj = (j - xj)/gridsize;
-    return Math.sqrt((xi - xj)*(xi - xj) + (yi - yj)*(yi - yj));
+    };
 }

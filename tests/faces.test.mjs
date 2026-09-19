@@ -9,19 +9,11 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {GoClock} from '../www/go-clock.js';
-
-const ANALOGUE = 0;
-const JUMPING_HOUR = 1;
-const DIGITAL = 2;
-const HYBRID = 3;
+import {faceFor, ANALOGUE, JUMPING_HOUR, DIGITAL, HYBRID, hourMarkers} from '../www/faces.js';
 
 function face(view, time, twentyFourHour = true) {
     const [hours, minutes, seconds = 0] = time.split(':').map(Number);
-    const clock = new GoClock();
-    clock.view = view;
-    clock.twenty_four_hour = twentyFourHour;
-    clock.update(seconds, minutes, hours);
-    return clock.stones;
+    return faceFor(view, {hours, minutes, seconds}, twentyFourHour);
 }
 
 function picture(stones) {
@@ -236,14 +228,21 @@ test('every face, every minute of the day, in both modes: 361 points of empty, w
 
 test('the jumping hour marker is the hour on the clock face, in either mode', () => {
     // The markers run clockwise from twelve o'clock; the lit one is white.
-    const markers = [[9, 1], [13, 2], [16, 5], [17, 9], [16, 13], [13, 16], [9, 17], [5, 16], [2, 13], [1, 9], [2, 5], [5, 2]];
     for (let hours = 0; hours < 24; hours++) {
         for (const twentyFourHour of [true, false]) {
             const stones = face(JUMPING_HOUR, `${hours}:00`, twentyFourHour);
-            const lit = markers.map(([x, y], i) => stones[y*19 + x] === 1 ? i : -1).filter((i) => i >= 0);
+            const lit = hourMarkers.map(([x, y], i) => stones[y*19 + x] === 1 ? i : -1).filter((i) => i >= 0);
             assert.deepEqual(lit, [hours % 12], `${hours}:00 lit marker ${lit}`);
         }
     }
+});
+
+test('the clock asks for the face of the moment, in its own mode', () => {
+    const clock = new GoClock();
+    clock.view = DIGITAL;
+    clock.twenty_four_hour = false;
+    clock.update(7, 5, 0);
+    assert.deepEqual(clock.stones, face(DIGITAL, '00:05:07', false));
 });
 
 test('the hand takes the nearest free point, however crowded the corner', () => {

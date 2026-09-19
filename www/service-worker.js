@@ -4,7 +4,7 @@
 // absent and my-clock.js skips registration.
 //
 // Bump the version whenever a cached file changes, or people keep the old one.
-const cacheName = 'go-clock-v2.0.12';
+const cacheName = 'go-clock-v2.0.13';
 
 const appShell = [
     './',
@@ -12,6 +12,9 @@ const appShell = [
     './my-clock.css',
     './my-clock.js',
     './go-clock.js',
+    './board.js',
+    './faces.js',
+    './planner.js',
     './physics.js',
     './sounds.js',
     './manifest.webmanifest',

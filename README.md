@@ -30,8 +30,13 @@ The public GitHub Pages URL is expected to remain `https://scott-griffiths.githu
 
 - `www/index.html` is the static app shell.
 - `www/my-clock.js` owns browser UI, settings, persistence, and layout lifecycle.
-- `www/go-clock.js` owns the board model and stone animation.
-- `www/physics.js` is the stone simulation the sweep and the hand share (no DOM; tested under node).
+- `www/go-clock.js` owns the board: what is on it, the hand's moves, the sweep and the finger.
+- `www/board.js` is the grid as numbers: sizes, colours, indices, distances, lines.
+- `www/faces.js` is the clock faces: the stones a time wants, per view.
+- `www/planner.js` chooses the hand's next move from the board as it is and as the face wants it.
+- `www/physics.js` is the stone simulation the sweep and the hand share.
+
+The last four have no DOM in them and are tested under node.
 - `www/my-clock.css` owns all visual styling.
 - `www/service-worker.js` caches the static app for offline use.
 - `www/manifest.webmanifest` makes the web version installable to a home screen.
@@ -44,7 +49,7 @@ The public GitHub Pages URL is expected to remain `https://scott-griffiths.githu
 Useful checks:
 
 ```sh
-node --test tests/      # the clock faces at the awkward times, the stone physics, the hand's arithmetic
+node --test tests/      # the faces at the awkward times, the planner's choices, the stone physics
 node --check www/my-clock.js
 node --check www/go-clock.js
 ```
