@@ -27,6 +27,8 @@
             <p>Swipe across the board to change the clock face, across the background to change the background,
                 and down the board to sweep the stones off. Hold a finger on the board for a moment and it becomes
                 a hand: drag it to push the stones about.</p>
+            <p>With a keyboard: the left and right arrows change the face, up and down the background,
+                <kbd>S</kbd> sweeps the board and <kbd>M</kbd> mutes it.</p>
             <p><span style="font-weight: bold;">Tip of the day:</span> <span id="tip_of_the_day"></span></p>
             <p><a class="repo-link" href="https://github.com/scott-griffiths/go-clock">GitHub repository</a></p>
             <p class="about-meta"><span>&copy; 2014&ndash;2026 Scott Griffiths</span><span>Version <span id="version">2.0</span></span></p>
@@ -100,7 +102,9 @@
                 <span id="swipe-toast-icon" class="setting-icon" aria-hidden="true"></span>
                 <span id="swipe-toast-value"></span>
             </div>
-            <div id="goban" aria-label="Go board clock">
+            <!-- role="img": the stones mean nothing to a screen reader, so the
+                 board is one picture, whose label my-clock.js keeps as the time. -->
+            <div id="goban" role="img" aria-label="Go board clock">
                 <img id="goban-image" alt="">
             </div>
         </div>

@@ -340,6 +340,7 @@ window.addEventListener('load', () => {
         goClock.twenty_four_hour = mode === 1;
         showMode(mode);
         writeSetting('mode', mode);
+        describeBoard();
     }
 
     function setWood(index) {
@@ -387,6 +388,26 @@ window.addEventListener('load', () => {
             goClock.dropTableStones();
         }
         writeSetting('background', background);
+    }
+
+    // The next (or previous) face or background, announced with a toast:
+    // what a swipe does, and a key.
+    function changeView(step) {
+        setView(view + step);
+        goClock.transform();
+        showSwipeToast('◷', views[view]);
+    }
+
+    function changeBackground(step) {
+        setBackground(background + step);
+        showSwipeToast('▧', backgrounds[background][1]);
+    }
+
+    // What the board shows, for assistive tech: a grid of stones means
+    // nothing to a screen reader, so the board's label carries the time.
+    function describeBoard() {
+        const time = new Date().toLocaleTimeString([], {hour: 'numeric', minute: '2-digit', hour12: mode === 0});
+        goban.setAttribute('aria-label', `Go board clock showing ${time}`);
     }
 
     function setGobanState(state) {
@@ -593,12 +614,9 @@ window.addEventListener('load', () => {
             // Swiping left brings on the next one, as with pages.
             const step = dx < 0 ? 1 : -1;
             if (onBoard) {
-                setView(view + step);
-                goClock.transform();
-                showSwipeToast('◷', views[view]);
+                changeView(step);
             } else {
-                setBackground(background + step);
-                showSwipeToast('▧', backgrounds[background][1]);
+                changeBackground(step);
             }
             // A swipe is about the board, not the controls: if they are up, they go.
             hideControls();
@@ -620,10 +638,33 @@ window.addEventListener('load', () => {
         wakeControls();
     });
     toolbar.addEventListener('pointermove', wakeControlsForActivity);
+    // Keys, for a keyboard and for a desktop where a swipe is a drag: the
+    // arrows change the face (left and right) and the background (up and
+    // down), S or Backspace sweeps the board, M mutes, I is the about box.
+    const keyActions = {
+        ArrowRight: () => changeView(1),
+        ArrowLeft: () => changeView(-1),
+        ArrowDown: () => changeBackground(1),
+        ArrowUp: () => changeBackground(-1),
+        s: () => goClock.resetBoard(),
+        Backspace: () => goClock.resetBoard(),
+        Delete: () => goClock.resetBoard(),
+        m: () => setSound(sound === 1 ? 0 : 1),
+        i: () => aboutButton.click()
+    };
     document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') {
             setSettingsOpen(false);
             hideAbout();
+        } else if (!event.metaKey && !event.ctrlKey && !event.altKey
+                   && !(event.target === speedSlider && event.key.startsWith('Arrow'))) {
+            const action = keyActions[event.key.length === 1 ? event.key.toLowerCase() : event.key];
+            if (action) {
+                // These are about the board, not the controls.
+                event.preventDefault();
+                action();
+                return;
+            }
         }
         wakeControlsForActivity();
     });
@@ -665,7 +706,10 @@ window.addEventListener('load', () => {
     wakeControls();
     registerServiceWorker();
     window.addEventListener('resize', scheduleResize);
-    setInterval(storeGobanState, 10000);
+    setInterval(() => {
+        storeGobanState();
+        describeBoard();
+    }, 10000);
     goClock.transform();
 });
 
