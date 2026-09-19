@@ -206,6 +206,7 @@ window.addEventListener('load', () => {
     const muteButton = $('#mute');
     const muteIcon = $('#mute-icon');
     const settingsMenu = $('#settings-menu');
+    const modeControl = $('#mode-control');
     const boardHint = $('#board-hint');
     const backgroundHint = $('#background-hint');
     const swipeToast = $('#swipe-toast');
@@ -375,6 +376,13 @@ window.addEventListener('load', () => {
     function setView(index) {
         view = wrap(index, views.length);
         goClock.view = view;
+        // Only the faces with digits can show a 24-hour time; the mode chip
+        // comes and goes with them.
+        const showsMode = view === 2 || view === 3;
+        modeControl.hidden = !showsMode;
+        if (!showsMode && openControl === modeControl) {
+            setOpenControl(null);
+        }
         writeSetting('view', view);
     }
 
