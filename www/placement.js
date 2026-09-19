@@ -101,8 +101,13 @@ function alignmentTargetRadius(clock) {
     return 0.04;
 }
 
+// How far off its point a stone must lie before the idle hand nudges it
+// straighter: well beyond anything a stone lands with in the current
+// placement, so a stone put down perfectly well is left alone, and only
+// one a finger left askew, or that was put down in a more careless mode,
+// gets tidied.
 function alignmentTriggerRadius(clock) {
-    return alignmentTargetRadius(clock) + 0.01;
+    return Math.max(disorderRadius(clock)*1.6, alignmentTargetRadius(clock) + 0.01);
 }
 
 function alignedOffset(clock, index) {
