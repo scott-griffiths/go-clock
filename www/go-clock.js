@@ -6,70 +6,8 @@ import {gridsize, white, black, go_bowl, go_table, minx, maxx, miny, maxy, dist,
 import {faceFor} from './faces.js';
 import {planMove} from './planner.js';
 import {StoneWorld, flatBoard, tippedBoard, voidFadeTime} from './physics.js';
-
-const ext = "images/";
-
-// The stones are 160px, for a board on a retina screen where one is drawn
-// at up to 50 CSS pixels; resources/ has them at full size. The size is in
-// the name because the service worker caches images by name for good.
-const primaryWhiteStoneSrc = ext + "white_stone0_160.png";
-const alternateWhiteStoneSrcs = [
-    ext + "white_stone1_160.png",
-    ext + "white_stone2_160.png",
-    ext + "white_stone3_160.png"
-];
-const blackStoneSrc = ext + "black_stone1_160.png";
-
-// The board image, and the stone images fetched ahead of their first use.
-// Only in a browser: the faces (update) and the hand's arithmetic run
-// under node for the tests, where there is no Image.
-var goban_1200 = null;
-if (typeof Image !== 'undefined') {
-    [primaryWhiteStoneSrc, ...alternateWhiteStoneSrcs, blackStoneSrc].forEach((src) => {
-        const image = new Image();
-        image.src = src;
-    });
-    goban_1200 = new Image();
-    goban_1200.src = ext + "goban_1200.jpg";
-}
-
-const $ = (selector, scope = document) => scope.querySelector(selector);
-
-function setStyles(element, styles) {
-    Object.entries(styles).forEach(([property, value]) => {
-        if (value !== undefined) {
-            element.style[property] = typeof value === 'number' ? `${value}px` : value;
-        }
-    });
-}
-
-function setStoneShadow(element, height = 0) {
-    const lift = Math.min(height, 10);
-    const liftRatio = lift/10;
-    const fade = Math.pow(1 - liftRatio, 1.4);
-    element.style.setProperty('--stone-shadow-scale', 1);
-    element.style.setProperty('--stone-shadow-opacity', Math.max(0.02, 0.72*fade));
-    element.style.setProperty('--stone-shadow-fill-alpha', Math.max(0.01, 0.34*fade));
-    element.style.setProperty('--stone-shadow-blur-alpha', Math.max(0.01, 0.4*fade));
-    element.style.setProperty('--stone-shadow-blur-size', `${3 + lift*0.8}px`);
-    element.style.setProperty('--stone-shadow-spread-size', `${1 - lift*0.06}px`);
-    element.style.setProperty('--stone-shadow-offset-x', `${1.25 + lift*0.45}px`);
-    element.style.setProperty('--stone-shadow-offset-y', `${1.75 + lift*0.4}px`);
-}
-
-function randomWhiteStoneSrc() {
-    if (Math.random() < 0.5) {
-        return primaryWhiteStoneSrc;
-    }
-    return alternateWhiteStoneSrcs[Math.floor(Math.random()*alternateWhiteStoneSrcs.length)];
-}
-
-function stoneImageSrc(colour, preferredSrc = null) {
-    if (colour == white) {
-        return preferredSrc || randomWhiteStoneSrc();
-    }
-    return blackStoneSrc;
-}
+import {$, gobanImage, tableTransform, tableStoneScale, setStyles, setVisible, setStoneShadow, stoneImageSrc, colourOfImage,
+        cancelElementAnimations, animateElement, elementCentre, stoneElement, looseStone, drawFalling, drawOnTable} from './stone-dom.js';
 
 function displacedCoords(fromCoords, toCoords) {
     var dx = toCoords[0] - fromCoords[0];
@@ -88,46 +26,6 @@ function displacedCoords(fromCoords, toCoords) {
         Math.max(0, Math.min(gridsize - 1, y))
     ];
 }
-
-function setVisible(element, visible) {
-    element.hidden = !visible;
-}
-
-function cancelElementAnimations(element) {
-    element.getAnimations?.().forEach((animation) => animation.cancel());
-}
-
-function animateElement(target, duration, vars) {
-    const element = typeof target === 'string' ? $(target) : target;
-    if (!element) {
-        vars.onComplete?.();
-        return;
-    }
-
-    const {delay = 0, easing = 'ease', onComplete, cancelExisting = true, force3D, ...styleProps} = vars;
-    if (cancelExisting) {
-        cancelElementAnimations(element);
-    }
-
-    const finalStyles = {};
-    Object.entries(styleProps).forEach(([property, value]) => {
-        finalStyles[property] = typeof value === 'number' && property !== 'opacity' ? `${value}px` : String(value);
-    });
-
-    const animation = element.animate(finalStyles, {
-        duration: duration * 1000,
-        delay: delay * 1000,
-        easing,
-        fill: 'forwards'
-    });
-
-    animation.addEventListener('finish', () => {
-        setStyles(element, finalStyles);
-        animation.cancel();
-        onComplete?.();
-    }, {once: true});
-}
-
 
 export function GoClock(){
     this.stones = []; // The current (desired) state
@@ -152,11 +50,6 @@ export function GoClock(){
     // No table at all: a stone that goes over the edge falls away into the
     // dark and fades, silently, rather than landing (the space background).
     this.table_void = false;
-    // The table is a little further from the eye than the board, so a stone
-    // lying on it is drawn a little smaller: the transform for one that has
-    // dropped this far (0 to 1) off the edge.
-    var tableStoneScale = 0.92;
-    var tableTransform = (drop = 1) => `scale(${1 - (1 - tableStoneScale)*Math.max(0, Math.min(1, drop))})`;
     this.sweeping_board = false;
 
     this.hand_position = 9*19 + 9; // Position of hand that's moving the stones.
@@ -687,17 +580,16 @@ export function GoClock(){
                 }
                 var translate = `translate(${stone.x - stone.r - stone.startLeft}px, ${stone.y - stone.r - stone.startTop}px)`;
                 if (stone.falling) {
-                    this.drawFalling(stone.element, world.fall(stone), translate);
+                    drawFalling(stone.element, world.fall(stone), translate);
                     return;
                 }
                 if (stone.offBoard) {
                     // In the air for the drop off the edge, then on the table,
                     // which is that little further away.
-                    var drop = world.drop(stone);
-                    setStoneShadow(stone.element, drop < 1 ? 8*Math.sin(drop*Math.PI) : 0);
-                    translate += ' ' + tableTransform(drop);
+                    drawOnTable(stone.element, world.drop(stone), translate);
+                } else {
+                    stone.element.style.transform = translate;
                 }
-                stone.element.style.transform = translate;
             });
 
             if (this.sound) {
@@ -775,15 +667,6 @@ export function GoClock(){
         return [x - diameter/2 | 0, y - lift*this.goban_height/600 - diameter/2 | 0, diameter, diameter];
     };
 
-    // A stone's element on its way into the void, `fall` (0 to 1) of the
-    // way there: fading and shrinking as it falls away. `transform` is any
-    // transform the element already needs.
-    this.drawFalling = function(element, fall, transform = '') {
-        setVisible(element.querySelector('.stone-shadow'), false);
-        element.style.opacity = String(1 - fall);
-        element.style.transform = `${transform} scale(${1 - 0.4*fall})`.trim();
-    };
-
     // The board, and the screen, as the physics sees them: rectangles in
     // px within the goban element. A stone that leaves the screen is gone.
     this.boardRect = function() {
@@ -818,43 +701,9 @@ export function GoClock(){
         this.table_stones = [];
     };
 
-    // A stone free of the grid, drawn by an element of its own while the
-    // finger is about.
+    // A stone free of the grid, drawn by an element of its own (stone-dom.js).
     this.looseStone = function(src, colour, x, y) {
-        var diameter = this.goban_width/20;
-        var element = document.createElement('div');
-        element.className = 'board_pos loose-stone';
-        setStyles(element, {
-            position: 'absolute',
-            left: x - diameter/2,
-            top: y - diameter/2,
-            width: diameter,
-            height: diameter
-        });
-        var shadow = document.createElement('div');
-        shadow.className = 'stone-shadow';
-        setStoneShadow(shadow, 0);
-        element.append(shadow);
-        var image = document.createElement('img');
-        image.className = 'stone';
-        image.alt = '';
-        image.src = src;
-        element.append(image);
-        $('#goban').append(element);
-        return {
-            element: element,
-            src: src,
-            colour: colour,
-            x: x,
-            y: y,
-            r: diameter/2,
-            vx: 0,
-            vy: 0,
-            offBoard: false,
-            leftAt: 0,
-            landed: false,
-            gone: false
-        };
+        return looseStone($('#goban'), this.goban_width/20, src, colour, x, y);
     };
 
     // The nearest point to the coordinates that no other stone has claimed,
@@ -877,13 +726,6 @@ export function GoClock(){
         return best;
     };
 
-    // Where an element's stone is now, mid-animation or not.
-    this.elementCentre = function(element) {
-        var style = getComputedStyle(element);
-        var size = parseFloat(style.width) || this.goban_width/20;
-        return [parseFloat(style.left) + size/2, parseFloat(style.top) + size/2];
-    };
-
     // Whatever the hand is doing stops, and the stone it holds drops where
     // it is, as a loose stone of its own; so does one it is pushing aside.
     // Returns the loose stones, for the finger or the sweep to take on.
@@ -896,12 +738,12 @@ export function GoClock(){
         var pushedStone = $('#pushed_stone');
         var swap = this.pending_swap;
         if (!movingStone.hidden) {
-            var at = this.elementCentre(movingStone);
+            var at = elementCentre(movingStone, this.goban_width/20);
             var colour = swap && swap.phase == 'return' ? swap.displaced_colour : this.stone_colour;
             stones.push(this.looseStone(movingStone.querySelector('img').src, colour, at[0], at[1]));
         }
         if (swap && swap.phase == 'push' && !pushedStone.hidden) {
-            var at = this.elementCentre(pushedStone);
+            var at = elementCentre(pushedStone, this.goban_width/20);
             stones.push(this.looseStone(swap.displaced_src, swap.displaced_colour, at[0], at[1]));
             // The board still records that stone at the point it is leaving.
             this.stones_shown[swap.target] = 0;
@@ -967,12 +809,12 @@ export function GoClock(){
             var image = element.querySelector('img');
             var colour = this.stones_shown[i];
             if (colour == 0 && !image.hidden && image.src) {
-                colour = image.src.includes('black_stone') ? black : white;
+                colour = colourOfImage(image);
             }
             if (colour == 0) {
                 continue;
             }
-            var at = this.elementCentre(element);
+            var at = elementCentre(element, diameter);
             cancelElementAnimations(element);
             world.add(this.looseStone(image.src, colour, at[0], at[1]));
             setVisible(element.querySelector('.stone-shadow'), false);
@@ -1093,13 +935,11 @@ export function GoClock(){
                 }
                 setStyles(stone.element, {left: stone.x - stone.r, top: stone.y - stone.r});
                 if (stone.falling) {
-                    this.drawFalling(stone.element, world.fall(stone));
+                    drawFalling(stone.element, world.fall(stone));
                     return;
                 }
                 if (stone.offBoard) {
-                    var drop = world.drop(stone);
-                    setStoneShadow(stone.element.querySelector('.stone-shadow'), drop < 1 ? 8*Math.sin(drop*Math.PI) : 0);
-                    stone.element.style.transform = tableTransform(drop);
+                    drawOnTable(stone.element, world.drop(stone));
                 } else {
                     sliding += Math.min(1, world.speedOf(stone)/(diameter*10));
                 }
@@ -1265,7 +1105,6 @@ export function GoClock(){
         }
         this.y_offset = (height - this.goban_height) / 2 | 0;
         this.x_offset = (width - this.goban_width) / 2 | 0;
-        var gobanImage = goban_1200;
         gobanImage.id = 'goban-image';
         gobanImage.alt = '';
         var goban = $('#goban');
@@ -1278,58 +1117,18 @@ export function GoClock(){
         gobanImg.style.boxShadow = `${s}px ${2*s}px ${2*s}px 0px rgba(0,0,0,0.6)`;
 
 
-        // Set up a div for every stone position
+        // An element for every point of the grid, sized and placed for its
+        // stone; then one for the stone in the hand, and one for a stone it
+        // pushes aside.
         for (var i = 0; i < gridsize*gridsize; ++i) {
             var coords = this.get_coords(i);
             var p = this.stonePosition(coords[0], coords[1], 0);
-            var stone = document.createElement('div');
-            stone.className = 'board_pos';
-            stone.id = 'p' + i;
-            setStyles(stone, {
-                position: 'absolute',
-                left: p[0],
-                top: p[1],
-                width: p[2],
-                height: p[3]
-            });
-            var stoneShadow = document.createElement('div');
-            stoneShadow.className = 'stone-shadow';
-            stone.append(stoneShadow);
-            setVisible(stoneShadow, false);
-            var stoneImage = document.createElement('img');
-            stoneImage.className = 'stone';
-            stoneImage.alt = '';
-            stone.append(stoneImage);
-            goban.append(stone);
+            var point = stoneElement({id: 'p' + i, className: 'board_pos'});
+            setStyles(point, {left: p[0], top: p[1], width: p[2], height: p[3]});
+            goban.append(point);
         }
-        // And a single div for the moving stone
-        var movingStone = document.createElement('div');
-        movingStone.id = 'moving_stone';
-        movingStone.style.position = 'absolute';
-        var movingStoneShadow = document.createElement('div');
-        movingStoneShadow.className = 'stone-shadow';
-        movingStone.append(movingStoneShadow);
-        setVisible(movingStoneShadow, false);
-        var movingStoneImage = document.createElement('img');
-        movingStoneImage.className = 'stone';
-        movingStoneImage.alt = '';
-        movingStone.append(movingStoneImage);
-        goban.append(movingStone);
-        setVisible(movingStoneImage, false);
-
-        var pushedStone = document.createElement('div');
-        pushedStone.id = 'pushed_stone';
-        pushedStone.style.position = 'absolute';
-        var pushedStoneShadow = document.createElement('div');
-        pushedStoneShadow.className = 'stone-shadow';
-        pushedStone.append(pushedStoneShadow);
-        setVisible(pushedStoneShadow, false);
-        var pushedStoneImage = document.createElement('img');
-        pushedStoneImage.className = 'stone';
-        pushedStoneImage.alt = '';
-        pushedStone.append(pushedStoneImage);
-        goban.append(pushedStone);
-        setVisible(pushedStone, false);
+        goban.append(stoneElement({id: 'moving_stone', imageHidden: true}));
+        goban.append(stoneElement({id: 'pushed_stone', hidden: true}));
 
         // The hand's disc, and the stones on the table.
         var finger = document.createElement('div');
