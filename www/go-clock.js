@@ -694,14 +694,10 @@ export function GoClock(){
         var last = null;
         var elapsed = 0;
         var stillFor = 0;
-        var step = (now) => {
-            if (last === null) {
-                last = now;
-            }
-            var dt = Math.min((now - last)/1000, 0.032);
-            last = now;
+        // The physics, dt seconds of it: the stones let go and slide,
+        // and knock each other about.
+        var advance = (dt) => {
             elapsed += dt;
-
             stones.forEach((stone) => {
                 if (stone.gone) {
                     return;
@@ -800,6 +796,22 @@ export function GoClock(){
                     }
                 }
             }
+        };
+
+        var step = (now) => {
+            if (last === null) {
+                last = now;
+            }
+            // However long the frame was (a throttled tab, a slow device),
+            // the physics catches up with the clock, in steps short enough
+            // to stay stable: a low frame rate makes the sweep choppy, not
+            // slow. A frame longer than a quarter of a second is left behind.
+            var frame = Math.min((now - last)/1000, 0.25);
+            last = now;
+            var steps = Math.max(1, Math.ceil(frame/0.032));
+            for (var s = 0; s < steps; ++s) {
+                advance(frame/steps);
+            }
 
             var onBoard = 0;
             var moved = 0;
@@ -849,8 +861,9 @@ export function GoClock(){
             }
 
             // Done once every stone is off the board and the heap has kept
-            // still for half a second (or, failing that, after a while).
-            stillFor = moved < 0.5 ? stillFor + dt : 0;
+            // still (under 30 px/s) for half a second, or, failing that,
+            // after a while.
+            stillFor = moved < 30*frame ? stillFor + frame : 0;
             var settled = onBoard === 0 && stillFor > 0.5;
             if (!settled && elapsed < 12) {
                 window.requestAnimationFrame(step);
@@ -1257,32 +1270,10 @@ export function GoClock(){
         };
 
         var last = null;
-        var step = (now) => {
-            if (this.finger !== finger) {
-                return;
-            }
-            if (last === null) {
-                last = now;
-            }
-            var dt = Math.max(0.001, Math.min((now - last)/1000, 0.032));
-            last = now;
+        // The physics, dt seconds of it: the stones skid, slow, and knock
+        // each other about, and any over the edge drop to the table.
+        var advance = (dt) => {
             finger.elapsed += dt;
-
-            if (finger.pressing) {
-                // Towards where the pointer is, in steps small enough that
-                // no stone is skipped over.
-                var moveX = finger.targetX - finger.x;
-                var moveY = finger.targetY - finger.y;
-                var travel = Math.hypot(moveX, moveY);
-                var substeps = Math.max(1, Math.ceil(travel/(diameter*0.25)));
-                for (var s = 1; s <= substeps; ++s) {
-                    shove(finger.x + moveX*s/substeps, finger.y + moveY*s/substeps, dt/substeps, travel/substeps);
-                }
-                finger.x = finger.targetX;
-                finger.y = finger.targetY;
-                setStyles(disc, {left: finger.x - radius, top: finger.y - radius});
-            }
-
             stones.forEach((stone) => {
                 if (stone.gone) {
                     return;
@@ -1335,6 +1326,39 @@ export function GoClock(){
             });
             collide();
             stones.forEach(keepOffBoard);
+        };
+
+        var step = (now) => {
+            if (this.finger !== finger) {
+                return;
+            }
+            if (last === null) {
+                last = now;
+            }
+            // As in the sweep: the physics keeps up with the clock whatever
+            // the frame rate, in steps short enough to stay stable.
+            var frame = Math.max(0.001, Math.min((now - last)/1000, 0.25));
+            last = now;
+
+            if (finger.pressing) {
+                // Towards where the pointer is, in steps small enough that
+                // no stone is skipped over.
+                var moveX = finger.targetX - finger.x;
+                var moveY = finger.targetY - finger.y;
+                var travel = Math.hypot(moveX, moveY);
+                var substeps = Math.max(1, Math.ceil(travel/(diameter*0.25)));
+                for (var s = 1; s <= substeps; ++s) {
+                    shove(finger.x + moveX*s/substeps, finger.y + moveY*s/substeps, frame/substeps, travel/substeps);
+                }
+                finger.x = finger.targetX;
+                finger.y = finger.targetY;
+                setStyles(disc, {left: finger.x - radius, top: finger.y - radius});
+            }
+
+            var steps = Math.max(1, Math.ceil(frame/0.032));
+            for (var s = 0; s < steps; ++s) {
+                advance(frame/steps);
+            }
 
             var sliding = 0;
             var still = true;
