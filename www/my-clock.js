@@ -135,7 +135,9 @@ function fadeTo(element, opacity, duration = 300, onFinish) {
 // the iOS shell (ios/GoClock/WebAppView.swift) answers `goClockHaptic`
 // messages with the taptic engine; elsewhere, a phone that can vibrate does.
 // 'grab' is the hand landing; 'tick' a stone going over the edge, of which
-// a good shove makes several at once, so those are thinned out.
+// a good shove makes several at once, so those are thinned out; 'prepare'
+// is a finger landing, for the shell to warm its engine in case a hold
+// follows, and is nothing anywhere else.
 let lastTick = 0;
 function haptic(kind) {
     if (kind === 'tick') {
@@ -149,7 +151,7 @@ function haptic(kind) {
         const handler = window.webkit?.messageHandlers?.goClockHaptic;
         if (handler) {
             handler.postMessage(kind);
-        } else {
+        } else if (kind !== 'prepare') {
             navigator.vibrate?.(kind === 'grab' ? 15 : 5);
         }
     } catch {
@@ -586,6 +588,7 @@ window.addEventListener('load', () => {
         hand = null;
         cancelHold();
         swipe = {id: event.pointerId, x: event.clientX, y: event.clientY, onBoard: isOnBoard(event.clientX, event.clientY)};
+        haptic('prepare');
         // A hold anywhere becomes the hand: on the surround it has the
         // stones on the table to push about.
         const {pointerId, clientX, clientY} = event;

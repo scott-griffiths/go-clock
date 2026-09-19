@@ -104,8 +104,9 @@ struct WebAppView: UIViewRepresentable {
         )
 
         // The one thing the page asks for: a tap under the finger when a hold
-        // on the board becomes the hand (my-clock.js, `haptic`). A web view
-        // has no way to reach the taptic engine itself.
+        // on the board becomes the hand (my-clock.js, `haptic`), and the
+        // engine warmed when a finger lands. A web view has no way to reach
+        // the taptic engine itself.
         config.userContentController.add(context.coordinator, name: Haptics.name)
 
         // The stones may click without anyone touching the screen (sounds.js,
@@ -125,8 +126,11 @@ struct WebAppView: UIViewRepresentable {
         web.uiDelegate = context.coordinator
 
         // Lets Safari's Web Inspector attach to the app on a Mac, which is the
-        // only way to see the page's own console from inside a shell.
+        // only way to see the page's own console from inside a shell. Debug
+        // builds only: a shipped app is not for inspecting.
+        #if DEBUG
         if #available(iOS 16.4, *) { web.isInspectable = true }
+        #endif
 
         // The page lays itself out against `env(safe-area-inset-*)` and the
         // window ignores the safe area, so the web view must not inset its
@@ -206,9 +210,10 @@ enum ShellInfo {
 
 /**
  Haptic feedback the page asks for by posting a kind to `goClockHaptic`:
- `grab` when a held finger becomes the hand, anything else a lighter tick.
- The generators are made once and kept warm, since the first tap after a
- pause is otherwise late.
+ `prepare` when a finger lands (a hold becomes the hand a quarter of a
+ second later, and an engine warmed now taps on time then), `grab` when it
+ does, anything else a lighter tick — a stone going over the edge, of which
+ a shove makes several, so the tick is warmed after each grab.
  */
 enum Haptics {
     static let name = "goClockHaptic"
@@ -216,9 +221,15 @@ enum Haptics {
     private static let tick = UIImpactFeedbackGenerator(style: .light)
 
     static func play(_ kind: String) {
-        let generator = kind == "grab" ? grab : tick
-        generator.prepare()
-        generator.impactOccurred()
+        switch kind {
+        case "prepare":
+            grab.prepare()
+        case "grab":
+            grab.impactOccurred()
+            tick.prepare()
+        default:
+            tick.impactOccurred()
+        }
     }
 }
 
