@@ -618,7 +618,6 @@ window.addEventListener('load', () => {
             return;
         }
         wakeControls();
-        goClock.update();
     });
     toolbar.addEventListener('pointermove', wakeControlsForActivity);
     document.addEventListener('keydown', (event) => {

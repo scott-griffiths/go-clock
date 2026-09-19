@@ -137,7 +137,7 @@ function animateElement(target, duration, vars) {
 }
 
 
-// Small numbers, 5x7
+// Small numbers, 5 wide by 7 tall
 var s0 = [[3, 0], [2, 0], [1, 0], [0, 1], [0, 2], [0, 3], [0, 4], [0, 5], [1, 6], [2, 6], [3, 6], [4, 5], [4, 4], [4, 3], [4, 2], [4, 1]];
 var s1 = [[1, 1], [2, 0], [2, 1], [2, 2], [2, 3], [2, 4], [2, 5], [2, 6], [1, 6], [3, 6]];
 var s2 = [[0, 1], [1, 0], [2, 0], [3, 0], [4, 1], [4, 2], [3, 3], [2, 3], [1, 3], [0, 4], [0, 5], [0, 6], [1, 6], [2, 6], [3, 6], [4, 6]];
@@ -150,7 +150,7 @@ var s8 = [[3, 0], [2, 0], [1, 0], [0, 1], [0, 2], [1, 3], [2, 3], [3, 3], [4, 4]
 var s9 = [[3, 3], [2, 3], [1, 3], [0, 2], [0, 1], [1, 0], [2, 0], [3, 0], [4, 1], [4, 2], [4, 3], [4, 4], [4, 5], [3, 6], [2, 6], [1, 6]];
 var small_num = [s0, s1, s2, s3, s4, s5, s6, s7, s8, s9];
 
-// Big numbers, 6x8
+// Big numbers, 6 wide by 9 tall
 s0 = [[4, 0], [3, 0], [2, 0], [1, 0], [0, 1], [0, 2], [0, 3], [0, 4], [0, 5], [0, 6], [0, 7], [1, 8], [2, 8], [3, 8], [4, 8], [5, 7], [5, 6], [5, 5], [5, 4], [5, 3], [5, 2], [5, 1]];
 s1 = [[1, 2], [2, 1], [3, 0], [3, 1], [3, 2], [3, 3], [3, 4], [3, 5], [3, 6], [3, 7], [3, 8], [2, 8], [4, 8], [5, 8], [1, 8]];
 s2 = [[0, 1], [1, 0], [2, 0], [3, 0], [4, 0], [5, 1], [5, 2], [5, 3], [4, 4], [3, 4], [2, 4], [1, 4], [0, 5], [0, 6], [0, 7], [0, 8], [1, 8], [2, 8], [3, 8], [4, 8], [5, 8]];
@@ -163,7 +163,7 @@ s8 = [[4, 0], [3, 0], [2, 0], [1, 0], [0, 1], [0, 2], [5, 1], [5, 2], [5, 6], [5
 s9 = [[4, 0], [3, 0], [2, 0], [0, 1], [0, 2], [0, 3], [5, 4], [1, 0], [5, 1], [5, 2], [1, 8], [2, 8], [3, 8], [4, 7], [5, 3], [5, 6], [5, 5], [4, 4], [3, 4], [2, 4], [1, 4]];
 var big_num = [s0, s1, s2, s3, s4, s5, s6, s7, s8, s9];
 
-// Tiny numbers, 5x5
+// Tiny numbers, 3 wide by 5 tall
 s0 = [[2, 0], [1, 0], [0, 0], [0, 1], [0, 2], [0, 3], [0, 4], [1, 4], [2, 4], [2, 3], [2, 2], [2, 1]];
 s1 = [[2, 0], [2, 1], [2, 2], [2, 3], [2, 4]];
 s2 = [[0, 0], [1, 0], [2, 0], [2, 1], [2, 2], [1, 2], [0, 2], [0, 3], [0, 4], [1, 4], [2, 4]];
@@ -940,8 +940,6 @@ export function GoClock(){
         return [x - diameter/2 | 0, y - lift*this.goban_height/600 - diameter/2 | 0, diameter, diameter];
     };
 
-    // The board stands proud of the table: a stone on the table stops
-    // at its side rather than going back up.
     // The board stands proud of the table: a stone on the table stops at
     // its side rather than going back up.
     this.keepOffBoard = function(stone) {
@@ -1861,7 +1859,7 @@ export function GoClock(){
             hours %= 10;
             if (tensOfHours != 0 || this.twenty_four_hour) {
 
-                this.drawNumber(tensOfHours, (tensOfHours == 1) ? 3 : 3, 1, 3, black);
+                this.drawNumber(tensOfHours, 3, 1, 3, black);
                 this.drawNumber(hours, (hours == 1) ? 9 : 10, 1, 3, black);
             } else {
                 this.drawNumber(hours, (hours == 1) ? 6 : 7, 1, 3, black);
