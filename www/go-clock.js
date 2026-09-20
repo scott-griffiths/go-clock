@@ -130,7 +130,7 @@ export function GoClock(){
     this.speed = 26; // How fast a stone moves (moves.js)
     this.pause = 180; // How long a hand rests between stones, in ms
 
-    this.placement = 1; // 0 exact, 1 organic, 2 careless, 3 haphazard
+    this.placement = 1; // 0 exact, 1 organic, 2 careless
 
     this.twenty_four_hour = true; // 24 hour mode for views that make sense
 

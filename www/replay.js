@@ -28,68 +28,98 @@ import {sweepBoard} from './sweep.js';
 import {flyOn} from './flight.js';
 import {$, setVisible, setStoneShadow, cancelElementAnimations} from './stone-dom.js';
 
-// The games that come with the clock, in www/games.
-export const gameFiles = [
-    'dosaku-tengen.sgf',
-    'dosaku-santetsu-1683.sgf',
-    'genjo-chitoku-jigo.sgf',
-    'chitoku-genjo-1815.sgf',
-    'jowa-genjo-1815.sgf',
-    'blood-vomiting.sgf',
-    'shuwa-gennan-1840.sgf',
-    'shuwa-gennan-1842.sgf',
-    'ear-reddening.sgf',
-    'shusaku-castle-1.sgf',
-    'shusaku-castle-4.sgf',
-    'shusaku-castle-6.sgf',
-    'shusaku-castle-8.sgf',
-    'shusaku-castle-10.sgf',
-    'shusaku-castle-13.sgf',
-    'shusaku-castle-16.sgf',
-    'shusaku-castle-19.sgf',
-    'shusai-karigane-1926.sgf',
-    'go-seigen-shusai.sgf',
-    'shusai-retirement.sgf',
-    'go-seigen-kitani-7-dan.sgf',
-    'go-seigen-kitani-fever.sgf',
-    'go-seigen-kitani-kamakura-8.sgf',
-    'honinbo-1941.sgf',
-    'go-seigen-fujisawa-1944.sgf',
-    'atomic-bomb.sgf',
-    'go-seigen-fujisawa-1952.sgf',
-    'go-seigen-sakata-1954.sgf',
-    'go-seigen-takagawa-1956.sgf',
-    'honinbo-1961.sgf',
-    'meijin-1965.sgf',
-    'honinbo-1971.sgf',
-    'meijin-1975.sgf',
-    'meijin-1976.sgf',
-    'kisei-1977.sgf',
-    'meijin-1980.sgf',
-    'kisei-1982.sgf',
-    'kisei-1983.sgf',
-    'judan-1984.sgf',
-    'honinbo-1985.sgf',
-    'kisei-1987.sgf',
-    'meijin-1988.sgf',
-    'ing-cup-1989.sgf',
-    'honinbo-1990.sgf',
-    'kisei-1996.sgf',
-    'fujitsu-cup-1996.sgf',
-    'chunlan-cup-1999.sgf',
-    'lg-cup-2009.sgf',
-    'meijin-2009.sgf',
-    'alphago-fan-hui-1.sgf',
-    'alphago-lee-sedol-1.sgf',
-    'alphago-lee-sedol-2.sgf',
-    'alphago-lee-sedol-3.sgf',
-    'alphago-lee-sedol-4.sgf',
-    'alphago-lee-sedol-5.sgf',
-    'master-ke-jie.sgf',
-    'alphago-ke-jie-2.sgf',
-    'samsung-cup-2020.sgf',
-    'honinbo-2023.sgf'
+// The games that come with the clock, in www/games, on three shelves:
+// the castle games and the great matches of the Edo houses, played on the
+// floor before the shogun; the modern professional era, from the first
+// newspaper matches of the 1920s to last year's titles; and the games an
+// engine played. Shusai's three games sit at the head of the modern shelf:
+// he was the last of the hereditary Honinbo, but those games were the
+// newspaper spectacles the modern era began with.
+export const gameCategories = [
+    {
+        key: 'historical',
+        label: 'Historical',
+        title: 'A game from the Edo houses',
+        files: [
+        'dosaku-tengen.sgf',
+        'dosaku-santetsu-1683.sgf',
+        'genjo-chitoku-jigo.sgf',
+        'chitoku-genjo-1815.sgf',
+        'jowa-genjo-1815.sgf',
+        'blood-vomiting.sgf',
+        'shuwa-gennan-1840.sgf',
+        'shuwa-gennan-1842.sgf',
+        'ear-reddening.sgf',
+        'shusaku-castle-1.sgf',
+        'shusaku-castle-4.sgf',
+        'shusaku-castle-6.sgf',
+        'shusaku-castle-8.sgf',
+        'shusaku-castle-10.sgf',
+        'shusaku-castle-13.sgf',
+        'shusaku-castle-16.sgf',
+        'shusaku-castle-19.sgf',
+        ]
+    },
+    {
+        key: 'modern',
+        label: 'Modern',
+        title: 'A game from the modern era',
+        files: [
+        'shusai-karigane-1926.sgf',
+        'go-seigen-shusai.sgf',
+        'shusai-retirement.sgf',
+        'go-seigen-kitani-7-dan.sgf',
+        'go-seigen-kitani-fever.sgf',
+        'go-seigen-kitani-kamakura-8.sgf',
+        'honinbo-1941.sgf',
+        'go-seigen-fujisawa-1944.sgf',
+        'atomic-bomb.sgf',
+        'go-seigen-fujisawa-1952.sgf',
+        'go-seigen-sakata-1954.sgf',
+        'go-seigen-takagawa-1956.sgf',
+        'honinbo-1961.sgf',
+        'meijin-1965.sgf',
+        'honinbo-1971.sgf',
+        'meijin-1975.sgf',
+        'meijin-1976.sgf',
+        'kisei-1977.sgf',
+        'meijin-1980.sgf',
+        'kisei-1982.sgf',
+        'kisei-1983.sgf',
+        'judan-1984.sgf',
+        'honinbo-1985.sgf',
+        'kisei-1987.sgf',
+        'meijin-1988.sgf',
+        'ing-cup-1989.sgf',
+        'honinbo-1990.sgf',
+        'kisei-1996.sgf',
+        'fujitsu-cup-1996.sgf',
+        'chunlan-cup-1999.sgf',
+        'lg-cup-2009.sgf',
+        'meijin-2009.sgf',
+        'samsung-cup-2020.sgf',
+        'honinbo-2023.sgf',
+        ]
+    },
+    {
+        key: 'ai',
+        label: 'AI',
+        title: 'A game an engine played',
+        files: [
+        'alphago-fan-hui-1.sgf',
+        'alphago-lee-sedol-1.sgf',
+        'alphago-lee-sedol-2.sgf',
+        'alphago-lee-sedol-3.sgf',
+        'alphago-lee-sedol-4.sgf',
+        'alphago-lee-sedol-5.sgf',
+        'master-ke-jie.sgf',
+        'alphago-ke-jie-2.sgf',
+        ]
+    }
 ];
+
+// Every game, whatever shelf it is on.
+export const gameFiles = gameCategories.flatMap((category) => category.files);
 
 // How long the flung stones have the board to themselves before the
 // first stone of the game arrives (a sweep takes its own time), and how
@@ -97,16 +127,19 @@ export const gameFiles = [
 const flingTime = 900;
 const restTime = 3000;
 
-// The next game to replay: each of the files once, in a random order,
-// then shuffled again.
-let deck = [];
+// The next game to replay from a given set: each of its files once, in a
+// random order, then shuffled again. A set keeps its own deck, so one
+// shelf being worked through does not disturb another's.
+const decks = new Map();
 export function nextGameFile(files = gameFiles) {
-    if (deck.length === 0) {
+    let deck = decks.get(files);
+    if (!deck || deck.length === 0) {
         deck = [...files];
         for (let i = deck.length - 1; i > 0; --i) {
             const j = Math.floor(Math.random()*(i + 1));
             [deck[i], deck[j]] = [deck[j], deck[i]];
         }
+        decks.set(files, deck);
     }
     return deck.pop();
 }

@@ -49,7 +49,8 @@ The public GitHub Pages URL is expected to remain `https://scott-griffiths.githu
     played through by the two hands, and the board handed back to the clock.
   - `www/sgf.js` — a game record read from SGF and played out, each move with its captures.
   - `www/games/` — the games that come with the clock, as SGF files from
-    [Andries Brouwer's collection](https://homepages.cwi.nl/~aeb/go/games/).
+    [Andries Brouwer's collection](https://homepages.cwi.nl/~aeb/go/games/), shelved in
+    `replay.js` as historical (the Edo houses), modern (1926 onwards) and AI.
 
   `board.js`, `faces.js`, `planner.js`, `physics.js` and `sgf.js` have no DOM in them and are tested under node.
 - `www/my-clock.css` owns all visual styling.
