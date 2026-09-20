@@ -62,6 +62,11 @@ The public GitHub Pages URL is expected to remain `https://scott-griffiths.githu
   from the stone images.
 - `scripts/testflight.sh` archives the iOS app and uploads it to App Store Connect.
 - `resources/` holds the full-size stone images (used by the icon script) and a screenshot.
+- The tables in `www/images` are seamless CC0 textures, tiled to the board's size by
+  `my-clock.js`: `mahogany` (dark_wood) and `walnut` (walnut_veneer) from
+  [Poly Haven](https://polyhaven.com); `turf` (Grass004), `ice` (Ice004, under a veil in CSS)
+  and `water` (Ice002, whose cells pass for caustics once tinted blue in CSS) from
+  [ambientCG](https://ambientcg.com).
 - `embedded.html` and `simple-example.html` are legacy compatibility pages that redirect to the current app.
 
 Useful checks:

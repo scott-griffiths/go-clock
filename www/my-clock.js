@@ -18,18 +18,21 @@ const tipsOfTheDay = [
 
 ];
 
-// File, name, and how much the table drags on a stone skidding across it,
-// relative to wood: stones stop short in grass and slide on wet glass. In
-// space the board has no grip and there is no table: a shoved stone glides
-// off the edge and away.
+// The table the board sits on. Each is a seamless texture (CC0, from Poly
+// Haven and ambientCG) repeated at `tile` board-widths per repeat, so the
+// planks, blades and cracks come out the same size beside the board on
+// every screen; `tint` colours a grey texture, blended in, and `veil` is
+// a translucent colour laid over one that is too loud. `grip` is how much
+// the table drags on a stone skidding across it, relative to wood: stones
+// stop short in grass and slide on ice. Space is a picture rather than a
+// tile, and has no table: a shoved stone glides off the edge and away.
 const backgrounds = [
-    ['wood1.jpg', 'Dark wood', 1],
-    ['wood2.jpg', 'Light wood', 1],
-    ['stone1.jpg', 'Stone', 1],
-    ['mosaic1.jpg', 'Mosaic', 1],
-    ['grass.jpg', 'Grass', 4],
-    ['droplets.jpg', 'Droplets', 0.35],
-    ['space.jpg', 'Space', 1, 'void']
+    {file: 'mahogany.jpg', name: 'Dark wood', grip: 1, tile: 1.5},
+    {file: 'walnut.jpg', name: 'Light wood', grip: 1, tile: 1.5},
+    {file: 'turf.jpg', name: 'Grass', grip: 4, tile: 1.4},
+    {file: 'ice.jpg', name: 'Ice', grip: 0.15, tile: 1.1, veil: 'rgb(178 196 200 / 0.55)'},
+    {file: 'water.jpg', name: 'Water', grip: 1, tile: 1.3, tint: '#1c6a9c'},
+    {file: 'space.jpg', name: 'Space', grip: 1, isVoid: true}
 ];
 
 const views = ['Analogue', 'Jumping hour', 'Digital', 'Hybrid'];
@@ -166,7 +169,7 @@ function haptic(kind) {
 function preloadNeighbouringBackgrounds(index) {
     [index - 1, index + 1].forEach((neighbour) => {
         const image = new Image();
-        image.src = `images/${backgrounds[wrap(neighbour, backgrounds.length)][0]}`;
+        image.src = `images/${backgrounds[wrap(neighbour, backgrounds.length)].file}`;
     });
 }
 
@@ -439,7 +442,7 @@ window.addEventListener('load', () => {
     const showSpeed = createSettingControl('speed', stoneSpeeds.map(([name]) => name), stoneSpeeds.map(([name]) => name), setClockSpeed, speedIcons);
     const showWood = createSettingControl('wood', woods.map(([name]) => name), woods.map(([name]) => name), setWood);
     const showPlacement = createSettingControl('placement', placements, placements, setPlacement, precisionIcons);
-    const showBackground = createSettingControl('background', backgrounds.map(([, name]) => name), backgrounds.map(([, name]) => name), setBackground);
+    const showBackground = createSettingControl('background', backgrounds.map((table) => table.name), backgrounds.map((table) => table.name), setBackground);
 
     function setClockSpeed(index) {
         stoneSpeed = wrap(index, stoneSpeeds.length);
@@ -500,10 +503,17 @@ window.addEventListener('load', () => {
 
     function setBackground(index) {
         background = wrap(index, backgrounds.length);
-        $('#sb-site').style.backgroundImage = `url('images/${backgrounds[background][0]}')`;
+        const table = backgrounds[background];
+        const site = $('#sb-site');
+        const veil = table.veil ? `linear-gradient(${table.veil}, ${table.veil}), ` : '';
+        site.style.backgroundImage = `${veil}url('images/${table.file}')`;
+        site.style.backgroundColor = table.tint ?? '';
+        site.style.backgroundBlendMode = table.tint ? 'multiply' : '';
+        site.style.backgroundRepeat = table.tile ? 'repeat' : '';
+        sizeBackground();
         preloadNeighbouringBackgrounds(background);
-        goClock.table_grip = backgrounds[background][2];
-        goClock.table_void = backgrounds[background][3] === 'void';
+        goClock.table_grip = table.grip;
+        goClock.table_void = Boolean(table.isVoid);
         if (goClock.table_void) {
             // Whatever was lying on the table has nothing under it now.
             goClock.dropTableStones();
@@ -511,6 +521,16 @@ window.addEventListener('load', () => {
         }
         showBackground(background);
         writeSetting('background', background);
+    }
+
+    // A tiled table repeats every `tile` board-widths; a picture covers
+    // the screen.
+    function sizeBackground() {
+        const table = backgrounds[background];
+        // Before the first draw the board has no width: onDraw comes back.
+        const tiled = table.tile && goClock.goban_width;
+        const size = tiled ? `${Math.round(goClock.goban_width*table.tile)}px auto` : 'cover';
+        $('#sb-site').style.backgroundSize = table.veil ? `auto, ${size}` : size;
     }
 
     // A game replayed on the board (replay.js): the button drops down the
@@ -567,7 +587,7 @@ window.addEventListener('load', () => {
 
     function changeBackground(step) {
         setBackground(background + step);
-        showSwipeToast(icons.background, backgrounds[background][1]);
+        showSwipeToast(icons.background, backgrounds[background].name);
     }
 
     // What the board shows, for assistive tech: a grid of stones means
@@ -609,9 +629,11 @@ window.addEventListener('load', () => {
     }
 
     // After each rebuild of the board: the wood is a filter on the board
-    // image, which draw() makes afresh.
+    // image, which draw() makes afresh, and the table is tiled to the
+    // board's new width.
     goClock.onDraw = () => {
         setWood(wood);
+        sizeBackground();
     };
 
     function resizeClock() {
