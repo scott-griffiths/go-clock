@@ -107,7 +107,7 @@ grant only over HTTPS and not in a custom-scheme web view), hides the status
 bar and home indicator, opens the GitHub link in Safari rather than navigating
 away from the board, disables pinch and double-tap zoom (`user-scalable=no` in
 the viewport meta, which Safari ignores and `WKWebView` honours), and gives a
-tap of haptic feedback when a held finger becomes the hand (the page posts to
+tap of haptic feedback when the hand knocks into a stone (the page posts to
 the `goClockHaptic` message handler; on the web, `navigator.vibrate` where it
 exists, which is not iOS).
 

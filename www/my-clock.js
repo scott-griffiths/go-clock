@@ -139,25 +139,26 @@ function fadeTo(element, opacity, duration = 300, onFinish) {
 // A tap of feedback under the finger, where there is something to give it:
 // the iOS shell (ios/GoClock/WebAppView.swift) answers `goClockHaptic`
 // messages with the taptic engine; elsewhere, a phone that can vibrate does.
-// 'grab' is the hand landing; 'tick' a stone going over the edge, of which
-// a good shove makes several at once, so those are thinned out. ('prepare',
-// which the shell also answers, warms its engine and is nothing elsewhere;
-// nothing sends it now that the hand lands with the finger.)
-let lastTick = 0;
-function haptic(kind) {
-    if (kind === 'tick') {
+// 'bump' is the finger knocking into a stone with some force, `strength`
+// (0 to 1) being how much: a shove through a crowd of stones makes many
+// bumps at once, so they are thinned out. 'prepare', as the finger lands,
+// warms the shell's engine so the first bump is on time, and is nothing
+// elsewhere.
+let lastBump = 0;
+function haptic(kind, strength = 1) {
+    if (kind === 'bump') {
         const now = performance.now();
-        if (now - lastTick < 60) {
+        if (now - lastBump < 70) {
             return;
         }
-        lastTick = now;
+        lastBump = now;
     }
     try {
         const handler = window.webkit?.messageHandlers?.goClockHaptic;
         if (handler) {
-            handler.postMessage(kind);
-        } else if (kind !== 'prepare') {
-            navigator.vibrate?.(kind === 'grab' ? 15 : 5);
+            handler.postMessage(kind === 'bump' ? `bump:${strength.toFixed(2)}` : kind);
+        } else if (kind === 'bump') {
+            navigator.vibrate?.(Math.round(4 + 12*strength));
         }
     } catch {
         // No feedback to give.
@@ -737,7 +738,7 @@ window.addEventListener('load', () => {
         hand = null;
         if (goClock.fingerDown(event.clientX, event.clientY)) {
             hand = {id: event.pointerId};
-            haptic('grab');
+            haptic('prepare');
             // So the release is heard even if it lands on the toolbar.
             goban.setPointerCapture(event.pointerId);
         }

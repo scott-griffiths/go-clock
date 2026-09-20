@@ -109,8 +109,8 @@ export function GoClock(){
     // Something with place/slide/nudge/bowl/knock/land/setRumble methods
     // (see sounds.js), or null for a silent board.
     this.sound = null;
-    // A function taking 'grab' or 'tick', for feedback under the finger
-    // (my-clock.js), or null.
+    // A function taking 'prepare' or 'bump' (and how hard, 0 to 1), for
+    // feedback under the finger (my-clock.js), or null.
     this.haptic = null;
     // How hard the table drags on a stone skidding across it, relative to
     // a wooden table: grass holds a stone, wet glass lets it go (set by

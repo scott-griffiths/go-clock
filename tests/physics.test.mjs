@@ -241,16 +241,15 @@ test('the sinking stones can be taken out of the world to sink on elsewhere', ()
     assert.ok(w.still());
 });
 
-test('sounds and haptics are told', () => {
+test('sounds are told', () => {
     const heard = [];
     const w = world({
         edgeKick: diameter*5,
-        sound: {land: (strength) => heard.push(['land', strength]), knock: (strength) => heard.push(['knock', strength])},
-        haptic: (kind) => heard.push([kind])
+        sound: {land: (strength) => heard.push(['land', strength]), knock: (strength) => heard.push(['knock', strength])}
     });
     w.add(stone({x: 300, y: 495, vy: 600}));
     w.add(stone({x: 200, y: 300, vx: 200}));
     w.add(stone({x: 230, y: 300, vx: -200}));
     run(w, 2);
-    assert.deepEqual(heard.map(([kind]) => kind).sort(), ['knock', 'land', 'tick']);
+    assert.deepEqual(heard.map(([kind]) => kind).sort(), ['knock', 'land']);
 });

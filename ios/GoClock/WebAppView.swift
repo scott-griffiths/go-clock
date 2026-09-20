@@ -10,7 +10,7 @@ import WebKit
  comment says which part of it. The bridge is as small as it can be: the shell
  tells the page its version, for the about box, as a user script before the
  page runs; the page asks the shell for one thing, a tap of haptic feedback
- when the hand lands on the board (`Haptics`).
+ when the hand knocks into a stone (`Haptics`).
  */
 struct WebAppView: UIViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator() }
@@ -103,10 +103,10 @@ struct WebAppView: UIViewRepresentable {
             WKUserScript(source: PageLog.script, injectionTime: .atDocumentStart, forMainFrameOnly: true)
         )
 
-        // The one thing the page asks for: a tap under the finger when a hold
-        // on the board becomes the hand (my-clock.js, `haptic`), and the
-        // engine warmed when a finger lands. A web view has no way to reach
-        // the taptic engine itself.
+        // The one thing the page asks for: a tap under the finger when the
+        // hand knocks into a stone (my-clock.js, `haptic`), and the engine
+        // warmed when a finger lands. A web view has no way to reach the
+        // taptic engine itself.
         config.userContentController.add(context.coordinator, name: Haptics.name)
 
         // The stones may click without anyone touching the screen (sounds.js,
@@ -210,25 +210,21 @@ enum ShellInfo {
 
 /**
  Haptic feedback the page asks for by posting a kind to `goClockHaptic`:
- `prepare` when a finger lands (a hold becomes the hand a quarter of a
- second later, and an engine warmed now taps on time then), `grab` when it
- does, anything else a lighter tick — a stone going over the edge, of which
- a shove makes several, so the tick is warmed after each grab.
+ `prepare` when a finger lands (the engine warmed now taps on time when
+ the hand meets a stone), and `bump:<strength>` when it does, the strength
+ (0 to 1) being how hard the stone had to be shoved; the engine is warmed
+ again after each bump, since a shove through a crowd makes several.
  */
 enum Haptics {
     static let name = "goClockHaptic"
-    private static let grab = UIImpactFeedbackGenerator(style: .medium)
-    private static let tick = UIImpactFeedbackGenerator(style: .light)
+    private static let bump = UIImpactFeedbackGenerator(style: .medium)
 
     static func play(_ kind: String) {
-        switch kind {
-        case "prepare":
-            grab.prepare()
-        case "grab":
-            grab.impactOccurred()
-            tick.prepare()
-        default:
-            tick.impactOccurred()
+        if kind == "prepare" {
+            bump.prepare()
+        } else if kind.hasPrefix("bump:"), let strength = Double(kind.dropFirst(5)) {
+            bump.impactOccurred(intensity: CGFloat(min(1, max(0.3, strength))))
+            bump.prepare()
         }
     }
 }

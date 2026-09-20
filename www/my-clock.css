@@ -159,13 +159,22 @@ body {
 }
 
 /* A ring of ripple where a stone went into the water (water.js), under
-   the stones. */
+   the stones, and a drop of water flung up by the splash, over them. */
 .ripple {
     position: absolute;
     z-index: 2;
     border: 1.5px solid rgb(255 255 255 / 0.75);
     border-radius: 50%;
     box-shadow: 0 0 6px rgb(255 255 255 / 0.35), inset 0 0 6px rgb(255 255 255 / 0.35);
+    pointer-events: none;
+}
+
+.droplet {
+    position: absolute;
+    z-index: 6;
+    border-radius: 50%;
+    background: rgb(255 255 255 / 0.85);
+    box-shadow: 0 0 4px rgb(255 255 255 / 0.6);
     pointer-events: none;
 }
 

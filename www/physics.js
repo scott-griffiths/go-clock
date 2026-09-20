@@ -59,11 +59,10 @@ export class StoneWorld {
     // leave over the top or bottom edge (the sweep); edgeKick, px/s outward
     // for a stone going over the edge (a shoved stone tips over it rather
     // than rolling gently off); sound, something with land(strength),
-    // knock(strength) and splash(strength); haptic, a function taking
-    // 'tick'; onSplash(stone, strength), called as a stone goes into the
-    // water.
+    // knock(strength) and splash(strength); onSplash(stone, strength),
+    // called as a stone goes into the water.
     constructor({board, screen, diameter, onBoard, grip = 1, isVoid = false, isWater = false, sidesKeepOn = false,
-                 edgeKick = 0, sound = null, haptic = null, onSplash = null}) {
+                 edgeKick = 0, sound = null, onSplash = null}) {
         this.board = board;
         this.screen = screen;
         this.diameter = diameter;
@@ -74,7 +73,6 @@ export class StoneWorld {
         this.sidesKeepOn = sidesKeepOn;
         this.edgeKick = edgeKick;
         this.sound = sound;
-        this.haptic = haptic;
         this.onSplash = onSplash;
         this.stones = [];
         this.elapsed = 0;
@@ -178,7 +176,6 @@ export class StoneWorld {
             setTumbling(stone, Math.atan2(stone.vy, stone.vx), rate);
             return;
         }
-        this.haptic?.('tick');
         if (this.edgeKick) {
             if (stone.x < board.left) {
                 stone.vx -= this.edgeKick;

@@ -56,8 +56,7 @@ export function fingerDown(clock, clientX, clientY) {
         isWater: clock.table_water,
         edgeKick: diameter*5,
         sound: clock.sound,
-        haptic: clock.haptic,
-        onSplash: (stone, strength) => splash(goban, stone.x, stone.y, stone.r, strength)
+        onSplash: (stone, strength) => splash(goban, stone.x, stone.y, stone.r, strength, Math.atan2(stone.vy, stone.vx))
     });
 
     // Whatever the hand was doing stops, and the stone it held drops
@@ -145,12 +144,18 @@ export function fingerDown(clock, clientX, clientY) {
                 var correction = Math.min(reach - distance, give);
                 stone.x += nx*correction;
                 stone.y += ny*correction;
-                // It leaves at least as fast as it was shoved.
+                // It leaves at least as fast as it was shoved; a stone
+                // that had to be got going with some force is felt under
+                // the finger.
                 var wanted = Math.min(correction/sdt, speedCap);
                 var along = stone.vx*nx + stone.vy*ny;
                 if (along < wanted) {
                     stone.vx += (wanted - along)*nx;
                     stone.vy += (wanted - along)*ny;
+                    var force = (wanted - along)/(diameter*12);
+                    if (force > 0.25) {
+                        clock.haptic?.('bump', Math.min(1, force));
+                    }
                 }
                 moved = true;
             });

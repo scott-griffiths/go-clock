@@ -45,7 +45,7 @@ export function sweepBoard(clock) {
         isWater: clock.table_water,
         sidesKeepOn: true,
         sound: clock.sound,
-        onSplash: (stone, strength) => splash(goban, stone.x, stone.y, stone.r, strength)
+        onSplash: (stone, strength) => splash(goban, stone.x, stone.y, stone.r, strength, Math.atan2(stone.vy, stone.vx))
     });
     // The arm: its leading edge (at the ends; the middle trails by
     // `bow`) starts above the top of the board and wipes down to well
