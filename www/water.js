@@ -28,10 +28,10 @@ export function drawSinking(element, stone, sink, translate = '') {
 // how hard (`strength`, 0 to 1) and which way it was going (`direction`,
 // an angle clockwise with y down). A stone going in with some speed
 // throws its splash ahead of it: the rings spread from a little in front
-// of where it went in, longer along its path than across it, and a
-// harder splash flings a few drops on ahead in a cone, each making a
-// small ring of its own where it comes down. A stone dropped straight in
-// makes an even splash. Every ring widens and fades and is then gone.
+// of where it went in, and a harder splash flings a few drops on ahead in
+// a cone, each making a small ring of its own where it comes down. A
+// stone dropped straight in makes an even splash. Every ring widens and
+// fades and is then gone.
 export function splash(goban, x, y, r, strength, direction = 0) {
     if (!Element.prototype.animate) {
         return;
@@ -42,8 +42,6 @@ export function splash(goban, x, y, r, strength, direction = 0) {
     [0, 140].forEach((delay, i) => {
         ring(goban, x + ahead[0]*r*0.6*force, y + ahead[1]*r*0.6*force, r, {
             spread: spread - i*0.6,
-            stretch: 1 + 0.5*force,
-            direction,
             duration: 900 - i*150,
             delay,
             opacity: 0.85
@@ -60,17 +58,15 @@ export function splash(goban, x, y, r, strength, direction = 0) {
 }
 
 // One ring, r (a stone's radius) across to start, widening to `spread`
-// times that, `stretch` times longer along `direction` than across it,
-// fading as it goes.
-function ring(goban, x, y, r, {spread, stretch = 1, direction = 0, duration, delay = 0, opacity}) {
+// times that and fading as it goes.
+function ring(goban, x, y, r, {spread, duration, delay = 0, opacity}) {
     const element = document.createElement('div');
     element.className = 'ripple';
     setStyles(element, {left: x - r, top: y - r, width: r*2, height: r*2});
     goban.append(element);
-    const shape = (scale) => `rotate(${direction}rad) scale(${scale*stretch}, ${scale})`;
     const animation = element.animate([
-        {transform: shape(0.7), opacity},
-        {transform: shape(spread), opacity: 0}
+        {transform: 'scale(0.7)', opacity},
+        {transform: `scale(${spread})`, opacity: 0}
     ], {duration, delay, easing: 'cubic-bezier(0.2, 0.6, 0.4, 1)', fill: 'forwards'});
     const remove = () => element.remove();
     animation.addEventListener('finish', remove, {once: true});
