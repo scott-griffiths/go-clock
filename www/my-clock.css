@@ -244,17 +244,25 @@ body {
 }
 
 .menu-toggle {
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    font-size: 18px;
     opacity: 0.85;
+}
+
+.menu-toggle svg {
+    display: block;
+    width: 18px;
+    height: 18px;
 }
 
 /* Tucked away, the toggle dims a little after a moment, so it is not
    the first thing seen; a keyboard's focus keeps it bright. */
 .toolbar[data-collapsed="true"] .menu-toggle {
-    font-size: 22px;
     opacity: 0.45;
     transition: opacity 600ms ease 2s;
+}
+
+.toolbar[data-collapsed="true"] .menu-toggle svg {
+    width: 22px;
+    height: 22px;
 }
 
 .toolbar[data-collapsed="true"] .menu-toggle:focus-visible {
@@ -307,13 +315,9 @@ body {
 
 .setting-icon {
     width: 22px;
-    font-family: "Times New Roman", Georgia, serif;
-    font-size: 22px;
-    line-height: 1;
-    text-align: center;
 }
 
-/* The faces' icons (face-icons.js), the size of the characters. */
+/* The icons (icons.js). */
 .setting-icon svg {
     display: block;
     width: 22px;

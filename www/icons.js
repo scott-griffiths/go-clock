@@ -1,7 +1,9 @@
-// A line icon per clock face, drawn as each looks at 10:09 (hands or
-// digits alike), indexed as the views are (faces.js). In the face button
-// to show which face is on the board, and beside each choice. Stroked
-// in the text colour, so they take a button's colour when it is pressed.
+// The toolbar's line icons, as SVG markup: one per clock face, drawn as
+// each looks at 10:09 (hands or digits alike) and indexed as the views
+// are (faces.js); one per speed; and the rest of the buttons and toasts.
+// A setting's button wears the icon of its current choice, and so does
+// each choice beside its name. Stroked in the text colour, so they take
+// a button's colour when it is pressed.
 
 const svg = (body) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
 
@@ -46,3 +48,39 @@ export const faceIcons = [
         + zero(14.5, 2.5, 5.5, 3) + nine(19, 2.5, 5.5, 3)
         + dots(12, 16, 6.25, {filled: [0]}) + '<path d="M12 16v-3.6"/>')
 ];
+
+// The speeds, slow to insane: a chevron, laid open for slow, doubled for
+// fast, and doubled and pointed with a bang for insane.
+export const speedIcons = [
+    svg('<path d="M6 6.5l11 5.5 -11 5.5"/>'),
+    svg('<path d="M8 5l7 7 -7 7"/>'),
+    svg('<path d="M4.5 5l7 7 -7 7M12.5 5l7 7 -7 7"/>'),
+    svg('<path d="M2.5 5l7 7 -7 7M9.5 5l7 7 -7 7M21 5v9M21 18.5v0.01"/>')
+];
+
+// A cog: `teeth` of them round a ring, and the hole.
+function cog(teeth, outer, inner) {
+    let d = '';
+    for (let i = 0; i < teeth; ++i) {
+        const a = 2*Math.PI*i/teeth;
+        const step = Math.PI/teeth;
+        // Out along the tooth's leading flank, across its top, and back down.
+        const points = [[inner, a - step*0.5], [outer, a - step*0.28], [outer, a + step*0.28], [inner, a + step*0.5]];
+        for (const [r, theta] of points) {
+            d += `${d ? 'L' : 'M'}${(12 + r*Math.sin(theta)).toFixed(2)} ${(12 - r*Math.cos(theta)).toFixed(2)}`;
+        }
+    }
+    return `<path d="${d}Z"/><circle cx="12" cy="12" r="3"/>`;
+}
+
+export const icons = {
+    settings: svg(cog(8, 10.5, 7.75)),
+    // A game replayed: play.
+    replay: svg('<path d="M7.5 4.5l12 7.5 -12 7.5Z"/>'),
+    // The background: a picture in a frame.
+    background: svg('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 16.5l5 -5 4.5 4.5 3 -3 5.5 5.5"/><circle cx="15.5" cy="8.5" r="1.5"/>'),
+    // The toggle for the rest of the row: a cross while they show, a
+    // menu's three bars while they are tucked away.
+    close: svg('<path d="M6 6l12 12M18 6L6 18"/>'),
+    menu: svg('<path d="M4 7h16M4 12h16M4 17h16"/>')
+};

@@ -3,7 +3,7 @@ import {Sounds} from './sounds.js';
 import {preloadTumbleSheets} from './flight.js';
 import {startReplay, cancelReplay, loadGame, nextGameFile} from './replay.js';
 import {gameTitle, gameResult} from './sgf.js';
-import {faceIcons} from './face-icons.js';
+import {faceIcons, speedIcons, icons} from './icons.js';
 
 const $ = (selector, scope = document) => scope.querySelector(selector);
 const $$ = (selector, scope = document) => [...scope.querySelectorAll(selector)];
@@ -37,7 +37,7 @@ const views = ['Analogue', 'Jumping hour', 'Digital', 'Hybrid'];
 // long a hand rests between stones, in ms. The rest is most of the
 // difference: a slow player is slow to reach for the next stone, not slow
 // in carrying it.
-const stoneSpeeds = [['Torpid', 12, 1000], ['Slow', 18, 500], ['Normal', 26, 180], ['Fast', 45, 60], ['Insane!', 80, 15]];
+const stoneSpeeds = [['Slow', 18, 500], ['Normal', 26, 180], ['Fast', 45, 60], ['Insane!', 80, 15]];
 const placements = ['Exact', 'Organic', 'Careless', 'Haphazard'];
 const placementOptionLabels = ['Exact', 'Organic', 'Careless', 'Meh'];
 const modes = ['12-hour', '24-hour'];
@@ -218,7 +218,12 @@ window.addEventListener('DOMContentLoaded', () => {
 window.addEventListener('load', () => {
     const goClock = new GoClock();
     let background = readIndex('background', 0, backgrounds.length);
-    let stoneSpeed = readIndex('speed', 2, stoneSpeeds.length);
+    // The speed under a new key since Torpid, the slowest, went: an index
+    // stored under the old one is one along.
+    const oldSpeed = readSetting('speed');
+    let stoneSpeed = readSetting('pace') !== null || !isInt(oldSpeed)
+        ? readIndex('pace', 1, stoneSpeeds.length)
+        : wrap(Math.max(0, Number(oldSpeed) - 1), stoneSpeeds.length);
     let view = readIndex('view', 0, views.length);
     let mode = readIndex('mode', 1, modes.length);
     let wood = readIndex('wood', 0, woods.length);
@@ -382,7 +387,7 @@ window.addEventListener('load', () => {
         menuToggle.setAttribute('aria-expanded', String(!collapsed));
         menuToggle.title = collapsed ? 'Show the controls' : 'Hide the controls';
         menuToggle.setAttribute('aria-label', menuToggle.title);
-        $('span', menuToggle).textContent = collapsed ? '☰' : '✕';
+        $('span', menuToggle).innerHTML = collapsed ? icons.menu : icons.close;
         writeSetting('menu', collapsed ? 0 : 1);
     }
 
@@ -408,7 +413,7 @@ window.addEventListener('load', () => {
         cancelReplay(goClock);
         goClock.transform();
     }, faceIcons);
-    const showSpeed = createSettingControl('speed', stoneSpeeds.map(([name]) => name), stoneSpeeds.map(([name]) => name), setClockSpeed);
+    const showSpeed = createSettingControl('speed', stoneSpeeds.map(([name]) => name), stoneSpeeds.map(([name]) => name), setClockSpeed, speedIcons);
     const showWood = createSettingControl('wood', woods.map(([name]) => name), woods.map(([name]) => name), setWood);
     const showPlacement = createSettingControl('placement', placementOptionLabels, placements, setPlacement);
 
@@ -417,7 +422,7 @@ window.addEventListener('load', () => {
         goClock.speed = stoneSpeeds[stoneSpeed][1];
         goClock.pause = stoneSpeeds[stoneSpeed][2];
         showSpeed(stoneSpeed);
-        writeSetting('speed', stoneSpeed);
+        writeSetting('pace', stoneSpeed);
     }
 
     // The mode and sound buttons, under the settings button, are toggles,
@@ -494,18 +499,18 @@ window.addEventListener('load', () => {
             return;
         }
         const began = startReplay(goClock, loadGame(`games/${nextGameFile()}`), {
-            onStart: (game) => showSwipeToast('⏵', gameTitle(game.info), 4000),
+            onStart: (game) => showSwipeToast(icons.replay, gameTitle(game.info), 4000),
             onRest: (game) => {
                 const result = gameResult(game.info);
                 if (result) {
-                    showSwipeToast('⏵', result, 3000);
+                    showSwipeToast(icons.replay, result, 3000);
                 }
             },
             onEnd: (error) => {
                 setReplaying(false);
                 if (error) {
                     console.error('The game could not be replayed', error);
-                    showSwipeToast('⏵', 'No game to replay');
+                    showSwipeToast(icons.replay, 'No game to replay');
                 }
             }
         });
@@ -525,7 +530,7 @@ window.addEventListener('load', () => {
 
     function changeBackground(step) {
         setBackground(background + step);
-        showSwipeToast('▧', backgrounds[background][1]);
+        showSwipeToast(icons.background, backgrounds[background][1]);
     }
 
     // What the board shows, for assistive tech: a grid of stones means
@@ -599,6 +604,8 @@ window.addEventListener('load', () => {
         setGobanState(storedState);
     }
 
+    $('#replay .setting-icon').innerHTML = icons.replay;
+    $('#settings-control .setting-icon').innerHTML = icons.settings;
     setClockSpeed(stoneSpeed);
     setView(view);
     setBackground(background);
