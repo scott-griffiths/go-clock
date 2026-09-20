@@ -1,12 +1,12 @@
 // The stone simulation, stone by stone: a flat board slows a shoved stone
 // to a stop, a stone over the edge drops and lands and stops on the table,
-// the board's side keeps a table stone off, the tipped board sends its
-// stones down the slope, two stones in each other's way part, and in the
+// the board's side keeps a table stone off, a stone pushed off the edge lands on
+// the table, two stones in each other's way part, and in the
 // void a stone over the edge flies on, end over end, and is gone.
 
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {StoneWorld, flatBoard, tippedBoard, setTumbling, dropTime, voidFlightTime, lowHeight} from '../www/physics.js';
+import {StoneWorld, flatBoard, setTumbling, dropTime, voidFlightTime, lowHeight} from '../www/physics.js';
 
 const board = {left: 100, top: 100, right: 500, bottom: 500};
 const screen = {right: 600, bottom: 800};
@@ -68,22 +68,17 @@ test('the board stands proud of the table: a table stone is kept off it', () => 
     assert.ok(s.vy >= 0, 'still heading onto the board');
 });
 
-test('the tipped board sends its stones down the slope and off the near edge, together', () => {
-    const gravity = 400*1.6;
-    const w = world({onBoard: tippedBoard({gravity, gather: gravity*0.4/200}), sidesKeepOn: true});
-    const a = w.add(stone({x: 150, y: 150}));
-    const b = w.add(stone({x: 450, y: 150}));
-    run(w, 6, () => w.onBoardCount() === 0 && w.still());
-    assert.equal(w.onBoardCount(), 0, 'stones still on the board');
-    assert.ok(a.landed && b.landed);
-    // Gathered towards the middle: closer together than they started.
-    assert.ok(Math.abs(a.x - b.x) < 300, `apart by ${Math.abs(a.x - b.x)}`);
-    assert.ok(a.y > board.bottom && b.y > board.bottom);
+test('a stone pushed off the bottom edge drops onto the table and skids to a stop', () => {
+    const w = world({sidesKeepOn: true});
+    const s = w.add(stone({x: 300, y: 490, vy: 400}));
+    run(w, 3, () => w.still());
+    assert.ok(s.offBoard && s.landed);
+    assert.ok(s.y - s.r >= board.bottom);
+    assert.equal(w.speedOf(s), 0);
 });
 
-test('the sides keep a stone on the tipped board', () => {
-    const gravity = 400*1.6;
-    const w = world({onBoard: tippedBoard({gravity, gather: 0}), sidesKeepOn: true});
+test('the sides keep a stone on the board being swept', () => {
+    const w = world({sidesKeepOn: true});
     const s = w.add(stone({x: 115, y: 300, vx: -300, vy: 0}));
     w.advance(0.032);
     assert.ok(s.x - s.r >= board.left, `through the side at ${s.x}`);

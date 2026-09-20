@@ -24,21 +24,18 @@ final class GoClockUITests: XCTestCase {
         continueAfterFailure = false
     }
 
-    /// The page's controls fade after a few seconds; a tap on the board brings them back.
-    private func wakeControls(in app: XCUIApplication) {
-        app.webViews.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
-    }
-
     /// The button for a setting, whatever value it currently names.
     private func chip(_ setting: String, in app: XCUIApplication) -> XCUIElement {
         app.webViews.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", setting + ":")).firstMatch
     }
 
-    /// Opens a setting's choices (waking the controls first), taps one, and waits for the
-    /// button to name it.
+    /// Opens a setting's choices (through the settings list, for a setting kept there),
+    /// taps one, and waits for the button to name it.
     private func choose(_ value: String, of setting: String, in app: XCUIApplication) {
-        wakeControls(in: app)
         let summary = chip(setting, in: app)
+        if !summary.exists {
+            app.webViews.buttons["Settings"].tap()
+        }
         XCTAssertTrue(summary.waitForExistence(timeout: 5))
         summary.tap()
         let choice = app.webViews.switches[value]
@@ -53,9 +50,9 @@ final class GoClockUITests: XCTestCase {
         app.launch()
 
         let board = "Board"
-        XCTAssertTrue(app.webViews.buttons["About"].waitForExistence(timeout: 30), "The toolbar never appeared.")
-        wakeControls(in: app)
+        XCTAssertTrue(app.webViews.buttons["Settings"].waitForExistence(timeout: 30), "The toolbar never appeared.")
         let boardChip = chip(board, in: app)
+        app.webViews.buttons["Settings"].tap()
         XCTAssertTrue(boardChip.waitForExistence(timeout: 5), "The board button never named a board; the page's module did not run.")
 
         // A known board first — the simulator keeps whatever the last run left —
@@ -63,8 +60,8 @@ final class GoClockUITests: XCTestCase {
         choose("Oak", of: board, in: app)
         choose("Kaya", of: board, in: app)
 
-        // The about box, which is where the shell's version lands.
-        wakeControls(in: app)
+        // The about box, under the settings button, which is where the shell's version lands.
+        app.webViews.buttons["Settings"].tap()
         let about = app.webViews.buttons["About"]
         XCTAssertTrue(about.waitForExistence(timeout: 5))
         about.tap()
@@ -74,8 +71,8 @@ final class GoClockUITests: XCTestCase {
         // The same app, started again: the board comes back from localStorage.
         app.terminate()
         app.launch()
-        XCTAssertTrue(app.webViews.buttons["About"].waitForExistence(timeout: 30))
-        wakeControls(in: app)
+        XCTAssertTrue(app.webViews.buttons["Settings"].waitForExistence(timeout: 30))
+        app.webViews.buttons["Settings"].tap()
         XCTAssertTrue(boardChip.waitForExistence(timeout: 5))
         XCTAssertEqual(boardChip.label, "Board: Kaya", "The board did not survive a relaunch; localStorage kept nothing.")
 

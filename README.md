@@ -41,12 +41,17 @@ The public GitHub Pages URL is expected to remain `https://scott-griffiths.githu
   - `www/moves.js` — a move animated: slid, lifted, dropped in, lifted out, and the push of a swap.
   - `www/stone-dom.js` — the stones on the page: images, elements, shadows, the animation helper.
   - `www/physics.js` — the stone simulation the sweep and the hand share.
-  - `www/sweep.js` — the board tipped and the stones sliding off it.
+  - `www/sweep.js` — an arm wiping the stones off the board onto the table.
   - `www/hand.js` — a finger held on the board, pushing the stones about.
   - `www/flight.js` — the stones flying off into space, drawn from sprite sheets of a stone
     turning over.
+  - `www/replay.js` — a famous game replayed on the board: the stones flung off, the game
+    played through by the two hands, and the board handed back to the clock.
+  - `www/sgf.js` — a game record read from SGF and played out, each move with its captures.
+  - `www/games/` — the games that come with the clock, as SGF files from
+    [Andries Brouwer's collection](https://homepages.cwi.nl/~aeb/go/games/).
 
-  `board.js`, `faces.js`, `planner.js` and `physics.js` have no DOM in them and are tested under node.
+  `board.js`, `faces.js`, `planner.js`, `physics.js` and `sgf.js` have no DOM in them and are tested under node.
 - `www/my-clock.css` owns all visual styling.
 - `www/service-worker.js` caches the static app for offline use.
 - `www/manifest.webmanifest` makes the web version installable to a home screen.

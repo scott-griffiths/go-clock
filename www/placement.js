@@ -14,7 +14,8 @@ function disorderRadius(clock) {
     if (clock.placement == 0) {
         return 0;
     }
-    var speedRatio = Math.min(1, Math.sqrt(Math.max(clock.speed, 1)/120));
+    // Haste (the settings run from 12 to 80) makes for sloppier landings.
+    var speedRatio = Math.pow(Math.max(0, Math.min(1, (clock.speed - 12)/68)), 0.7);
     if (clock.placement == 3) {
         return 0.08 + 0.26*speedRatio;
     }

@@ -24,60 +24,73 @@
             <h1 id="about-title">The <strong>Go</strong> Clock</h1>
             <p>The Go Clock is a virtual goban where the stones are used to tell you the time, saving you from the effort of
                 setting up and continually updating your own Go board.</p>
-            <p>Swipe across the board to change the clock face, and across the background to change the background.
-                Hold a finger on the board for a moment and it becomes a hand: drag it to push the stones about.</p>
-            <p>With a keyboard: the left and right arrows change the face, up and down the background,
-                and <kbd>M</kbd> mutes the stones.</p>
             <p><span style="font-weight: bold;">Tip of the day:</span> <span id="tip_of_the_day"></span></p>
-            <p><a class="repo-link" href="https://github.com/scott-griffiths/go-clock">GitHub repository</a></p>
             <p class="about-meta"><span>&copy; 2014&ndash;2026 Scott Griffiths</span><span>Version <span id="version">2.0</span></span></p>
         </div>
         <div id="sb-site">
-            <div id="toolbar" class="toolbar" role="toolbar" aria-label="Clock controls" data-visible="true">
-                <!-- The about button, then a button per setting, an icon each,
-                     dropping down its choices (created by my-clock.js); only one
+            <div id="toolbar" class="toolbar" role="toolbar" aria-label="Clock controls" data-collapsed="false">
+                <!-- A row: first the button that tucks the rest away and
+                     brings them back, then a button per setting, an icon each,
+                     dropping its choices out (created by my-clock.js, which
+                     also places them where they fit on the screen); only one
                      is open at a time. A button's accessible name is its setting
-                     and current value ("Board: Oak"). In a row across the top in portrait, in a
-                     column down the left in landscape, where the board leaves the
-                     sides free. The clock face and background have no button: they
-                     are changed by swiping, which the note says. -->
-                <div class="toolbar-actions">
-                    <button id="about" class="button about-button" type="button" title="About" aria-label="About" aria-expanded="false" aria-controls="about_box">
-                        <span aria-hidden="true">i</span>
-                    </button>
+                     and current value ("Board: Oak"). Along the top of the screen
+                     in portrait; down the left in landscape, where the board
+                     leaves the sides free. The background has no button:
+                     it is changed by swiping the surround. -->
+                <button id="menu-toggle" class="button menu-toggle" type="button" title="Hide the controls" aria-label="Hide the controls" aria-expanded="true" aria-controls="toolbar-actions">
+                    <span aria-hidden="true">✕</span>
+                </button>
+                <div id="toolbar-actions" class="toolbar-actions">
+                    <div id="face-control" class="setting-control" data-open="false">
+                        <button class="setting-summary" type="button" title="Face" aria-label="Face" aria-expanded="false" aria-controls="face-options">
+                            <span class="setting-icon" aria-hidden="true">◷</span>
+                        </button>
+                        <div id="face-options" class="setting-options" role="group" aria-label="Face" hidden></div>
+                    </div>
                     <div id="speed-control" class="setting-control" data-open="false">
                         <button class="setting-summary" type="button" title="Speed" aria-label="Speed" aria-expanded="false" aria-controls="speed-options">
                             <span class="setting-icon" aria-hidden="true">🐇</span>
                         </button>
                         <div id="speed-options" class="setting-options" role="group" aria-label="Speed" hidden></div>
                     </div>
-                    <div id="wood-control" class="setting-control" data-open="false">
-                        <button class="setting-summary" type="button" title="Board" aria-label="Board" aria-expanded="false" aria-controls="wood-options">
-                            <span class="setting-icon" aria-hidden="true">▦</span>
+                    <!-- Not a setting: a game replayed on the board (replay.js),
+                         pressed while it runs. -->
+                    <button id="replay" class="button replay-button" type="button" title="Replay a game" aria-label="Replay a game" aria-pressed="false">
+                        <span class="setting-icon" aria-hidden="true">▶</span>
+                    </button>
+                    <!-- Under one button: two toggles, the 24-hour clock and
+                         sound, which unlike a choice leave the list open; the
+                         board's wood and the precision, each a submenu of
+                         choices opening out beside the list; and the about
+                         box. -->
+                    <div id="settings-control" class="setting-control" data-open="false">
+                        <button class="setting-summary" type="button" title="Settings" aria-label="Settings" aria-expanded="false" aria-controls="settings-options">
+                            <span class="setting-icon" aria-hidden="true">⚙</span>
                         </button>
-                        <div id="wood-options" class="setting-options" role="group" aria-label="Board" hidden></div>
-                    </div>
-                    <div id="placement-control" class="setting-control" data-open="false">
-                        <button class="setting-summary" type="button" title="Precision" aria-label="Precision" aria-expanded="false" aria-controls="placement-options">
-                            <span class="setting-icon" aria-hidden="true">⌖</span>
-                        </button>
-                        <div id="placement-options" class="setting-options" role="group" aria-label="Precision" hidden></div>
+                        <div id="settings-options" class="setting-options" role="group" aria-label="Settings" hidden>
+                            <button id="mode" class="choice-button" type="button" aria-pressed="true">24-hour clock</button>
+                            <button id="mute" class="choice-button" type="button" aria-pressed="true">Sound</button>
+                            <div id="wood-control" class="setting-control" data-open="false">
+                                <button class="choice-button submenu-button" type="button" title="Board" aria-label="Board" aria-expanded="false" aria-controls="wood-options">
+                                    <span aria-hidden="true">Board</span>
+                                    <span class="setting-value" aria-hidden="true"></span>
+                                </button>
+                                <div id="wood-options" class="setting-options" role="group" aria-label="Board" hidden></div>
+                            </div>
+                            <div id="placement-control" class="setting-control" data-open="false">
+                                <button class="choice-button submenu-button" type="button" title="Precision" aria-label="Precision" aria-expanded="false" aria-controls="placement-options">
+                                    <span aria-hidden="true">Precision</span>
+                                    <span class="setting-value" aria-hidden="true"></span>
+                                </button>
+                                <div id="placement-options" class="setting-options" role="group" aria-label="Precision" hidden></div>
+                            </div>
+                            <button id="about" class="choice-button" type="button" aria-expanded="false" aria-controls="about_box">About</button>
+                        </div>
                     </div>
                 </div>
-                <!-- Two toggles in the top right corner: the 24-hour clock, and sound. -->
-                <div class="toolbar-toggles">
-                    <button id="mode" class="button mode-button" type="button" title="24-hour clock" aria-label="24-hour clock" aria-pressed="true">
-                        <span id="mode-label" aria-hidden="true">24h</span>
-                    </button>
-                    <button id="mute" class="button mute-button" type="button" title="Mute" aria-label="Mute" aria-pressed="false">
-                        <span id="mute-icon" aria-hidden="true">🔊</span>
-                    </button>
-                </div>
-                <!-- A reminder of the swipes: under the controls, or, in landscape,
-                     at the foot of the screen; gone while a setting is open. -->
-                <div class="swipe-note" aria-hidden="true">Swipe to change the clock face or background</div>
             </div>
-            <!-- What a swipe just chose, shown briefly at the top. -->
+            <!-- What a key or the replay just chose, shown briefly at the foot of the screen. -->
             <div id="swipe-toast" class="setting-summary swipe-toast" role="status" aria-live="polite" hidden>
                 <span id="swipe-toast-icon" class="setting-icon" aria-hidden="true"></span>
                 <span id="swipe-toast-value"></span>

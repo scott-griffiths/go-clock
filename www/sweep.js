@@ -1,17 +1,21 @@
-// Sweeping the board: tip it, far edge up, and let the stones slide off
-// the near edge onto the table, where they skid to a stop (or, in space,
-// off into the dark as soon as they let go: flight.js). A simulation
-// (physics.js) rather than keyframes, so that stones that let go first can
-// knock the others loose on their way down, and the heap is whatever they
-// make of it. The view is from above: gravity is into the screen, so only
-// the tipped board pulls the stones anywhere; the table is flat.
+// Sweeping the board: an arm laid across it wipes from the top edge to
+// the bottom and off, gathering every stone before it and leaving them
+// on the table below the board, where they land and skid to a stop, out
+// of the arm's reach (or, in space, off into the dark as soon as they
+// are touched: flight.js). The arm is
+// cupped — its ends lead and its middle trails — so the stones it pushes
+// are steered towards the middle as they go, and come off in a heap. A
+// simulation (physics.js) rather than keyframes, so that the stones
+// jostle and knock each other as they are gathered, and the heap is
+// whatever they make of it. The arm is drawn as the hand's disc is
+// (#arm), a bar the width of the board with its leading edge curved.
 //
 // A function of the clock (go-clock.js), which it leaves with the board
-// bare, the heap on the table in play, and transform() due once the board
-// has settled flat.
+// bare, the heap on the table in play, and transform() due once the arm
+// has lifted.
 
 import {gridsize} from './board.js';
-import {StoneWorld, tippedBoard} from './physics.js';
+import {StoneWorld, flatBoard} from './physics.js';
 import {$, setStyles, setVisible, setStoneShadow, cancelElementAnimations, tableTransform, drawOnTable} from './stone-dom.js';
 import {drawFlying, flyOn, clearFlying} from './flight.js';
 
@@ -25,27 +29,62 @@ export function sweepBoard(clock) {
     clock.sweeping_board = true;
 
     var goban = $('#goban');
+    var board = clock.boardRect();
     var boardTop = clock.y_offset;
     var diameter = clock.goban_width/20;
-    // Down the slope, in px/s²: a stone crosses the board in a second or
-    // so. The tip leans a little towards the middle of the near edge as
-    // well, so the stones gather as they slide and land in one heap.
     // The table: a phone in portrait has room for the stones below the
     // board; a wide screen may not, in which case they skid out of sight.
-    var gravity = clock.goban_height*1.6;
     var world = new StoneWorld({
-        board: clock.boardRect(),
+        board: board,
         screen: clock.screenRect(),
         diameter: diameter,
-        onBoard: tippedBoard({gravity: gravity, gather: gravity*0.4/(clock.goban_width/2)}),
+        onBoard: flatBoard,
         grip: clock.table_grip,
         isVoid: clock.table_void,
         sidesKeepOn: true,
         sound: clock.sound
     });
-    // The tip takes most of a second; a stone loses its grip some time
-    // after that, each a little differently.
-    var release = () => 0.55 + Math.random()*0.7;
+    // The arm: its leading edge (at the ends; the middle trails by
+    // `bow`) starts above the top of the board and wipes down to well
+    // past the bottom, where it stops and lifts. It takes a moment to
+    // come down onto the board first.
+    var armDepth = diameter*1.6;
+    var armWidth = clock.goban_width + diameter;
+    var armLeft = board.left - diameter/2;
+    var bow = diameter*1.5;
+    var armStart = board.top - diameter;
+    var armEnd = board.bottom + diameter + bow;
+    var armDelay = 0.25;
+    var armTime = 1.4;
+    var armLift = 0.35;
+    var armAt = (t) => {
+        // Eased in and out over the wipe.
+        var u = Math.min(1, Math.max(0, (t - armDelay)/armTime));
+        var eased = u < 0.5 ? 2*u*u : 1 - Math.pow(-2*u + 2, 2)/2;
+        return armStart + (armEnd - armStart)*eased;
+    };
+    // How far the edge trails at `x`, 0 at the ends and `bow` in the
+    // middle (a parabola), and its slope there.
+    var trail = (x) => {
+        var u = (x - (armLeft + armWidth/2))/(armWidth/2);
+        return bow*(1 - u*u);
+    };
+    var lean = (x) => {
+        var u = (x - (armLeft + armWidth/2))/(armWidth/2);
+        return -2*bow*u/(armWidth/2);
+    };
+    var arm = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    arm.id = 'arm';
+    arm.setAttribute('viewBox', `0 0 ${armWidth} ${armDepth + bow}`);
+    arm.setAttribute('aria-hidden', 'true');
+    var armShape = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    // Square across the top, and the edge below a curve rising to the
+    // middle (a quadratic's control point sits twice as far as its peak).
+    armShape.setAttribute('d', `M 0 ${armDepth*0.4} Q 0 0 ${armDepth*0.4} 0 H ${armWidth - armDepth*0.4} Q ${armWidth} 0 ${armWidth} ${armDepth*0.4} V ${armDepth + bow} Q ${armWidth/2} ${armDepth - bow} 0 ${armDepth + bow} Z`);
+    arm.append(armShape);
+    setStyles(arm, {left: armLeft, width: armWidth, height: armDepth + bow, top: armStart - armDepth - bow});
+    arm.style.opacity = '0';
+    goban.append(arm);
     // Lower stones pass in front of higher ones on the way down.
     var layer = (top) => String(12 + Math.round((top - boardTop)/clock.goban_height*80));
 
@@ -73,8 +112,7 @@ export function sweepBoard(clock) {
             r: size/2,
             vx: 0,
             vy: 0,
-            asleep: true,
-            release: release(),
+            asleep: false,
             offBoard: false,
             landed: false,
             falling: false,
@@ -87,7 +125,7 @@ export function sweepBoard(clock) {
     }
 
     // The stones already on the table are in the way of the ones coming
-    // down; they lie still until struck.
+    // down; they lie still until struck, and the arm never reaches them.
     clock.table_stones.forEach((entry) => {
         world.add({
             index: -1,
@@ -102,7 +140,6 @@ export function sweepBoard(clock) {
             vx: 0,
             vy: 0,
             asleep: true,
-            release: Infinity,
             offBoard: true,
             landed: true,
             falling: false,
@@ -128,8 +165,7 @@ export function sweepBoard(clock) {
             r: stone.r,
             vx: 0,
             vy: 0,
-            asleep: true,
-            release: release(),
+            asleep: false,
             offBoard: false,
             landed: false,
             falling: false,
@@ -137,8 +173,6 @@ export function sweepBoard(clock) {
             leftAt: 0
         });
     });
-
-    goban.classList.add('tipped');
 
     // The grid points' elements go back to their points at the end, whatever
     // became of their stones.
@@ -167,15 +201,17 @@ export function sweepBoard(clock) {
             hand.position = (gridsize - 1)*gridsize + (gridsize - 1)/2;
         });
 
-        // Let the board settle flat before the stones come back.
+        // The arm lifts away before the stones come back.
         window.setTimeout(() => {
             clock.sweeping_board = false;
             clock.transform();
-        }, 900);
+        }, armLift*1000);
     };
 
     var finish = () => {
-        goban.classList.remove('tipped');
+        arm.style.transition = `opacity ${armLift}s ease-out`;
+        arm.style.opacity = '0';
+        window.setTimeout(() => arm.remove(), armLift*1000 + 50);
         clock.sound?.setRumble(0);
         // A stone still on its way into the dark flies on by itself, a grid
         // point's by a loose element of its own, since the point's element
@@ -211,6 +247,51 @@ export function sweepBoard(clock) {
         clear();
     };
 
+    // The arm's ends have come down from `from` to `to` in `dt` seconds:
+    // every stone on the board its edge reaches is pushed ahead of it, at
+    // its speed at least, and steered in towards the middle by the slope
+    // of the edge where it touches; and the stones it pushes together
+    // jostle apart. A stone over the edge is out of the arm's reach: it
+    // lands where it falls, and the heap lies where it lands. Passes, as
+    // the hand's shove: a stone pushed into another pushes that one on.
+    var wipe = (from, to, dt) => {
+        var speed = (to - from)/dt;
+        if (speed <= 0) {
+            return;
+        }
+        for (var pass = 0; pass < 3; ++pass) {
+            var moved = false;
+            world.stones.forEach((stone) => {
+                if (!world.reachable(stone) || stone.offBoard) {
+                    return;
+                }
+                var edge = to - trail(stone.x);
+                if (stone.y - stone.r < edge) {
+                    stone.asleep = false;
+                    stone.y = edge + stone.r;
+                    if (stone.vy < speed) {
+                        stone.vy = speed;
+                    }
+                    // Along the edge's slope, towards the middle; a stone
+                    // caught square on drifts a little to one side.
+                    var inward = lean(stone.x)*speed;
+                    if (inward > 0 ? stone.vx < inward : stone.vx > inward) {
+                        stone.vx = inward;
+                    }
+                    if (Math.abs(stone.vx) < diameter*0.5) {
+                        stone.vx += (Math.random() - 0.5)*diameter*0.6;
+                    }
+                    moved = true;
+                }
+            });
+            var bumped = world.collide();
+            world.stones.forEach((stone) => world.keepOffBoard(stone));
+            if (!moved && !bumped) {
+                break;
+            }
+        }
+    };
+
     var last = null;
     var stillFor = 0;
     var step = (now) => {
@@ -225,15 +306,13 @@ export function sweepBoard(clock) {
         last = now;
         var steps = Math.max(1, Math.ceil(frame/0.032));
         for (var s = 0; s < steps; ++s) {
-            // Whose time has come lets go, with a little wobble sideways.
-            world.stones.forEach((stone) => {
-                if (stone.asleep && world.elapsed >= stone.release) {
-                    stone.asleep = false;
-                    stone.vx = (Math.random() - 0.5)*diameter*0.8;
-                }
-            });
-            world.advance(frame/steps);
+            var dt = frame/steps;
+            var before = armAt(world.elapsed);
+            world.advance(dt);
+            wipe(before, armAt(world.elapsed), dt);
         }
+        arm.style.top = `${armAt(world.elapsed) - armDepth - bow}px`;
+        arm.style.opacity = world.elapsed < armDelay ? String(world.elapsed/armDelay) : '1';
 
         world.stones.forEach((stone) => {
             if (stone.gone) {
@@ -275,11 +354,11 @@ export function sweepBoard(clock) {
             clock.sound.setRumble(Math.min(1, sliding/6)*0.25);
         }
 
-        // Done once every stone is off the board and the heap has lain
-        // still for half a second, or, failing that, after a while.
+        // Done once the arm has stopped and the heap has lain still for
+        // a moment, or, failing that, after a while.
         stillFor = world.still() ? stillFor + frame : 0;
-        var settled = world.onBoardCount() === 0 && stillFor > 0.5;
-        if (!settled && world.elapsed < 12) {
+        var settled = world.elapsed > armDelay + armTime && stillFor > 0.3;
+        if (!settled && world.elapsed < 8) {
             window.requestAnimationFrame(step);
         } else {
             finish();

@@ -1,6 +1,12 @@
 :root {
     color-scheme: dark;
     font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    /* The notch and the home indicator, for my-clock.js to keep the
+       setting lists clear of. */
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
 }
 
 * {
@@ -52,16 +58,9 @@ body {
     padding-top: 1px;
     padding-bottom: 1px;
     overflow: hidden;
-    /* Sweeping the board tips it, far edge up, so the stones slide off. */
-    transform-origin: 50% 100%;
-    transition: transform 700ms ease-in-out;
     /* A one-finger drag is a swipe for my-clock.js to read, not a pan; pinch
        zoom is left to the browser (Safari allows it, the iOS app does not). */
     touch-action: pinch-zoom;
-}
-
-#goban.tipped {
-    transform: perspective(1600px) rotateX(-9deg);
 }
 
 #goban img {
@@ -110,9 +109,10 @@ body {
     background: transparent;
 }
 
-/* The hand pushing the stones about, and the stones while they are loose
-   under it or lying on the table. */
-#finger {
+/* The hand pushing the stones about, the arm sweeping the board (sweep.js),
+   and the stones while they are loose under them or lying on the table. */
+#finger,
+#arm {
     position: absolute;
     z-index: 5;
     border: 1px solid rgb(255 255 255 / 0.45);
@@ -120,6 +120,28 @@ body {
     background: rgb(255 255 255 / 0.16);
     box-shadow: inset 0 0 12px rgb(255 255 255 / 0.25), 0 2px 8px rgb(0 0 0 / 0.25);
     pointer-events: none;
+}
+
+#arm {
+    z-index: 100;
+    overflow: visible;
+    border: 0;
+    background: none;
+    box-shadow: none;
+    filter: drop-shadow(0 2px 8px rgb(0 0 0 / 0.25));
+}
+
+#arm path {
+    fill: rgb(255 255 255 / 0.16);
+    stroke: rgb(255 255 255 / 0.45);
+    stroke-width: 1;
+}
+
+/* Neither is drawn for now: the stones moving are enough to show the hand
+   and the arm. Delete this rule to bring the discs back. */
+#finger,
+#arm {
+    visibility: hidden;
 }
 
 .loose-stone {
@@ -145,21 +167,19 @@ body {
     background: transparent;
 }
 
+/* The controls: a row along the top of the screen in portrait, from the
+   left. Tucked away, nothing but the toggle at the left is left; the
+   rest slide out from under it and back. */
 .toolbar {
     position: fixed;
     top: max(10px, env(safe-area-inset-top));
     left: max(10px, env(safe-area-inset-left));
     z-index: 20;
-    display: grid;
-    /* Shrinkable, so the row of buttons can wrap on a narrow phone. */
-    grid-template-columns: minmax(0, max-content);
-    justify-items: start;
-    gap: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
     width: max-content;
-    /* Room on the right for the two toggles. */
-    max-width: calc(100vw - 20px - 90px - env(safe-area-inset-right));
-    opacity: 1;
-    transition: opacity 360ms ease;
+    max-width: calc(100vw - 20px - env(safe-area-inset-left) - env(safe-area-inset-right));
     /* The toolbar's own box is see-through to touches: only its controls
        take them, so a tap between buttons reaches the board. */
     pointer-events: none;
@@ -169,21 +189,28 @@ body {
     pointer-events: auto;
 }
 
-/* The about button and the setting buttons: a row. */
+/* The about button and the setting buttons: a row, wrapping if it must. */
 .toolbar-actions {
     display: flex;
-    max-width: 100%;
+    flex-wrap: wrap;
+    justify-content: center;
     align-items: center;
     gap: 6px;
+    min-width: 0;
 }
 
-/* The two toggles, in the top right corner. */
-.toolbar-toggles {
-    position: fixed;
-    top: max(10px, env(safe-area-inset-top));
-    right: max(10px, env(safe-area-inset-right));
-    display: flex;
-    gap: 6px;
+/* Out from under the toggle, showing as they go; and back the same way
+   in reverse, fading as they arrive. */
+.toolbar-actions > * {
+    transition: transform 280ms ease-in-out, opacity 200ms ease, visibility 0s;
+}
+
+.toolbar[data-collapsed="true"] .toolbar-actions > * {
+    visibility: hidden;
+    opacity: 0;
+    /* Back under the toggle: each button its own distance to the left. */
+    transform: translateX(calc((var(--i) + 1) * -48px));
+    transition: transform 280ms ease-in-out, opacity 200ms ease 80ms, visibility 0s 280ms;
 }
 
 .button {
@@ -202,26 +229,8 @@ body {
     box-shadow: 0 3px 14px rgb(0 0 0 / 0.32);
 }
 
-.toolbar[data-visible="false"] {
-    opacity: 0;
-}
-
-.toolbar[data-visible="false"] > * {
-    pointer-events: none;
-}
-
-/* A keyboard user's focus keeps the controls on screen. */
-.toolbar:has(:focus-visible) {
-    opacity: 1;
-}
-
-.toolbar:has(:focus-visible) > * {
-    pointer-events: auto;
-}
-
-.about-button,
-.mode-button,
-.mute-button {
+.menu-toggle,
+.replay-button {
     width: 42px;
     height: 42px;
     min-height: 42px;
@@ -229,29 +238,35 @@ body {
     background: rgb(0 0 0 / 0.7);
 }
 
-.mute-button {
-    font-size: 20px;
+.replay-button[aria-pressed="true"] {
+    background: rgb(255 255 255 / 0.85);
+    color: black;
 }
 
-.mute-button[aria-pressed="true"] {
-    opacity: 0.75;
-}
-
-.mode-button {
+.menu-toggle {
     font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    font-size: 14px;
-    font-weight: 700;
+    font-size: 18px;
+    opacity: 0.85;
 }
 
-.about-button {
-    font-family: "Times New Roman", Georgia, serif;
-    font-size: 24px;
-    font-style: italic;
-    font-weight: 700;
+/* Tucked away, the toggle dims a little after a moment, so it is not
+   the first thing seen; a keyboard's focus keeps it bright. */
+.toolbar[data-collapsed="true"] .menu-toggle {
+    font-size: 22px;
+    opacity: 0.45;
+    transition: opacity 600ms ease 2s;
+}
+
+.toolbar[data-collapsed="true"] .menu-toggle:focus-visible {
+    opacity: 1;
+    transition-delay: 0s;
 }
 
 /* A setting is a button wearing its icon; open, its choices drop down
-   beneath it (or, in landscape, out to its right), the current one marked. */
+   beneath it (or, in landscape, open out to its right), the current one
+   marked; a submenu is a choice in that list with a list of its own beside
+   it. Where a list goes is my-clock.js's placePanel(), which keeps it on
+   the screen. */
 .setting-control {
     position: relative;
     color: white;
@@ -299,8 +314,8 @@ body {
 }
 
 .setting-options {
-    position: absolute;
-    top: calc(100% + 6px);
+    position: fixed;
+    top: 0;
     left: 0;
     z-index: 1;
     display: grid;
@@ -330,9 +345,26 @@ body {
     white-space: nowrap;
 }
 
-.choice-button[aria-pressed="true"] {
+.choice-button[aria-pressed="true"],
+.setting-control[data-open="true"] > .submenu-button {
     background: rgb(255 255 255 / 0.93);
     color: #261917;
+}
+
+/* A submenu's button: its name, the current choice, and an arrow. */
+.submenu-button {
+    grid-template-columns: max-content max-content;
+    gap: 8px;
+}
+
+.submenu-button .setting-value {
+    font-weight: 400;
+    opacity: 0.8;
+}
+
+.submenu-button .setting-value::after {
+    content: " ›";
+    font-weight: 700;
 }
 
 .choice-button:focus-visible {
@@ -351,34 +383,21 @@ body {
     outline-offset: -2px;
 }
 
-/* The swipe reminder, under the controls, coming and going with them, and
-   out of the way while a setting's choices are showing. */
-.toolbar:has(.setting-control[data-open="true"]) .swipe-note {
-    display: none;
-}
-
-.swipe-note {
-    padding: 6px 12px;
-    border-radius: 6px;
-    background: rgb(0 0 0 / 0.55);
-    color: white;
-    font-size: 12px;
-    font-weight: 700;
-    line-height: 1.2;
-    white-space: nowrap;
-    pointer-events: none !important;
-}
-
+/* Just above the board, centred (my-clock.js sets the top). Sized to its
+   words, which wrap if a game's name is too long for the screen. */
 .swipe-toast {
     position: fixed;
-    top: max(10px, env(safe-area-inset-top));
+    top: 0;
     left: 50%;
     z-index: 25;
-    width: auto;
-    grid-template-columns: 22px max-content;
+    width: max-content;
+    max-width: calc(100vw - 20px);
+    grid-template-columns: 22px minmax(0, max-content);
     gap: 9px;
-    padding: 0 12px 0 8px;
+    padding: 4px 12px 4px 8px;
     transform: translateX(-50%);
+    text-align: center;
+    white-space: normal;
     color: white;
     font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     font-size: 14px;
@@ -388,33 +407,45 @@ body {
     pointer-events: none;
 }
 
+/* A narrow phone: the row of buttons a little tighter, so it fits in one. */
+@media (orientation: portrait) and (max-width: 400px) {
+    .toolbar,
+    .toolbar-actions {
+        gap: 4px;
+    }
+
+    .menu-toggle,
+    .replay-button,
+    .toolbar .setting-summary {
+        width: 38px;
+        min-height: 38px;
+    }
+
+    .menu-toggle,
+    .replay-button {
+        height: 38px;
+    }
+}
+
 /* Landscape: the board leaves the sides free, so the buttons run down the
-   left and the toggles down the right, a setting's choices open out to
-   its right, and the swipe reminder sits at the foot of the screen. */
+   left, the toggle at the top, and a setting's choices open out to its
+   right. */
 @media (orientation: landscape) {
     .toolbar {
+        flex-direction: column;
+        align-items: flex-start;
         max-width: none;
+        max-height: calc(100vh - 20px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
     }
 
     .toolbar-actions {
         flex-direction: column;
+        flex-wrap: nowrap;
         align-items: flex-start;
     }
 
-    .toolbar-toggles {
-        flex-direction: column;
-    }
-
-    .setting-options {
-        top: 0;
-        left: calc(100% + 6px);
-    }
-
-    .swipe-note {
-        position: fixed;
-        bottom: max(10px, env(safe-area-inset-bottom));
-        left: 50%;
-        transform: translateX(-50%);
+    .toolbar[data-collapsed="true"] .toolbar-actions > * {
+        transform: translateY(calc((var(--i) + 1) * -48px));
     }
 }
 
@@ -450,7 +481,8 @@ body {
 
 #about_box {
     position: absolute;
-    top: max(5%, calc(env(safe-area-inset-top) + 8px));
+    /* Below the row of controls. */
+    top: max(5%, calc(env(safe-area-inset-top) + 62px));
     left: 50%;
     z-index: 40;
     width: min(620px, calc(100vw - 32px));
@@ -472,16 +504,6 @@ body {
 #about_box h1 strong {
     font-size: 58px;
     line-height: 0.8;
-}
-
-.repo-link {
-    color: #6a1f1f;
-    font-weight: 700;
-}
-
-.repo-link:focus-visible,
-.repo-link:hover {
-    color: #9d2424;
 }
 
 .about-meta {

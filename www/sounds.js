@@ -227,7 +227,7 @@ export class Sounds {
         }
     }
 
-    // The rumble of stones sliding down the tipped board: filtered noise whose
+    // The rumble of stones pushed across the board: filtered noise whose
     // loudness follows how many are moving. Level 0 stops it.
     setRumble(level) {
         if (level > 0 && !this.rumble) {

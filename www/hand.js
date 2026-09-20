@@ -19,9 +19,22 @@ import {$, setStyles, setVisible, setStoneShadow, cancelElementAnimations, eleme
         drawOnTable} from './stone-dom.js';
 import {drawFlying, flyOn} from './flight.js';
 
+// How long the stones lie as the finger left them before the clock
+// tidies up, in ms.
+const tidyDelay = 500;
+
 export function fingerDown(clock, clientX, clientY) {
-    if (clock.sweeping_board || clock.finger || typeof document === 'undefined') {
+    if (clock.sweeping_board || typeof document === 'undefined') {
         return false;
+    }
+    if (clock.finger) {
+        // The last finger has lifted, but its stones are still sliding:
+        // this one takes them on where they are, rather than waiting.
+        if (clock.finger.pressing) {
+            return false;
+        }
+        pressAgain(clock, clock.finger, clientX, clientY);
+        return true;
     }
     var goban = $('#goban');
     var rect = goban.getBoundingClientRect();
@@ -81,10 +94,7 @@ export function fingerDown(clock, clientX, clientY) {
     }
 
     var disc = $('#finger');
-    setStyles(disc, {width: radius*2, height: radius*2, left: clientX - rect.left - radius, top: clientY - rect.top - radius});
-    setVisible(disc, true);
-    cancelElementAnimations(disc);
-    disc.animate?.([{opacity: 0, transform: 'scale(0.7)'}, {opacity: 1, transform: 'scale(1)'}], {duration: 160, easing: 'ease-out'});
+    showDisc(disc, radius, clientX - rect.left, clientY - rect.top);
 
     var finger = {
         world: world,
@@ -217,6 +227,25 @@ export function fingerDown(clock, clientX, clientY) {
     return true;
 }
 
+// The hand's disc, landing at (x, y) in the goban.
+function showDisc(disc, radius, x, y) {
+    setStyles(disc, {width: radius*2, height: radius*2, left: x - radius, top: y - radius});
+    setVisible(disc, true);
+    cancelElementAnimations(disc);
+    disc.animate?.([{opacity: 0, transform: 'scale(0.7)'}, {opacity: 1, transform: 'scale(1)'}], {duration: 160, easing: 'ease-out'});
+}
+
+// A finger down again before the last one's stones have come to rest:
+// the same hand, landing afresh where the pointer is, with the stones as
+// they lie (its loop is still running, and picks up from the new point).
+function pressAgain(clock, finger, clientX, clientY) {
+    finger.x = finger.targetX = clientX - finger.left;
+    finger.y = finger.targetY = clientY - finger.top;
+    finger.pressing = true;
+    finger.releasedAt = 0;
+    showDisc($('#finger'), clock.fingerRadius(), finger.x, finger.y);
+}
+
 export function fingerMove(clock, clientX, clientY) {
     var finger = clock.finger;
     if (!finger || !finger.pressing) {
@@ -321,5 +350,8 @@ export function endFinger(clock) {
         });
     });
 
-    clock.transform();
+    // A moment for the board as it was left, before the clock tidies it
+    // (a finger down again first takes the board on as it is).
+    window.clearTimeout(clock.idle_timer);
+    clock.idle_timer = window.setTimeout(() => clock.transform(), tidyDelay);
 }

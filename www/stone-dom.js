@@ -56,11 +56,15 @@ export function setVisible(element, visible) {
     element.hidden = !visible;
 }
 
-// A stone's shadow, for a stone `height` (0 to 10) off the board: further
-// away, softer and fainter the higher it is. The CSS reads these.
+// How high a carried stone rises, in the units of a stone's `height`:
+// each unit is a twentieth more across, and a little higher up the board.
+export const maxLift = 14;
+
+// A stone's shadow, for a stone `height` (0 to maxLift) off the board:
+// further away, softer and fainter the higher it is. The CSS reads these.
 export function setStoneShadow(element, height = 0) {
-    const lift = Math.min(height, 10);
-    const liftRatio = lift/10;
+    const lift = Math.min(height, maxLift);
+    const liftRatio = lift/maxLift;
     const fade = Math.pow(1 - liftRatio, 1.4);
     element.style.setProperty('--stone-shadow-scale', 1);
     element.style.setProperty('--stone-shadow-opacity', Math.max(0.02, 0.72*fade));

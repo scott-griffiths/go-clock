@@ -8,10 +8,11 @@ import {planMove} from './planner.js';
 import {setTumbling, voidFlightTime} from './physics.js';
 import {flyOn} from './flight.js';
 import {sweepBoard} from './sweep.js';
+import {replayWanted, replaySettled} from './replay.js';
 import {fingerDown, fingerMove, fingerUp, endFinger} from './hand.js';
 import {setLandingOffset, alignIdleStone} from './placement.js';
 import {moveStone, moveDuration} from './moves.js';
-import {$, gobanImage, tableTransform, setStyles, setVisible, setStoneShadow, stoneImageSrc,
+import {$, gobanImage, tableTransform, maxLift, setStyles, setVisible, setStoneShadow, stoneImageSrc,
         cancelElementAnimations, animateElement, elementCentre, stoneElement, looseStone} from './stone-dom.js';
 
 function displacedCoords(fromCoords, toCoords) {
@@ -52,7 +53,7 @@ function Hand(name, elementId, position) {
     this.position = position; // The point the hand is at, for the next move's reckoning
     this.pace = 1; // This move's speed, as a share of the clock's
     this.reaching = null; // A timer: the hand holding off for a moment before a stone
-    this.ready = false; // The other hand, having taken its moment
+    this.ready = false; // Having rested before the next stone
     this.startedAt = 0; // When this move's stone was picked up (performance.now())
     this.landsAt = 0; // ...and when it is put down
 }
@@ -118,12 +119,16 @@ export function GoClock(){
     // dark and fades, silently, rather than landing (the space background).
     this.table_void = false;
     this.sweeping_board = false;
+    // A game being replayed on the board (replay.js), or null: while there
+    // is one, transform() works towards its positions instead of the time's.
+    this.replay = null;
 
     this.offsets = []; // The small offsets of each stone position to make it less regular-looking
 
     this.view = 0; // The clock type
 
-    this.speed = 9;
+    this.speed = 26; // How fast a stone moves (moves.js)
+    this.pause = 180; // How long a hand rests between stones, in ms
 
     this.placement = 1; // 0 exact, 1 organic, 2 careless, 3 haphazard
 
@@ -222,7 +227,7 @@ export function GoClock(){
 
     // As stonePosition, for a stone by its pixel centre, anywhere.
     this.pixelStonePosition = function(x, y, height) {
-        var lift = Math.min(height, 10);
+        var lift = Math.min(height, maxLift);
         var diameter = (this.goban_width/20)*(1 + lift/20) | 0;
         return [x - diameter/2 | 0, y - lift*this.goban_height/600 - diameter/2 | 0, diameter, diameter];
     };
@@ -475,8 +480,8 @@ export function GoClock(){
         if (x <= -0.5 || x >= gridsize - 0.5 || y <= -0.5 || y >= gridsize - 0.5) {
             return;
         }
-        if (height > 10) {
-            height = 10;
+        if (height > maxLift) {
+            height = maxLift;
         }
         var xpos = minx*this.goban_width + x*(maxx-minx)*this.goban_width/(gridsize - 1);
         var ypos = miny*this.goban_height - (height*this.goban_height/600) + y*(maxy-miny)*this.goban_height/(gridsize - 1);
@@ -489,11 +494,15 @@ export function GoClock(){
     // nudged straighter; or a look again as the second turns. The hand
     // plans first, and the other hand keeps clear of whatever the hand is
     // doing (and the hand of it): the points a move touches are reserved
-    // from the other's planning. The other hand takes a moment before each
-    // stone, and works at a pace of its own, so the two never pick up or
-    // put down together. The moments are measured in moves: at a faster
-    // setting the moves are shorter, and so are the pauses, or the other
-    // hand would spend its time waiting and only one would seem to work.
+    // from the other's planning. Each hand rests a moment before each
+    // stone (`pause`, more or less; most of what a slow setting slows),
+    // and the other hand works at a pace of its own, so the two never
+    // pick up or put down together. The clearances are measured in
+    // moves: at a faster setting the moves are shorter, and so are they,
+    // or the other hand would spend its time waiting and only one would
+    // seem to work.
+    // While a game is being replayed, the board it wants is the game's
+    // next position rather than the face's (replay.js).
     this.transform = function() {
         if (this.sweeping_board || this.finger) {
             return;
@@ -507,7 +516,13 @@ export function GoClock(){
             }
             this.draw(this.pending_size[0], this.pending_size[1]);
         }
-        this.update();
+        // The board a game being replayed wants, or the time's.
+        var wanted = this.replay ? replayWanted(this) : null;
+        if (wanted) {
+            this.stones = wanted;
+        } else {
+            this.update();
+        }
         // How long a stone takes to move one point, at this speed; and how
         // close to the other hand's picking up or putting down is too
         // close — a fraction of that, or at the faster settings the moments
@@ -519,6 +534,11 @@ export function GoClock(){
                 return;
             }
             var otherHand = hand === this.hand ? this.other : this.hand;
+            if (this.replay && hand !== this.hands[0]) {
+                // Asked again: the first hand may have just set out with
+                // the game's next stone, and this one can go for the one after.
+                this.stones = replayWanted(this) || this.stones;
+            }
             var reserved = otherHand.points(this);
             var plan = planMove({
                 shown: this.stones_shown,
@@ -529,21 +549,27 @@ export function GoClock(){
                 movesOnly: hand === this.other
             });
             if (plan) {
-                // Not while the other hand is picking up or putting down,
-                // and not so as to put this stone down as the other does:
-                // the least wait that clears those moments, then look
-                // again. And the other hand takes a moment of its own
-                // before every stone anyway.
+                // The rest before the stone; and not while the other hand
+                // is picking up or putting down, nor so as to put this
+                // stone down as the other does: the least wait that clears
+                // those moments, then look again.
                 var pace = hand === this.other ? 0.8 + Math.random()*0.4 : 1;
                 var holdOff = 0;
-                if (hand === this.other && !hand.ready) {
-                    holdOff = beat*(0.15 + Math.random()*0.5);
-                } else if (otherHand.moving) {
+                if (!hand.ready) {
+                    holdOff = this.pause*(0.6 + Math.random()*0.8);
+                }
+                if (otherHand.moving) {
+                    // And the two landings half a move apart at least, for
+                    // an even cadence rather than stones arriving in pairs.
                     var now = performance.now();
-                    holdOff = Math.max(otherHand.clearOf(now, guard), 0);
-                    var gap = now + holdOff + moveDuration(this, plan, this.speed*pace)*1000 - otherHand.landsAt;
-                    if (Math.abs(gap) < guard) {
-                        holdOff += guard - gap;
+                    holdOff = Math.max(holdOff, otherHand.clearOf(now, guard), 0);
+                    var duration = moveDuration(this, plan, this.speed*pace)*1000;
+                    var spacing = Math.max(guard, duration*0.5, (otherHand.landsAt - otherHand.startedAt)*0.5);
+                    var gap = now + holdOff + duration - otherHand.landsAt;
+                    // In a replay the other hand's stone is the earlier
+                    // move (replay.js), and this one lands after it.
+                    if (Math.abs(gap) < spacing || (this.replay && gap < 0)) {
+                        holdOff += spacing - gap;
                     }
                 }
                 if (holdOff > 0) {
@@ -563,6 +589,14 @@ export function GoClock(){
             }
         });
         if (!this.busy()) {
+            if (this.replay) {
+                // No move found, none waiting its moment: the game is
+                // over, or the board is not ready for it yet.
+                if (!this.hands.some((hand) => hand.reaching)) {
+                    replaySettled(this);
+                }
+                return;
+            }
             // Nothing to do: look again just after the next second turns,
             // which is the soonest any face can change.
             this.idle_timer = setTimeout(this.transform.bind(this), 1000 - Date.now() % 1000 + 5);

@@ -3,9 +3,10 @@
   "configurations": [
     {
       "name": "go-clock-web",
-      "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "8000"],
-      "port": 8000
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "cd www && python3 -m http.server ${PORT:-8000}"],
+      "port": 8000,
+      "autoPort": true
     }
   ]
 }

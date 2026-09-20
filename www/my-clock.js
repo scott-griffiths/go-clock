@@ -1,6 +1,8 @@
 import {GoClock} from './go-clock.js';
 import {Sounds} from './sounds.js';
 import {preloadTumbleSheets} from './flight.js';
+import {startReplay, cancelReplay, loadGame, nextGameFile} from './replay.js';
+import {gameTitle, gameResult} from './sgf.js';
 
 const $ = (selector, scope = document) => scope.querySelector(selector);
 const $$ = (selector, scope = document) => [...scope.querySelectorAll(selector)];
@@ -30,26 +32,26 @@ const backgrounds = [
 ];
 
 const views = ['Analogue', 'Jumping hour', 'Digital', 'Hybrid'];
-const stoneSpeeds = [['Torpid', 5], ['Slow', 10], ['Normal', 20], ['Fast', 55], ['Insane!', 120]];
+// Name, how fast a stone moves (see moveDuration in moves.js), and how
+// long a hand rests between stones, in ms. The rest is most of the
+// difference: a slow player is slow to reach for the next stone, not slow
+// in carrying it.
+const stoneSpeeds = [['Torpid', 12, 1000], ['Slow', 18, 500], ['Normal', 26, 180], ['Fast', 45, 60], ['Insane!', 80, 15]];
 const placements = ['Exact', 'Organic', 'Careless', 'Haphazard'];
 const placementOptionLabels = ['Exact', 'Organic', 'Careless', 'Meh'];
 const modes = ['12-hour', '24-hour'];
-const modeLabels = ['12h', '24h'];
 const woods = [
     ['Oak', 'saturate(0.8) hue-rotate(-12deg) sepia(0.5)'],
     ['Kaya', 'saturate(1.3) hue-rotate(-7deg)'],
     ['Bamboo', 'saturate(0.3) contrast(1.4) brightness(1.1) hue-rotate(-6deg)']
 ];
-// The controls fade this long after the last touch; an open setting gets a
-// little longer, since its choices are being read rather than glanced at.
-const controlsHideDelay = 3600;
-const openControlHideDelay = 8000;
-// A drag at least this far (in CSS pixels) is a swipe rather than a tap.
+// A finger on the surround that has moved this far (in CSS pixels) has
+// shown which way it is going: within this angle of level (as a slope),
+// and it is a swipe; otherwise it is the hand.
+const dragTolerance = 16;
+const swipeSlope = Math.tan(15*Math.PI/180);
+// A swipe across the surround changes the background once it is this long.
 const swipeDistance = 48;
-// A finger held on the board this long, moving less than this far, is the
-// hand: a drag from then on pushes the stones about rather than swiping.
-const holdDelay = 250;
-const holdTolerance = 10;
 
 const cookieKeys = new Map([
     ['background', 'goban_background'],
@@ -137,9 +139,9 @@ function fadeTo(element, opacity, duration = 300, onFinish) {
 // the iOS shell (ios/GoClock/WebAppView.swift) answers `goClockHaptic`
 // messages with the taptic engine; elsewhere, a phone that can vibrate does.
 // 'grab' is the hand landing; 'tick' a stone going over the edge, of which
-// a good shove makes several at once, so those are thinned out; 'prepare'
-// is a finger landing, for the shell to warm its engine in case a hold
-// follows, and is nothing anywhere else.
+// a good shove makes several at once, so those are thinned out. ('prepare',
+// which the shell also answers, warms its engine and is nothing elsewhere;
+// nothing sends it now that the hand lands with the finger.)
 let lastTick = 0;
 function haptic(kind) {
     if (kind === 'tick') {
@@ -226,27 +228,28 @@ window.addEventListener('load', () => {
 
     const goban = $('#goban');
     const toolbar = $('#toolbar');
+    const menuToggle = $('#menu-toggle');
     const modeButton = $('#mode');
-    const modeLabel = $('#mode-label');
     const muteButton = $('#mute');
-    const muteIcon = $('#mute-icon');
+    const replayButton = $('#replay');
     const swipeToast = $('#swipe-toast');
     const aboutButton = $('#about');
     const aboutBox = $('#about_box');
-    let controlsHideTimer = null;
-    let lastControlWake = 0;
     let swipeToastTimer = null;
-    // The one setting whose choices are showing, if any.
-    let openControl = null;
+    // The settings whose choices are showing, outermost first: a submenu
+    // is open only while the list it is in is.
+    let openControls = [];
 
-    // A setting control is a button (`.setting-summary`) named for the
-    // setting that drops its choices down. Returns a setter that marks the
+    // A setting control is a button named for the setting that drops its
+    // choices down (`.setting-summary` in the row; `.submenu-button` in a
+    // list, which also shows the value). Returns a setter that marks the
     // chosen option and puts the value in the button's accessible name.
     function createSettingControl(name, labels, values, onSelect) {
         const control = $(`#${name}-control`);
-        const summary = $('.setting-summary', control);
+        const summary = summaryOf(control);
         const options = $('.setting-options', control);
         const settingName = summary.getAttribute('aria-label');
+        const valueLabel = $('.setting-value', summary);
 
         labels.forEach((label, index) => {
             const button = document.createElement('button');
@@ -260,8 +263,7 @@ window.addEventListener('load', () => {
             button.addEventListener('click', (event) => {
                 onSelect(index);
                 setOpenControl(null);
-                // Keyboard users land back on the chip; a pointer is left
-                // alone so the controls can still fade.
+                // Keyboard users land back on the button.
                 if (event.detail === 0) {
                     summary.focus({preventScroll: true});
                 }
@@ -269,47 +271,130 @@ window.addEventListener('load', () => {
             options.append(button);
         });
 
-        summary.addEventListener('click', () => {
-            setOpenControl(control.dataset.open === 'true' ? null : control);
-        });
+        openOnClick(control);
 
         return (activeIndex) => {
             summary.setAttribute('aria-label', `${settingName}: ${values[activeIndex]}`);
             summary.title = `${settingName}: ${values[activeIndex]}`;
+            if (valueLabel) {
+                valueLabel.textContent = labels[activeIndex];
+            }
             $$('.choice-button', options).forEach((button) => {
                 button.setAttribute('aria-pressed', String(Number(button.dataset.index) === activeIndex));
             });
         };
     }
 
+    function summaryOf(control) {
+        return $(':scope > button', control);
+    }
+
+    function openOnClick(control) {
+        summaryOf(control).addEventListener('click', () => {
+            setOpenControl(control.dataset.open === 'true' ? control.parentElement.closest('.setting-control') : control);
+        });
+    }
+
+    // A list of choices where it fits: hanging from its button (or, for a
+    // button in the row in landscape, and for a submenu, out to its right),
+    // and to the other side, or shifted, if it would leave the screen.
+    function placePanel(control) {
+        const panel = $('.setting-options', control);
+        const anchor = summaryOf(control).getBoundingClientRect();
+        const width = panel.offsetWidth;
+        const height = panel.offsetHeight;
+        const gap = 6;
+        const margin = 10;
+        const inset = safeInsets();
+        const minX = margin + inset.left;
+        const maxX = window.innerWidth - margin - inset.right - width;
+        const minY = margin + inset.top;
+        const maxY = window.innerHeight - margin - inset.bottom - height;
+        const beside = control.parentElement.closest('.setting-options') || isLandscape();
+        let left;
+        let top;
+        if (beside) {
+            left = anchor.right + gap;
+            if (left > maxX) {
+                left = anchor.left - gap - width;
+            }
+            top = anchor.top;
+        } else {
+            top = anchor.bottom + gap;
+            if (top > maxY) {
+                top = anchor.top - gap - height;
+            }
+            left = anchor.left;
+        }
+        panel.style.left = `${Math.round(Math.max(minX, Math.min(maxX, left)))}px`;
+        panel.style.top = `${Math.round(Math.max(minY, Math.min(maxY, top)))}px`;
+    }
+
+    function isLandscape() {
+        return window.matchMedia('(orientation: landscape)').matches;
+    }
+
+    // The screen's safe area, as the stylesheet reads it (see :root).
+    function safeInsets() {
+        const style = getComputedStyle(document.documentElement);
+        const read = (side) => parseFloat(style.getPropertyValue(`--safe-${side}`)) || 0;
+        return {top: read('top'), right: read('right'), bottom: read('bottom'), left: read('left')};
+    }
+
     function setControlOpen(control, open) {
         control.dataset.open = open ? 'true' : 'false';
-        $('.setting-summary', control).setAttribute('aria-expanded', String(open));
+        summaryOf(control).setAttribute('aria-expanded', String(open));
         $('.setting-options', control).hidden = !open;
+        if (open) {
+            placePanel(control);
+        }
     }
 
+    // Opens this setting's choices, and any list it is in; closes every
+    // other. Null closes them all.
     function setOpenControl(control) {
-        if (openControl && openControl !== control) {
-            setControlOpen(openControl, false);
+        const wanted = [];
+        for (let c = control; c; c = c.parentElement.closest('.setting-control')) {
+            wanted.unshift(c);
         }
-        openControl = control;
-        if (control) {
-            setControlOpen(control, true);
-        }
-        wakeControls();
+        openControls.filter((c) => !wanted.includes(c)).reverse().forEach((c) => setControlOpen(c, false));
+        wanted.filter((c) => !openControls.includes(c)).forEach((c) => setControlOpen(c, true));
+        openControls = wanted;
     }
 
-    // What a swipe just chose, in the chip's dress, at the top for a moment.
-    function showSwipeToast(icon, value) {
+    // The controls tucked away behind their first button, or brought back;
+    // remembered, like a setting.
+    function setCollapsed(collapsed) {
+        setOpenControl(null);
+        toolbar.dataset.collapsed = collapsed ? 'true' : 'false';
+        menuToggle.setAttribute('aria-expanded', String(!collapsed));
+        menuToggle.title = collapsed ? 'Show the controls' : 'Hide the controls';
+        menuToggle.setAttribute('aria-label', menuToggle.title);
+        $('span', menuToggle).textContent = collapsed ? '☰' : '✕';
+        writeSetting('menu', collapsed ? 0 : 1);
+    }
+
+    // What a key just chose, in a button's dress, at the foot of the screen for a moment.
+    function showSwipeToast(icon, value, stay = 1400) {
         $('#swipe-toast-icon').textContent = icon;
         $('#swipe-toast-value').textContent = value;
         window.clearTimeout(swipeToastTimer);
         swipeToast.getAnimations?.().forEach((animation) => animation.cancel());
         swipeToast.style.opacity = '1';
         swipeToast.hidden = false;
-        swipeToastTimer = window.setTimeout(() => fadeTo(swipeToast, 0, 400), 1400);
+        // Just above the board, or at the top of the screen where the
+        // board reaches nearly to it (landscape).
+        const board = $('#goban-image')?.getBoundingClientRect();
+        const highest = 10 + safeInsets().top;
+        swipeToast.style.top = `${Math.round(Math.max(highest, (board?.top ?? 0) - 8 - swipeToast.offsetHeight))}px`;
+        swipeToastTimer = window.setTimeout(() => fadeTo(swipeToast, 0, 400), stay);
     }
 
+    const showFace = createSettingControl('face', views, views, (index) => {
+        setView(index);
+        cancelReplay(goClock);
+        goClock.transform();
+    });
     const showSpeed = createSettingControl('speed', stoneSpeeds.map(([name]) => name), stoneSpeeds.map(([name]) => name), setClockSpeed);
     const showWood = createSettingControl('wood', woods.map(([name]) => name), woods.map(([name]) => name), setWood);
     const showPlacement = createSettingControl('placement', placementOptionLabels, placements, setPlacement);
@@ -317,16 +402,18 @@ window.addEventListener('load', () => {
     function setClockSpeed(index) {
         stoneSpeed = wrap(index, stoneSpeeds.length);
         goClock.speed = stoneSpeeds[stoneSpeed][1];
+        goClock.pause = stoneSpeeds[stoneSpeed][2];
         showSpeed(stoneSpeed);
         writeSetting('speed', stoneSpeed);
     }
 
-    // The mode button is a toggle showing the clock it is on.
+    // The mode and sound buttons, under the settings button, are toggles,
+    // pressed while they are on.
     function setMode(index) {
         mode = wrap(index, modes.length);
         goClock.twenty_four_hour = mode === 1;
-        modeLabel.textContent = modeLabels[mode];
         modeButton.setAttribute('aria-pressed', String(mode === 1));
+        modeButton.title = modes[mode];
         writeSetting('mode', mode);
         describeBoard();
     }
@@ -346,10 +433,8 @@ window.addEventListener('load', () => {
         const on = sound === 1;
         sounds.setEnabled(on);
         goClock.sound = on ? sounds : null;
-        muteIcon.textContent = on ? '🔊' : '🔇';
-        muteButton.setAttribute('aria-pressed', String(!on));
-        muteButton.title = on ? 'Mute' : 'Unmute';
-        muteButton.setAttribute('aria-label', on ? 'Mute' : 'Unmute');
+        muteButton.setAttribute('aria-pressed', String(on));
+        muteButton.title = on ? 'Sound on' : 'Sound off';
         writeSetting('sound', sound);
     }
 
@@ -363,6 +448,7 @@ window.addEventListener('load', () => {
     function setView(index) {
         view = wrap(index, views.length);
         goClock.view = view;
+        showFace(view);
         writeSetting('view', view);
     }
 
@@ -380,10 +466,46 @@ window.addEventListener('load', () => {
         writeSetting('background', background);
     }
 
+    // A game replayed on the board (replay.js): the button starts one, and
+    // while it runs is pressed, and stops it. The game is named as it
+    // starts, and its result given as it ends.
+    function setReplaying(on) {
+        replayButton.setAttribute('aria-pressed', String(on));
+        replayButton.title = on ? 'Stop the replay' : 'Replay a game';
+        replayButton.setAttribute('aria-label', replayButton.title);
+    }
+
+    function toggleReplay() {
+        if (goClock.replay) {
+            cancelReplay(goClock);
+            return;
+        }
+        const began = startReplay(goClock, loadGame(`games/${nextGameFile()}`), {
+            onStart: (game) => showSwipeToast('⏵', gameTitle(game.info), 4000),
+            onRest: (game) => {
+                const result = gameResult(game.info);
+                if (result) {
+                    showSwipeToast('⏵', result, 3000);
+                }
+            },
+            onEnd: (error) => {
+                setReplaying(false);
+                if (error) {
+                    console.error('The game could not be replayed', error);
+                    showSwipeToast('⏵', 'No game to replay');
+                }
+            }
+        });
+        if (began) {
+            setReplaying(true);
+        }
+    }
+
     // The next (or previous) face or background, announced with a toast:
-    // what a swipe does, and a key.
+    // what the arrow keys do, and a swipe across the surround.
     function changeView(step) {
         setView(view + step);
+        cancelReplay(goClock);
         goClock.transform();
         showSwipeToast('◷', views[view]);
     }
@@ -406,50 +528,6 @@ window.addEventListener('load', () => {
 
     function storeGobanState() {
         writeSetting('state', goClock.stones_shown.join(''));
-    }
-
-    function clearControlsFade() {
-        if (controlsHideTimer !== null) {
-            window.clearTimeout(controlsHideTimer);
-            controlsHideTimer = null;
-        }
-    }
-
-    function scheduleControlsFade() {
-        clearControlsFade();
-        controlsHideTimer = window.setTimeout(() => {
-            if (toolbar.querySelector(':focus-visible')) {
-                // Someone is tabbing through the controls; try again later.
-                scheduleControlsFade();
-                return;
-            }
-            if (openControl) {
-                setControlOpen(openControl, false);
-                openControl = null;
-            }
-            toolbar.dataset.visible = 'false';
-        }, openControl ? openControlHideDelay : controlsHideDelay);
-    }
-
-    function wakeControls() {
-        toolbar.dataset.visible = 'true';
-        scheduleControlsFade();
-    }
-
-    // The controls out of the way at once, menus and all.
-    function hideControls() {
-        setOpenControl(null);
-        // setOpenControl woke the controls; that is not wanted here.
-        clearControlsFade();
-        toolbar.dataset.visible = 'false';
-    }
-
-    function wakeControlsForActivity() {
-        const now = Date.now();
-        if (toolbar.dataset.visible !== 'true' || now - lastControlWake > 250) {
-            lastControlWake = now;
-            wakeControls();
-        }
     }
 
     function hideAbout() {
@@ -484,6 +562,8 @@ window.addEventListener('load', () => {
     function resizeClock() {
         // Done now, or once the board is quiet (see draw() in go-clock.js).
         goClock.draw(window.innerWidth, window.innerHeight);
+        // The lists were placed for the old screen.
+        setOpenControl(null);
         aboutBox.hidden = true;
         aboutButton.setAttribute('aria-expanded', 'false');
     }
@@ -514,121 +594,97 @@ window.addEventListener('load', () => {
     setSound(sound);
     goClock.haptic = haptic;
 
-    // Swipes and the hand. Sideways across the board changes the face,
-    // sideways across the surround changes the background; a shorter drag
-    // is a tap. A finger that stays put for a moment instead becomes the
-    // hand (go-clock.js): from then until it lifts, it pushes the stones
-    // about.
-    let swipe = null;
+    // The hand and the swipe: a finger on the board is the hand
+    // (go-clock.js) from the moment it lands until it lifts, pushing the
+    // stones about. On the surround it waits to see which way it goes: a
+    // drag sideways is a swipe, changing the background once it is long
+    // enough, and any other drag is the hand, landing where the finger
+    // has got to.
     let hand = null;
-    let holdTimer = null;
-    let dragged = false;
+    let swipe = null;
 
     function isOnBoard(x, y) {
         const board = $('#goban-image')?.getBoundingClientRect();
         return Boolean(board) && x >= board.left && x <= board.right && y >= board.top && y <= board.bottom;
     }
 
-    function cancelHold() {
-        window.clearTimeout(holdTimer);
-        holdTimer = null;
+    function landHand(pointerId, x, y) {
+        if (goClock.fingerDown(x, y)) {
+            hand = {id: pointerId};
+            haptic('grab');
+        }
     }
 
     goban.addEventListener('pointerdown', (event) => {
         if (!event.isPrimary) {
             return;
         }
-        dragged = false;
         hand = null;
-        cancelHold();
-        swipe = {id: event.pointerId, x: event.clientX, y: event.clientY, onBoard: isOnBoard(event.clientX, event.clientY)};
-        haptic('prepare');
-        // A hold anywhere becomes the hand: on the surround it has the
-        // stones on the table to push about.
-        const {pointerId, clientX, clientY} = event;
-        holdTimer = window.setTimeout(() => {
-            holdTimer = null;
-            if (!swipe || swipe.id !== pointerId || !goClock.fingerDown(clientX, clientY)) {
-                // Gone, or the board is being swept.
+        swipe = null;
+        if (isOnBoard(event.clientX, event.clientY)) {
+            landHand(event.pointerId, event.clientX, event.clientY);
+            if (!hand) {
+                // The board is being swept.
                 return;
             }
-            hand = {id: pointerId};
-            swipe = null;
-            dragged = true;
-            haptic('grab');
-            // The hand is about the board, not the controls: if they are up, they go.
-            hideControls();
-        }, holdDelay);
+        } else {
+            swipe = {id: event.pointerId, x: event.clientX, y: event.clientY, sideways: null};
+        }
         // So the release is heard even if it lands on the toolbar.
         goban.setPointerCapture(event.pointerId);
     });
     goban.addEventListener('pointermove', (event) => {
-        // A mouse moving over the page brings the controls up; a finger does
-        // not, so a swipe leaves the board as it was.
-        if (event.pointerType === 'mouse') {
-            wakeControlsForActivity();
-        }
         if (hand && event.pointerId === hand.id) {
             goClock.fingerMove(event.clientX, event.clientY);
-        } else if (holdTimer !== null && swipe && event.pointerId === swipe.id
-                   && Math.hypot(event.clientX - swipe.x, event.clientY - swipe.y) >= holdTolerance) {
-            // Off before the hold was up: a swipe or a tap, not the hand.
-            cancelHold();
+            return;
+        }
+        if (!swipe || event.pointerId !== swipe.id) {
+            return;
+        }
+        const dx = event.clientX - swipe.x;
+        const dy = event.clientY - swipe.y;
+        if (swipe.sideways === null) {
+            if (Math.hypot(dx, dy) < dragTolerance) {
+                return;
+            }
+            swipe.sideways = Math.abs(dy) <= Math.abs(dx)*swipeSlope;
+            if (!swipe.sideways) {
+                // Not a swipe: the hand, from here.
+                swipe = null;
+                landHand(event.pointerId, event.clientX, event.clientY);
+                return;
+            }
+        }
+        if (Math.abs(dx) >= swipeDistance) {
+            swipe = null;
+            // Swiping left brings on the next one, as with pages.
+            changeBackground(dx < 0 ? 1 : -1);
         }
     });
     function endPointer(event) {
         if (hand && event.pointerId === hand.id) {
             goClock.fingerUp();
             hand = null;
-            return;
-        }
-        if (!swipe || event.pointerId !== swipe.id) {
-            return;
-        }
-        cancelHold();
-        const dx = event.clientX - swipe.x;
-        const dy = event.clientY - swipe.y;
-        const {onBoard} = swipe;
-        swipe = null;
-        if (event.type !== 'pointerup' || Math.max(Math.abs(dx), Math.abs(dy)) < swipeDistance) {
-            return;
-        }
-        dragged = true;
-        if (Math.abs(dx) > Math.abs(dy)) {
-            // Swiping left brings on the next one, as with pages.
-            const step = dx < 0 ? 1 : -1;
-            if (onBoard) {
-                changeView(step);
-            } else {
-                changeBackground(step);
-            }
-            // A swipe is about the board, not the controls: if they are up, they go.
-            hideControls();
+        } else if (swipe && event.pointerId === swipe.id) {
+            // Lifted before it showed which way it was going, or too soon
+            // for a swipe: a tap, which does nothing.
+            swipe = null;
         }
     }
     goban.addEventListener('pointerup', endPointer);
     goban.addEventListener('pointercancel', endPointer);
     // Browsers that ignore -webkit-user-drag would otherwise pick the board
-    // image up and cancel the swipe.
+    // image up and cancel the hand.
     goban.addEventListener('dragstart', (event) => event.preventDefault());
-    goban.addEventListener('click', () => {
-        // The click that follows a mouse drag is the drag, not a tap.
-        if (dragged) {
-            dragged = false;
-            return;
-        }
-        wakeControls();
-    });
-    toolbar.addEventListener('pointermove', wakeControlsForActivity);
-    // Keys, for a keyboard and for a desktop where a swipe is a drag: the
-    // arrows change the face (left and right) and the background (up and
-    // down), M mutes, I is the about box.
+    // Keys: the arrows change the face (left and right) and the background
+    // (up and down), M mutes, R replays a game, I is the about box.
     const keyActions = {
         ArrowRight: () => changeView(1),
         ArrowLeft: () => changeView(-1),
         ArrowDown: () => changeBackground(1),
         ArrowUp: () => changeBackground(-1),
         m: () => setSound(sound === 1 ? 0 : 1),
+        r: toggleReplay,
         i: () => aboutButton.click()
     };
     document.addEventListener('keydown', (event) => {
@@ -638,26 +694,19 @@ window.addEventListener('load', () => {
         } else if (!event.metaKey && !event.ctrlKey && !event.altKey) {
             const action = keyActions[event.key.length === 1 ? event.key.toLowerCase() : event.key];
             if (action) {
-                // These are about the board, not the controls.
                 event.preventDefault();
                 action();
-                return;
             }
         }
-        wakeControlsForActivity();
-    });
-    $$('#toolbar button').forEach((control) => {
-        control.addEventListener('click', wakeControls);
-        control.addEventListener('focus', wakeControls);
     });
     // A touch anywhere outside an open setting closes it; likewise the about
     // box. Heard on pointerdown, touchstart and click alike: iOS is choosy
     // about which taps become clicks, a swipe never does, and closing twice
     // is harmless.
     function closeOutside(event) {
-        if (openControl && !openControl.contains(event.target)) {
-            setOpenControl(null);
-        }
+        // The innermost open list that was touched stays, with its
+        // parents; a touch outside them all closes everything.
+        setOpenControl(openControls.findLast((c) => c.contains(event.target)) ?? null);
         if (!aboutBox.hidden && !aboutBox.contains(event.target) && !aboutButton.contains(event.target)) {
             hideAbout();
         }
@@ -666,21 +715,28 @@ window.addEventListener('load', () => {
     document.addEventListener('touchstart', closeOutside, {passive: true});
     document.addEventListener('click', closeOutside);
 
+    openOnClick($('#settings-control'));
     muteButton.addEventListener('click', () => setSound(sound === 1 ? 0 : 1));
+    replayButton.addEventListener('click', toggleReplay);
     modeButton.addEventListener('click', () => {
         setMode(mode === 1 ? 0 : 1);
         goClock.transform();
     });
+    menuToggle.addEventListener('click', () => setCollapsed(toolbar.dataset.collapsed !== 'true'));
     aboutButton.addEventListener('click', () => {
+        setOpenControl(null);
         if (aboutBox.hidden) {
             showAbout();
         } else {
             hideAbout();
         }
     });
+    // Each button's place in the row, for the slide in and out.
+    $$('#toolbar-actions > *').forEach((child, index) => child.style.setProperty('--i', String(index)));
 
     resizeClock();
-    wakeControls();
+    // The controls as they were left: up, the first time.
+    setCollapsed(readIndex('menu', 1, 2) === 0);
     registerServiceWorker();
     keepScreenAwake();
     document.addEventListener('visibilitychange', keepScreenAwake);

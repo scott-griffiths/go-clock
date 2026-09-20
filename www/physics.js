@@ -1,5 +1,5 @@
 // The stones as things that slide: a small simulation in pixel space,
-// shared by the sweep (the board tipped, the stones sliding off it) and
+// shared by the sweep (an arm wiping the stones off the board) and
 // the hand (a finger shoving them about). Both keep a StoneWorld for as
 // long as they last, add the stones to it, and call advance() for each
 // bit of time; the world moves the stones and says where they are, and
@@ -7,7 +7,7 @@
 //
 // A stone is a disc on a rectangular board standing proud of a table, all
 // of it seen from above. On the board it does whatever the board does to
-// it (`onBoard`: a slope or friction, below). Over the edge it drops, in
+// it (`onBoard`: friction, below). Over the edge it drops, in
 // the air for `dropTime`, then lands on the table and skids to a stop.
 // In space (`isVoid`) there is no table and nothing holds a stone to the
 // board either: the moment one is disturbed it is away, flying on as it
@@ -50,7 +50,7 @@ export class StoneWorld {
     // stone lying on it; grip, how hard the table drags, relative to
     // wood; isVoid, space: no table, and no hold on the board; sidesKeepOn,
     // a stone on the board can only leave over the top or bottom edge (the
-    // tipped board); edgeKick,
+    // sweep); edgeKick,
     // px/s outward for a stone going over the edge (a shoved stone tips
     // over it rather than rolling gently off); sound, something with
     // land(strength) and knock(strength); haptic, a function taking 'tick'.
@@ -390,17 +390,4 @@ export function isTumbling(stone) {
 // speed plus a constant, so that a shoved stone skids a little and stops.
 export function flatBoard(stone, dt, world) {
     world.slow(stone, world.speedOf(stone)*6.5 + world.diameter*32, dt);
-}
-
-// What a tipped board does: `gravity` px/s² down the slope, towards the
-// near edge; a lean towards the middle of that edge too, `gather` px/s²
-// per px from it, so the stones come together and land in one heap; and
-// a little damping across the slope.
-export function tippedBoard({gravity, gather}) {
-    return (stone, dt, world) => {
-        const middle = (world.board.left + world.board.right)/2;
-        stone.vy += gravity*dt;
-        stone.vx += (middle - stone.x)*gather*dt;
-        stone.vx *= 1 - 0.8*dt;
-    };
 }

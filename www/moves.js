@@ -10,8 +10,13 @@
 // element, since only the one hand swaps.
 
 import {gridsize, white, go_bowl, go_table, dist, pointX, pointY} from './board.js';
-import {$, setStyles, setVisible, setStoneShadow, stoneImageSrc, cancelElementAnimations, animateElement, tableStoneScale} from './stone-dom.js';
+import {$, setStyles, setVisible, setStoneShadow, stoneImageSrc, cancelElementAnimations, animateElement, tableStoneScale, maxLift} from './stone-dom.js';
 import {settleAfterLanding, setOffset} from './placement.js';
+
+// A stone from the bowl takes as long as a move of this many points: a
+// drop straight in is over in a flash otherwise, and looks nothing like
+// the moves around it.
+const dropDistance = 2.5;
 
 // How long a plan (planner.js) will take at `speed`, as the functions below
 // reckon it: for a hand to know, before it starts, when it would put the
@@ -19,6 +24,8 @@ import {settleAfterLanding, setOffset} from './placement.js';
 // the first stone's trip; its return is a second move.
 export function moveDuration(clock, plan, speed) {
     switch (plan.kind) {
+    case 'add':
+        return Math.sqrt(dropDistance/speed);
     case 'table':
         return Math.sqrt(Math.hypot(pointX(plan.to) - plan.entry.coords[0], pointY(plan.to) - plan.entry.coords[1])/speed);
     case 'move':
@@ -72,7 +79,7 @@ function liftFromTable(clock, hand, entry, coords2, colour, speed) {
     var distance = Math.hypot(coords2[0] - entry.coords[0], coords2[1] - entry.coords[1]);
     var duration = Math.sqrt(distance/speed);
     hand.lands(duration);
-    var max_height = Math.min(12, 8 + distance/2);
+    var max_height = Math.min(maxLift, 11 + distance/2);
     var middle = clock.pixelStonePosition((entry.x + p2[0] + p2[2]/2)/2, (entry.y + p2[1] + p2[3]/2)/2, max_height);
     var end_tasks = function() {
         var landingIndex = Math.round(hand.to[0]) + gridsize*Math.round(hand.to[1]);
@@ -179,10 +186,7 @@ function repositionStone(clock, hand, coords1, coords2, colour, speed) {
             top: p2[1],
             onComplete: end_tasks});
     } else {
-        var max_height = 8 + distance/2;
-        if (max_height > 12) {
-            max_height = 12;
-        }
+        var max_height = Math.min(maxLift, 11 + distance/2);
         var middle = clock.stonePosition((coords1[0] + coords2[0])/2, (coords1[1] + coords2[1])/2, max_height);
         requestAnimationFrame(function() {
             setStoneShadow(movingShadow, max_height);
@@ -209,7 +213,7 @@ function repositionStone(clock, hand, coords1, coords2, colour, speed) {
 }
 
 function dropStone(clock, hand, coords, colour, speed) {
-    var duration = Math.sqrt(1/speed);
+    var duration = Math.sqrt(dropDistance/speed);
     hand.lands(duration);
     var p1 = clock.stonePosition(coords[0], coords[1], 10);
     var p2 = clock.stonePosition(coords[0], coords[1], 0);
