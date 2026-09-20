@@ -5,8 +5,9 @@
 import {gridsize, white, go_bowl, go_table, minx, maxx, miny, maxy, emptyBoard} from './board.js';
 import {faceFor} from './faces.js';
 import {planMove} from './planner.js';
-import {setTumbling, voidFlightTime} from './physics.js';
+import {setTumbling, voidFlightTime, dropTime} from './physics.js';
 import {flyOn} from './flight.js';
+import {sinkOn} from './water.js';
 import {sweepBoard} from './sweep.js';
 import {replayWanted, replaySettled} from './replay.js';
 import {fingerDown, fingerMove, fingerUp, endFinger} from './hand.js';
@@ -118,6 +119,9 @@ export function GoClock(){
     // No table at all: a stone that goes over the edge falls away into the
     // dark and fades, silently, rather than landing (the space background).
     this.table_void = false;
+    // Water for a table: a stone that goes over the edge splashes in and
+    // sinks (the water background).
+    this.table_water = false;
     this.sweeping_board = false;
     // A game being replayed on the board (replay.js), or null: while there
     // is one, transform() works towards its positions instead of the time's.
@@ -278,6 +282,28 @@ export function GoClock(){
         });
         this.table_stones = [];
         flyOn(stones, 0, {board: this.boardRect(), screen: this.screenRect(), diameter: diameter});
+    };
+
+    // The stones lying on the table when the table becomes water: each
+    // goes in where it lies, with a splash.
+    this.sinkTableStones = function() {
+        var diameter = this.goban_width/20;
+        var stones = this.table_stones.map((entry) => ({
+            element: entry.element,
+            src: entry.src,
+            colour: entry.colour,
+            x: entry.x,
+            y: entry.y,
+            r: diameter/2,
+            vx: 0,
+            vy: 0,
+            offBoard: true,
+            landed: false,
+            leftAt: -dropTime,
+            gone: false
+        }));
+        this.table_stones = [];
+        sinkOn(stones, 0, {board: this.boardRect(), screen: this.screenRect(), diameter: diameter});
     };
 
     // A stone free of the grid, drawn by an element of its own (stone-dom.js).

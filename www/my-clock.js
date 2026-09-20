@@ -21,8 +21,10 @@ const tipsOfTheDay = [
 // The table the board sits on. Each is a seamless texture (CC0, from Poly
 // Haven and ambientCG) repeated at `tile` board-widths per repeat, so the
 // planks, blades and cracks come out the same size beside the board on
-// every screen; `tint` colours a grey texture, blended in, and `veil` is
-// a translucent colour laid over one that is too loud. `grip` is how much
+// every screen; `tint` colours a grey texture, blended in; `veil` is a
+// translucent colour laid over one that is too loud; and `shimmer` lays
+// a smaller copy over the top, the two drifting across each other (see
+// sizeBackground). `grip` is how much
 // the table drags on a stone skidding across it, relative to wood: stones
 // stop short in grass and slide on ice. Space is a picture rather than a
 // tile, and has no table: a shoved stone glides off the edge and away.
@@ -31,7 +33,7 @@ const backgrounds = [
     {file: 'walnut.jpg', name: 'Light wood', grip: 1, tile: 1.5},
     {file: 'turf.jpg', name: 'Grass', grip: 4, tile: 1.4},
     {file: 'ice.jpg', name: 'Ice', grip: 0.15, tile: 1.1, veil: 'rgb(178 196 200 / 0.55)'},
-    {file: 'water.jpg', name: 'Water', grip: 1, tile: 1.3, tint: '#1c6a9c'},
+    {file: 'water.jpg', name: 'Water', grip: 1, tile: 1.3, tint: '#123c5e', shimmer: 0.62, isWater: true},
     {file: 'space.jpg', name: 'Space', grip: 1, isVoid: true}
 ];
 
@@ -505,18 +507,37 @@ window.addEventListener('load', () => {
         background = wrap(index, backgrounds.length);
         const table = backgrounds[background];
         const site = $('#sb-site');
-        const veil = table.veil ? `linear-gradient(${table.veil}, ${table.veil}), ` : '';
-        site.style.backgroundImage = `${veil}url('images/${table.file}')`;
+        const image = `url('images/${table.file}')`;
+        // Top layer first: a veil over the picture, or the picture's
+        // shimmer over it, then the picture, then its tint underneath.
+        const layers = [];
+        const blends = [];
+        if (table.veil) {
+            layers.push(`linear-gradient(${table.veil}, ${table.veil})`);
+            blends.push('normal');
+        }
+        if (table.shimmer) {
+            layers.push(image);
+            blends.push('soft-light');
+        }
+        layers.push(image);
+        blends.push(table.tint ? 'multiply' : 'normal');
+        site.style.backgroundImage = layers.join(', ');
+        site.style.backgroundBlendMode = blends.join(', ');
         site.style.backgroundColor = table.tint ?? '';
-        site.style.backgroundBlendMode = table.tint ? 'multiply' : '';
         site.style.backgroundRepeat = table.tile ? 'repeat' : '';
         sizeBackground();
         preloadNeighbouringBackgrounds(background);
         goClock.table_grip = table.grip;
         goClock.table_void = Boolean(table.isVoid);
+        goClock.table_water = Boolean(table.isWater);
         if (goClock.table_void) {
             // Whatever was lying on the table has nothing under it now.
             goClock.dropTableStones();
+            preloadTumbleSheets();
+        } else if (goClock.table_water) {
+            // A sinking stone turns over as it goes down.
+            goClock.sinkTableStones();
             preloadTumbleSheets();
         }
         showBackground(background);
@@ -524,13 +545,35 @@ window.addEventListener('load', () => {
     }
 
     // A tiled table repeats every `tile` board-widths; a picture covers
-    // the screen.
+    // the screen. A shimmering one has its second layer at `shimmer` of
+    // the first's size, and the two drift slowly across each other,
+    // corner to corner in opposite directions, each by a whole tile per
+    // pass so the loop is seamless.
+    let drift = null;
     function sizeBackground() {
         const table = backgrounds[background];
+        const site = $('#sb-site');
+        drift?.cancel();
+        drift = null;
         // Before the first draw the board has no width: onDraw comes back.
-        const tiled = table.tile && goClock.goban_width;
-        const size = tiled ? `${Math.round(goClock.goban_width*table.tile)}px auto` : 'cover';
-        $('#sb-site').style.backgroundSize = table.veil ? `auto, ${size}` : size;
+        const width = table.tile && goClock.goban_width ? Math.round(goClock.goban_width*table.tile) : 0;
+        const size = width ? `${width}px auto` : 'cover';
+        const sizes = [];
+        if (table.veil) {
+            sizes.push('auto');
+        }
+        if (table.shimmer) {
+            sizes.push(width ? `${Math.round(width*table.shimmer)}px auto` : 'cover');
+        }
+        sizes.push(size);
+        site.style.backgroundSize = sizes.join(', ');
+        if (table.shimmer && width && site.animate) {
+            const second = Math.round(width*table.shimmer);
+            drift = site.animate([
+                {backgroundPosition: '0px 0px, 0px 0px'},
+                {backgroundPosition: `${-second}px ${second}px, ${width}px ${width}px`}
+            ], {duration: 90000, iterations: Infinity, easing: 'linear'});
+        }
     }
 
     // A game replayed on the board (replay.js): the button drops down the

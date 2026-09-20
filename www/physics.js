@@ -14,8 +14,10 @@
 // was going, end over end, skimming low over the board (the edge of the
 // board is nothing to it) and only slowly gaining height, until it is too
 // high to see. While it is low it still knocks into other stones, and a
-// knock sends both up. Stones in each other's way push apart and bounce a
-// little. A stone off the screen is gone too.
+// knock sends both up. On water (`isWater`) the drop ends in a splash
+// rather than a landing: the stone is braked hard, beyond the reach of
+// the others, and sinks out of sight in `sinkTime`. Stones in each other's
+// way push apart and bounce a little. A stone off the screen is gone too.
 //
 // Each stone is a plain object; the world reads and writes these fields
 // and ignores whatever else the caller keeps on it (an element, a colour):
@@ -28,7 +30,9 @@
 //   falling     into the void instead of onto the table; height, how high
 //               it has risen, 0 to 1 (too high to see), and climb, how
 //               fast that is going up, per second
-//   gone        off the screen, or fallen away: finished with
+//   sinking     under the water instead of on the table; sankAt is the
+//               world time it went in
+//   gone        off the screen, fallen away or sunk: finished with
 // and, for a stone tumbling end over end (flying into the void), see
 // setTumbling():
 //   spin        rad/s, backwards if negative
@@ -43,29 +47,35 @@ export const dropTime = 0.12;
 export const voidFlightTime = 4.5;
 // Below this height a flying stone is still low enough to hit others.
 export const lowHeight = 0.3;
+// How long a stone takes to sink out of sight, in seconds from the splash.
+export const sinkTime = 0.7;
 
 export class StoneWorld {
     // board: {left, top, right, bottom}; screen: {right, bottom}; diameter
     // of a stone; onBoard(stone, dt, world), what the board does to a
     // stone lying on it; grip, how hard the table drags, relative to
-    // wood; isVoid, space: no table, and no hold on the board; sidesKeepOn,
-    // a stone on the board can only leave over the top or bottom edge (the
-    // sweep); edgeKick,
-    // px/s outward for a stone going over the edge (a shoved stone tips
-    // over it rather than rolling gently off); sound, something with
-    // land(strength) and knock(strength); haptic, a function taking 'tick'.
-    constructor({board, screen, diameter, onBoard, grip = 1, isVoid = false, sidesKeepOn = false,
-                 edgeKick = 0, sound = null, haptic = null}) {
+    // wood; isVoid, space: no table, and no hold on the board; isWater, a
+    // table stones sink into; sidesKeepOn, a stone on the board can only
+    // leave over the top or bottom edge (the sweep); edgeKick, px/s outward
+    // for a stone going over the edge (a shoved stone tips over it rather
+    // than rolling gently off); sound, something with land(strength),
+    // knock(strength) and splash(strength); haptic, a function taking
+    // 'tick'; onSplash(stone, strength), called as a stone goes into the
+    // water.
+    constructor({board, screen, diameter, onBoard, grip = 1, isVoid = false, isWater = false, sidesKeepOn = false,
+                 edgeKick = 0, sound = null, haptic = null, onSplash = null}) {
         this.board = board;
         this.screen = screen;
         this.diameter = diameter;
         this.onBoard = onBoard;
         this.grip = grip;
         this.isVoid = isVoid;
+        this.isWater = isWater;
         this.sidesKeepOn = sidesKeepOn;
         this.edgeKick = edgeKick;
         this.sound = sound;
         this.haptic = haptic;
+        this.onSplash = onSplash;
         this.stones = [];
         this.elapsed = 0;
     }
@@ -107,8 +117,17 @@ export class StoneWorld {
                 if (!stone.landed) {
                     this.land(stone);
                 }
-                // Skidding on the flat table: nothing pulls, friction slows.
-                this.slow(stone, (this.speedOf(stone)*6 + this.diameter*20)*this.grip, dt);
+                if (stone.sinking) {
+                    // Under the water: it drifts a little further, and
+                    // is gone once it is deep enough.
+                    this.slow(stone, this.speedOf(stone)*10 + this.diameter*40, dt);
+                    if (this.elapsed - stone.sankAt >= sinkTime) {
+                        stone.gone = true;
+                    }
+                } else {
+                    // Skidding on the flat table: nothing pulls, friction slows.
+                    this.slow(stone, (this.speedOf(stone)*6 + this.diameter*20)*this.grip, dt);
+                }
             }
             stone.x += stone.vx*dt;
             stone.y += stone.vy*dt;
@@ -174,10 +193,23 @@ export class StoneWorld {
         }
     }
 
-    // Down on the table: landing takes the edge off its speed.
+    // Down on the table: landing takes the edge off its speed. Into the
+    // water: a splash, most of its speed goes at once, and it turns over
+    // lazily as it goes down, the way it was going.
     land(stone) {
         stone.landed = true;
-        this.sound?.land(this.speedOf(stone)/(this.boardHeight*1.8));
+        const strength = this.speedOf(stone)/(this.boardHeight*1.8);
+        if (this.isWater) {
+            stone.sinking = true;
+            stone.sankAt = this.elapsed;
+            setTumbling(stone, Math.atan2(stone.vy, stone.vx), (2.5 + Math.random()*1.5)*(Math.random() < 0.5 ? -1 : 1));
+            stone.vx *= 0.25;
+            stone.vy *= 0.25;
+            this.sound?.splash(strength);
+            this.onSplash?.(stone, strength);
+            return;
+        }
+        this.sound?.land(strength);
         stone.vx *= 0.5;
         stone.vy *= 0.5;
     }
@@ -303,10 +335,10 @@ export class StoneWorld {
         return any;
     }
 
-    // Still in play for a knock or a shove: not gone, and not flown too
-    // high over the board to touch anything.
+    // Still in play for a knock or a shove: not gone, not under the water,
+    // and not flown too high over the board to touch anything.
     reachable(stone) {
-        return !stone.gone && !(stone.falling && stone.height >= lowHeight);
+        return !stone.gone && !stone.sinking && !(stone.falling && stone.height >= lowHeight);
     }
 
     offScreen(stone) {
@@ -326,12 +358,26 @@ export class StoneWorld {
         return stone.falling ? Math.min(1, stone.height) : 0;
     }
 
+    // How far a stone has sunk, 0 to 1 (out of sight).
+    sink(stone) {
+        return stone.sinking ? Math.min(1, (this.elapsed - stone.sankAt)/sinkTime) : 0;
+    }
+
     // The stones still flying into the void, taken out of the world, for
     // whoever will see them out of sight.
     takeFalling() {
-        const flying = this.stones.filter((stone) => stone.falling && !stone.gone);
-        this.stones = this.stones.filter((stone) => !flying.includes(stone));
-        return flying;
+        return this.take((stone) => stone.falling);
+    }
+
+    // Likewise the stones still going under.
+    takeSinking() {
+        return this.take((stone) => stone.sinking);
+    }
+
+    take(which) {
+        const taken = this.stones.filter((stone) => which(stone) && !stone.gone);
+        this.stones = this.stones.filter((stone) => !taken.includes(stone));
+        return taken;
     }
 
     // The stones still in play.
@@ -343,11 +389,11 @@ export class StoneWorld {
         return this.stones.filter((stone) => !stone.gone && !stone.offBoard).length;
     }
 
-    // Nothing is moving, dropping or tumbling. A stone flying into the
-    // void is no longer anyone's concern here (see takeFalling).
+    // Nothing is moving, dropping, tumbling or sinking. A stone flying
+    // into the void is no longer anyone's concern here (see takeFalling).
     still() {
         return this.stones.every((stone) => stone.gone || stone.falling
-            || (!(stone.offBoard && !stone.landed) && this.speedOf(stone) === 0 && !isTumbling(stone)));
+            || (!(stone.offBoard && !stone.landed) && !stone.sinking && this.speedOf(stone) === 0 && !isTumbling(stone)));
     }
 }
 

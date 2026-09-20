@@ -26,6 +26,7 @@ const appShell = [
     './sounds.js',
     './replay.js',
     './sgf.js',
+    './water.js',
     './games/dosaku-tengen.sgf',
     './games/dosaku-santetsu-1683.sgf',
     './games/genjo-chitoku-jigo.sgf',

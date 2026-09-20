@@ -18,6 +18,7 @@ import {gridsize} from './board.js';
 import {StoneWorld, flatBoard} from './physics.js';
 import {$, setStyles, setVisible, setStoneShadow, cancelElementAnimations, tableTransform, drawOnTable} from './stone-dom.js';
 import {drawFlying, flyOn, clearFlying} from './flight.js';
+import {drawSinking, splash, sinkOn} from './water.js';
 
 export function sweepBoard(clock) {
     if (clock.sweeping_board || clock.finger || typeof document === 'undefined') {
@@ -41,8 +42,10 @@ export function sweepBoard(clock) {
         onBoard: flatBoard,
         grip: clock.table_grip,
         isVoid: clock.table_void,
+        isWater: clock.table_water,
         sidesKeepOn: true,
-        sound: clock.sound
+        sound: clock.sound,
+        onSplash: (stone, strength) => splash(goban, stone.x, stone.y, stone.r, strength)
     });
     // The arm: its leading edge (at the ends; the middle trails by
     // `bow`) starts above the top of the board and wipes down to well
@@ -186,6 +189,7 @@ export function sweepBoard(clock) {
             element.style.removeProperty('z-index');
             element.style.removeProperty('transform');
             element.style.removeProperty('opacity');
+            element.style.removeProperty('filter');
             setStoneShadow(element, 0);
             setVisible(element.querySelector('.stone-shadow'), false);
             setVisible(element.querySelector('img'), false);
@@ -216,9 +220,10 @@ export function sweepBoard(clock) {
         // A stone still on its way into the dark flies on by itself, a grid
         // point's by a loose element of its own, since the point's element
         // is about to go back to its point (clear() below).
-        flyOn(world.takeFalling().map((stone) => stone.index < 0 ? stone
-            : {...stone, index: -1, element: clock.looseStone(stone.src, stone.colour, stone.x, stone.y).element}),
-            world.elapsed, world);
+        var loose = (stone) => stone.index < 0 ? stone
+            : {...stone, index: -1, element: clock.looseStone(stone.src, stone.colour, stone.x, stone.y).element};
+        flyOn(world.takeFalling().map(loose), world.elapsed, world);
+        sinkOn(world.takeSinking().map(loose), world.elapsed, world);
         // The heap stays on the table, in play, and the board is bare.
         world.stones.forEach((stone) => {
             if (stone.gone) {
@@ -334,7 +339,9 @@ export function sweepBoard(clock) {
                 drawFlying(stone.element, stone, world, translate);
                 return;
             }
-            if (stone.offBoard) {
+            if (stone.sinking) {
+                drawSinking(stone.element, stone, world.sink(stone), translate);
+            } else if (stone.offBoard) {
                 // In the air for the drop off the edge, then on the table,
                 // which is that little further away.
                 drawOnTable(stone.element, world.drop(stone), translate);

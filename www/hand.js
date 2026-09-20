@@ -18,6 +18,7 @@ import {StoneWorld, flatBoard} from './physics.js';
 import {$, setStyles, setVisible, setStoneShadow, cancelElementAnimations, elementCentre, colourOfImage, tableTransform,
         drawOnTable} from './stone-dom.js';
 import {drawFlying, flyOn} from './flight.js';
+import {drawSinking, splash, sinkOn} from './water.js';
 
 // How long the stones lie as the finger left them before the clock
 // tidies up, in ms.
@@ -52,9 +53,11 @@ export function fingerDown(clock, clientX, clientY) {
         onBoard: flatBoard,
         grip: clock.table_grip,
         isVoid: clock.table_void,
+        isWater: clock.table_water,
         edgeKick: diameter*5,
         sound: clock.sound,
-        haptic: clock.haptic
+        haptic: clock.haptic,
+        onSplash: (stone, strength) => splash(goban, stone.x, stone.y, stone.r, strength)
     });
 
     // Whatever the hand was doing stops, and the stone it held drops
@@ -207,7 +210,9 @@ export function fingerDown(clock, clientX, clientY) {
                 drawFlying(stone.element, stone, world);
                 return;
             }
-            if (stone.offBoard) {
+            if (stone.sinking) {
+                drawSinking(stone.element, stone, world.sink(stone));
+            } else if (stone.offBoard) {
                 drawOnTable(stone.element, world.drop(stone));
             } else {
                 sliding += Math.min(1, world.speedOf(stone)/(diameter*10));
@@ -283,9 +288,11 @@ export function endFinger(clock) {
     clock.stones_shown = Array(gridsize*gridsize).fill(0);
     clock.reset_offsets();
     var taken = new Set();
-    // A stone still flying off into space flies on by itself.
+    // A stone still flying off into space flies on by itself; one still
+    // going under the water sinks on.
     var world = finger.world;
     flyOn(world.takeFalling(), world.elapsed, world);
+    sinkOn(world.takeSinking(), world.elapsed, world);
     var stones = world.stones;
     var fallen = stones.filter((stone) => !stone.gone && stone.offBoard);
     var placements = stones

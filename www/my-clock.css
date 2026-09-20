@@ -158,6 +158,17 @@ body {
     z-index: 6;
 }
 
+/* A ring of ripple where a stone went into the water (water.js), under
+   the stones. */
+.ripple {
+    position: absolute;
+    z-index: 2;
+    border: 1.5px solid rgb(255 255 255 / 0.75);
+    border-radius: 50%;
+    box-shadow: 0 0 6px rgb(255 255 255 / 0.35), inset 0 0 6px rgb(255 255 255 / 0.35);
+    pointer-events: none;
+}
+
 .stone {
     position: relative;
     z-index: 1;

@@ -227,6 +227,30 @@ export class Sounds {
         }
     }
 
+    // A stone going into the water: a soft, low plop, a bubble's rising
+    // note after it, and a little wash of noise; a harder splash is
+    // louder and wetter.
+    splash(strength) {
+        if (this.ready('splash', 0.05)) {
+            const context = this.context;
+            const start = context.currentTime;
+            const loud = Math.min(1, Math.max(0.3, strength));
+            this.burst({start, duration: 0.05 + 0.08*loud, gain: 0.3*loud, attack: 0.006, filter: 'lowpass', frequency: 700, q: 0.5});
+            const oscillator = context.createOscillator();
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(260*(0.9 + Math.random()*0.2), start + 0.01);
+            oscillator.frequency.exponentialRampToValueAtTime(620, start + 0.09);
+            const envelope = context.createGain();
+            envelope.gain.setValueAtTime(0.0001, start + 0.01);
+            envelope.gain.exponentialRampToValueAtTime(0.22*loud, start + 0.02);
+            envelope.gain.exponentialRampToValueAtTime(0.0001, start + 0.11);
+            oscillator.connect(envelope).connect(this.master);
+            oscillator.start(start + 0.01);
+            this.voice(oscillator, start + 0.13);
+            this.burst({start: start + 0.03, duration: 0.18, gain: 0.08*loud, attack: 0.04, filter: 'bandpass', frequency: 2200, q: 0.4});
+        }
+    }
+
     // The rumble of stones pushed across the board: filtered noise whose
     // loudness follows how many are moving. Level 0 stops it.
     setRumble(level) {

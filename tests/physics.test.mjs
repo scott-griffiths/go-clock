@@ -2,11 +2,12 @@
 // to a stop, a stone over the edge drops and lands and stops on the table,
 // the board's side keeps a table stone off, a stone pushed off the edge lands on
 // the table, two stones in each other's way part, and in the
-// void a stone over the edge flies on, end over end, and is gone.
+// void a stone over the edge flies on, end over end, and is gone; and on
+// water a stone over the edge splashes, sinks and is gone.
 
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {StoneWorld, flatBoard, setTumbling, dropTime, voidFlightTime, lowHeight} from '../www/physics.js';
+import {StoneWorld, flatBoard, setTumbling, dropTime, voidFlightTime, lowHeight, sinkTime} from '../www/physics.js';
 
 const board = {left: 100, top: 100, right: 500, bottom: 500};
 const screen = {right: 600, bottom: 800};
@@ -198,6 +199,46 @@ test('a stone off the screen is gone', () => {
     run(w, 1, () => s.gone);
     assert.ok(s.gone);
     assert.equal(w.live().length, 0);
+});
+
+test('on water, a stone over the edge splashes as it lands, is out of reach, and is gone after sinkTime', () => {
+    const splashes = [];
+    const w = world({
+        isWater: true,
+        edgeKick: diameter*5,
+        sound: {splash: (strength) => splashes.push(['sound', strength]), knock: () => {}},
+        onSplash: (s, strength) => splashes.push([s, strength])
+    });
+    const s = w.add(stone({x: 300, y: 495, vy: 300}));
+    const other = w.add(stone({x: 300, y: 600, asleep: true}));
+    run(w, 1, () => s.sinking);
+    assert.ok(s.sinking, 'it never splashed');
+    assert.ok(!w.still(), 'the world is not still while it sinks');
+    assert.equal(splashes.length, 2);
+    assert.equal(splashes[1][0], s);
+    assert.ok(splashes[0][1] > 0);
+    // Braked hard: nothing like the speed it went in with.
+    assert.ok(s.vy < 300*0.3);
+    const splashY = s.y;
+    assert.ok(!w.reachable(s));
+    run(w, sinkTime + 0.05, () => s.gone);
+    assert.ok(s.gone, 'it never sank');
+    assert.ok(w.sink(s) === 1);
+    // It drifted only a little further, and the stone in its path was
+    // never struck.
+    assert.ok(s.y - splashY < diameter*2, `it drifted ${s.y - splashY}`);
+    assert.ok(other.asleep);
+    assert.ok(w.still());
+});
+
+test('the sinking stones can be taken out of the world to sink on elsewhere', () => {
+    const w = world({isWater: true});
+    const s = w.add(stone({x: 300, y: 501, vy: 30}));
+    run(w, 1, () => s.sinking);
+    assert.ok(s.sinking);
+    assert.deepEqual(w.takeSinking(), [s]);
+    assert.equal(w.stones.length, 0);
+    assert.ok(w.still());
 });
 
 test('sounds and haptics are told', () => {
