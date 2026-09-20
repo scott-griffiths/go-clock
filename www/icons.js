@@ -50,11 +50,11 @@ export const faceIcons = [
         + dots(12, 16, 6.25, {filled: [0]}) + '<path d="M12 16v-3.6"/>')
 ];
 
-// The speeds, slow to insane: a chevron, laid open past square for slow,
-// square for normal, doubled for fast, and doubled and pointed with a bang
-// for insane.
+// The speeds, slow to insane: a chevron, held back by a bar for slow, on
+// its own for normal, doubled for fast, and doubled and pointed with a
+// bang for insane.
 export const speedIcons = [
-    svg('<path d="M11.5 4.5l3 7.5 -3 7.5"/>'),
+    svg('<path d="M6.5 5v14M10 5l7 7 -7 7"/>'),
     svg('<path d="M8 5l7 7 -7 7"/>'),
     svg('<path d="M4.5 5l7 7 -7 7M12.5 5l7 7 -7 7"/>'),
     svg('<path d="M2.5 5l7 7 -7 7M9.5 5l7 7 -7 7M21 5v9M21 18.5v0.01"/>')
@@ -100,51 +100,21 @@ function cog(teeth, outer, inner) {
     return `<path d="${d}Z"/><circle cx="12" cy="12" r="3"/>`;
 }
 
-// The board the games are played on, cut down to five lines a side so the
-// position on it can be seen at this size: two black stones and two white,
-// the lines drawn finer than the stones and stopping short of each, as the
-// wood does under one.
+// The board the games are played on, empty and cut down to five lines a
+// side, drawn finer than the rest.
 function miniGoban() {
-    // The lines, at 3, 7.5, 12, 16.5 and 21; the stones on the second and
-    // fourth of them, black first.
-    const stones = [[7.5, 7.5, true], [16.5, 16.5, true], [16.5, 7.5, false], [7.5, 16.5, false]];
     const first = 3;
     const last = 21;
-    const radius = 2.2;
-    const gap = radius + 0.4;
-    // One line, broken wherever a stone sits on it: `down` is a line down
-    // the board, `across` its own place along the other way.
-    const line = (across, down) => {
-        const blocked = stones
-            .filter((stone) => stone[down ? 0 : 1] === across)
-            .map((stone) => stone[down ? 1 : 0])
-            .sort((a, b) => a - b);
-        let from = first;
-        let d = '';
-        [...blocked, null].forEach((at) => {
-            const to = at === null ? last : at - gap;
-            if (to > from) {
-                d += down ? `M${across} ${from}V${to}` : `M${from} ${across}H${to}`;
-            }
-            from = at + gap;
-        });
-        return d;
-    };
-
     let body = `<g stroke-width="0.9"><rect x="${first}" y="${first}" width="${last - first}" height="${last - first}" rx="0.5"/>`;
     [7.5, 12, 16.5].forEach((at) => {
-        body += `<path d="${line(at, true)}${line(at, false)}"/>`;
+        body += `<path d="M${at} ${first}V${last}M${first} ${at}H${last}"/>`;
     });
-    body += '</g>';
-    stones.forEach(([x, y, black]) => {
-        body += `<circle cx="${x}" cy="${y}" r="${radius}" stroke-width="1.6"${black ? ' fill="currentColor" stroke="none"' : ''}/>`;
-    });
-    return body;
+    return body + '</g>';
 }
 
 export const icons = {
     settings: svg(cog(8, 10.5, 7.75)),
-    // A game replayed: a goban with a position on it.
+    // A game replayed: the goban, waiting for one.
     replay: svg(miniGoban()),
     // Sound, on and off: a speaker, with waves coming off it or crossed out.
     sound: [

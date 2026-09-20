@@ -35,10 +35,10 @@
                      also places them where they fit on the screen); only one
                      is open at a time. A button's accessible name is its setting
                      and current value ("Board: Oak"). The icons (icons.js) are
-                     filled in by my-clock.js: a setting's is that of its choice. Along the top of the screen
-                     in portrait; down the left in landscape, where the board
-                     leaves the sides free. The background has no button:
-                     it is changed by swiping the surround. -->
+                     filled in by my-clock.js: a setting's is that of its choice,
+                     except the background's, whose choices are named alone.
+                     Along the top of the screen in portrait; down the left in
+                     landscape, where the board leaves the sides free. -->
                 <button id="menu-toggle" class="button menu-toggle" type="button" title="Hide the controls" aria-label="Hide the controls" aria-expanded="true" aria-controls="toolbar-actions">
                     <span aria-hidden="true"></span>
                 </button>
@@ -55,6 +55,12 @@
                         </button>
                         <div id="speed-options" class="setting-options" role="group" aria-label="Speed" hidden></div>
                     </div>
+                    <div id="background-control" class="setting-control" data-open="false">
+                        <button class="setting-summary" type="button" title="Background" aria-label="Background" aria-expanded="false" aria-controls="background-options">
+                            <span class="setting-icon" aria-hidden="true"></span>
+                        </button>
+                        <div id="background-options" class="setting-options" role="group" aria-label="Background" hidden></div>
+                    </div>
                     <!-- Not a setting: a game replayed on the board (replay.js).
                          The button drops down the shelves of games to pick
                          one from; while a game runs it is pressed instead,
@@ -68,7 +74,7 @@
                     <!-- Under one button: the clock's hours and the sound,
                          which unlike a choice leave the list open, each
                          showing where it stands (the one in its words, the
-                         other in its icon) and swapping over when clicked;
+                         other in its icon alone) and swapping over when clicked;
                          the board's wood and the precision, each a submenu
                          of choices opening out beside the list; and the
                          about box. -->
@@ -78,7 +84,7 @@
                         </button>
                         <div id="settings-options" class="setting-options" role="group" aria-label="Settings" hidden>
                             <button id="mode" class="choice-button" type="button"></button>
-                            <button id="mute" class="choice-button choice-with-trailing-icon" type="button" aria-pressed="true">
+                            <button id="mute" class="choice-button choice-with-trailing-icon" type="button">
                                 <span aria-hidden="true">Sound</span>
                                 <span class="setting-icon" aria-hidden="true"></span>
                             </button>

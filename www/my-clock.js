@@ -45,13 +45,9 @@ const woods = [
     ['Kaya', 'saturate(1.3) hue-rotate(-7deg)'],
     ['Bamboo', 'saturate(0.3) contrast(1.4) brightness(1.1) hue-rotate(-6deg)']
 ];
-// A finger on the surround that has moved this far (in CSS pixels) has
-// shown which way it is going: within this angle of level (as a slope),
-// and it is a swipe; otherwise it is the hand.
-const dragTolerance = 16;
-const swipeSlope = Math.tan(15*Math.PI/180);
-// A swipe across the surround changes the background once it is this long.
-const swipeDistance = 48;
+// Tucked away, the toggle comes back to full strength at a touch anywhere,
+// and dims again this long (in ms) after the last.
+const toggleWakeTime = 1500;
 
 const cookieKeys = new Map([
     ['background', 'goban_background'],
@@ -163,9 +159,10 @@ function haptic(kind) {
     }
 }
 
-// The backgrounds either side of the current one, fetched ahead so a swipe
-// is instant; the rest wait to be needed. (All seven at once was four and
-// a half megabytes on every first visit, most of it never looked at.)
+// The backgrounds either side of the current one, fetched ahead so the
+// arrow keys are instant; the rest wait to be needed. (All seven at once
+// was four and a half megabytes on every first visit, most of it never
+// looked at.)
 function preloadNeighbouringBackgrounds(index) {
     [index - 1, index + 1].forEach((neighbour) => {
         const image = new Image();
@@ -244,6 +241,7 @@ window.addEventListener('load', () => {
     const aboutButton = $('#about');
     const aboutBox = $('#about_box');
     let swipeToastTimer = null;
+    let toggleWakeTimer = null;
     // The settings whose choices are showing, outermost first: a submenu
     // is open only while the list it is in is.
     let openControls = [];
@@ -406,6 +404,16 @@ window.addEventListener('load', () => {
         writeSetting('menu', collapsed ? 0 : 1);
     }
 
+    // A touch anywhere brings the tucked-away toggle back to full strength
+    // for a moment, so it can be found again.
+    function wakeToggle() {
+        toolbar.dataset.awake = 'true';
+        window.clearTimeout(toggleWakeTimer);
+        toggleWakeTimer = window.setTimeout(() => {
+            toolbar.dataset.awake = 'false';
+        }, toggleWakeTime);
+    }
+
     // What a key just chose, in a button's dress, at the foot of the screen
     // for a moment. The icon is a character or one of our own SVGs.
     function showSwipeToast(icon, value, stay = 1400) {
@@ -431,6 +439,7 @@ window.addEventListener('load', () => {
     const showSpeed = createSettingControl('speed', stoneSpeeds.map(([name]) => name), stoneSpeeds.map(([name]) => name), setClockSpeed, speedIcons);
     const showWood = createSettingControl('wood', woods.map(([name]) => name), woods.map(([name]) => name), setWood);
     const showPlacement = createSettingControl('placement', placements, placements, setPlacement, precisionIcons);
+    const showBackground = createSettingControl('background', backgrounds.map(([, name]) => name), backgrounds.map(([, name]) => name), setBackground);
 
     function setClockSpeed(index) {
         stoneSpeed = wrap(index, stoneSpeeds.length);
@@ -443,7 +452,7 @@ window.addEventListener('load', () => {
     // The hours and the sound, under the settings button: each shows where
     // it stands and swaps over when clicked. The hours say which clock is
     // showing in their own words; the sound wears a speaker, crossed out
-    // while it is muted, and is pressed while it is on.
+    // while it is muted.
     function setMode(index) {
         mode = wrap(index, modes.length);
         goClock.twenty_four_hour = mode === 1;
@@ -469,7 +478,6 @@ window.addEventListener('load', () => {
         const on = sound === 1;
         sounds.setEnabled(on);
         goClock.sound = on ? sounds : null;
-        muteButton.setAttribute('aria-pressed', String(on));
         muteButton.title = on ? 'Sound on' : 'Sound off';
         muteButton.setAttribute('aria-label', muteButton.title);
         $('.setting-icon', muteButton).innerHTML = icons.sound[sound];
@@ -501,6 +509,7 @@ window.addEventListener('load', () => {
             goClock.dropTableStones();
             preloadTumbleSheets();
         }
+        showBackground(background);
         writeSetting('background', background);
     }
 
@@ -548,7 +557,7 @@ window.addEventListener('load', () => {
     }
 
     // The next (or previous) face or background, announced with a toast:
-    // what the arrow keys do, and a swipe across the surround.
+    // what the arrow keys do.
     function changeView(step) {
         setView(view + step);
         cancelReplay(goClock);
@@ -642,6 +651,7 @@ window.addEventListener('load', () => {
         });
     });
     $('#settings-control .setting-icon').innerHTML = icons.settings;
+    $('#background-control .setting-icon').innerHTML = icons.background;
     setClockSpeed(stoneSpeed);
     setView(view);
     setBackground(background);
@@ -650,81 +660,32 @@ window.addEventListener('load', () => {
     setSound(sound);
     goClock.haptic = haptic;
 
-    // The hand and the swipe: a finger on the board is the hand
+    // The hand: a finger on the board or its surround is the hand
     // (go-clock.js) from the moment it lands until it lifts, pushing the
-    // stones about. On the surround it waits to see which way it goes: a
-    // drag sideways is a swipe, changing the background once it is long
-    // enough, and any other drag is the hand, landing where the finger
-    // has got to.
+    // stones about.
     let hand = null;
-    let swipe = null;
-
-    function isOnBoard(x, y) {
-        const board = $('#goban-image')?.getBoundingClientRect();
-        return Boolean(board) && x >= board.left && x <= board.right && y >= board.top && y <= board.bottom;
-    }
-
-    function landHand(pointerId, x, y) {
-        if (goClock.fingerDown(x, y)) {
-            hand = {id: pointerId};
-            haptic('grab');
-        }
-    }
 
     goban.addEventListener('pointerdown', (event) => {
         if (!event.isPrimary) {
             return;
         }
         hand = null;
-        swipe = null;
-        if (isOnBoard(event.clientX, event.clientY)) {
-            landHand(event.pointerId, event.clientX, event.clientY);
-            if (!hand) {
-                // The board is being swept.
-                return;
-            }
-        } else {
-            swipe = {id: event.pointerId, x: event.clientX, y: event.clientY, sideways: null};
+        if (goClock.fingerDown(event.clientX, event.clientY)) {
+            hand = {id: event.pointerId};
+            haptic('grab');
+            // So the release is heard even if it lands on the toolbar.
+            goban.setPointerCapture(event.pointerId);
         }
-        // So the release is heard even if it lands on the toolbar.
-        goban.setPointerCapture(event.pointerId);
     });
     goban.addEventListener('pointermove', (event) => {
         if (hand && event.pointerId === hand.id) {
             goClock.fingerMove(event.clientX, event.clientY);
-            return;
-        }
-        if (!swipe || event.pointerId !== swipe.id) {
-            return;
-        }
-        const dx = event.clientX - swipe.x;
-        const dy = event.clientY - swipe.y;
-        if (swipe.sideways === null) {
-            if (Math.hypot(dx, dy) < dragTolerance) {
-                return;
-            }
-            swipe.sideways = Math.abs(dy) <= Math.abs(dx)*swipeSlope;
-            if (!swipe.sideways) {
-                // Not a swipe: the hand, from here.
-                swipe = null;
-                landHand(event.pointerId, event.clientX, event.clientY);
-                return;
-            }
-        }
-        if (Math.abs(dx) >= swipeDistance) {
-            swipe = null;
-            // Swiping left brings on the next one, as with pages.
-            changeBackground(dx < 0 ? 1 : -1);
         }
     });
     function endPointer(event) {
         if (hand && event.pointerId === hand.id) {
             goClock.fingerUp();
             hand = null;
-        } else if (swipe && event.pointerId === swipe.id) {
-            // Lifted before it showed which way it was going, or too soon
-            // for a swipe: a tap, which does nothing.
-            swipe = null;
         }
     }
     goban.addEventListener('pointerup', endPointer);
@@ -770,6 +731,8 @@ window.addEventListener('load', () => {
     document.addEventListener('pointerdown', closeOutside);
     document.addEventListener('touchstart', closeOutside, {passive: true});
     document.addEventListener('click', closeOutside);
+    document.addEventListener('pointerdown', wakeToggle);
+    document.addEventListener('touchstart', wakeToggle, {passive: true});
 
     openOnClick($('#settings-control'));
     muteButton.addEventListener('click', () => setSound(sound === 1 ? 0 : 1));
