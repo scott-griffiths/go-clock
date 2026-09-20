@@ -313,6 +313,20 @@ body {
     text-align: center;
 }
 
+/* The faces' icons (face-icons.js), the size of the characters. */
+.setting-icon svg {
+    display: block;
+    width: 22px;
+    height: 22px;
+}
+
+/* A choice with an icon before its name. */
+.choice-with-icon {
+    grid-template-columns: 22px max-content;
+    gap: 8px;
+    padding-left: 6px;
+}
+
 .setting-options {
     position: fixed;
     top: 0;

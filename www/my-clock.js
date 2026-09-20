@@ -3,6 +3,7 @@ import {Sounds} from './sounds.js';
 import {preloadTumbleSheets} from './flight.js';
 import {startReplay, cancelReplay, loadGame, nextGameFile} from './replay.js';
 import {gameTitle, gameResult} from './sgf.js';
+import {faceIcons} from './face-icons.js';
 
 const $ = (selector, scope = document) => scope.querySelector(selector);
 const $$ = (selector, scope = document) => [...scope.querySelectorAll(selector)];
@@ -242,20 +243,28 @@ window.addEventListener('load', () => {
 
     // A setting control is a button named for the setting that drops its
     // choices down (`.setting-summary` in the row; `.submenu-button` in a
-    // list, which also shows the value). Returns a setter that marks the
-    // chosen option and puts the value in the button's accessible name.
-    function createSettingControl(name, labels, values, onSelect) {
+    // list, which also shows the value). Given `icons` (SVG markup, one a
+    // choice), each choice wears its icon, and the row's button the icon
+    // of the current choice. Returns a setter that marks the chosen option
+    // and puts the value in the button's accessible name.
+    function createSettingControl(name, labels, values, onSelect, icons = null) {
         const control = $(`#${name}-control`);
         const summary = summaryOf(control);
         const options = $('.setting-options', control);
         const settingName = summary.getAttribute('aria-label');
         const valueLabel = $('.setting-value', summary);
+        const summaryIcon = $('.setting-icon', summary);
 
         labels.forEach((label, index) => {
             const button = document.createElement('button');
             button.type = 'button';
             button.className = 'choice-button';
-            button.textContent = label;
+            if (icons) {
+                button.classList.add('choice-with-icon');
+                button.innerHTML = `<span class="setting-icon" aria-hidden="true">${icons[index]}</span><span>${label}</span>`;
+            } else {
+                button.textContent = label;
+            }
             button.title = values[index];
             button.dataset.index = String(index);
             button.setAttribute('aria-label', values[index]);
@@ -278,6 +287,9 @@ window.addEventListener('load', () => {
             summary.title = `${settingName}: ${values[activeIndex]}`;
             if (valueLabel) {
                 valueLabel.textContent = labels[activeIndex];
+            }
+            if (icons) {
+                summaryIcon.innerHTML = icons[activeIndex];
             }
             $$('.choice-button', options).forEach((button) => {
                 button.setAttribute('aria-pressed', String(Number(button.dataset.index) === activeIndex));
@@ -374,9 +386,10 @@ window.addEventListener('load', () => {
         writeSetting('menu', collapsed ? 0 : 1);
     }
 
-    // What a key just chose, in a button's dress, at the foot of the screen for a moment.
+    // What a key just chose, in a button's dress, at the foot of the screen
+    // for a moment. The icon is a character or one of our own SVGs.
     function showSwipeToast(icon, value, stay = 1400) {
-        $('#swipe-toast-icon').textContent = icon;
+        $('#swipe-toast-icon').innerHTML = icon;
         $('#swipe-toast-value').textContent = value;
         window.clearTimeout(swipeToastTimer);
         swipeToast.getAnimations?.().forEach((animation) => animation.cancel());
@@ -394,7 +407,7 @@ window.addEventListener('load', () => {
         setView(index);
         cancelReplay(goClock);
         goClock.transform();
-    });
+    }, faceIcons);
     const showSpeed = createSettingControl('speed', stoneSpeeds.map(([name]) => name), stoneSpeeds.map(([name]) => name), setClockSpeed);
     const showWood = createSettingControl('wood', woods.map(([name]) => name), woods.map(([name]) => name), setWood);
     const showPlacement = createSettingControl('placement', placementOptionLabels, placements, setPlacement);
@@ -507,7 +520,7 @@ window.addEventListener('load', () => {
         setView(view + step);
         cancelReplay(goClock);
         goClock.transform();
-        showSwipeToast('◷', views[view]);
+        showSwipeToast(faceIcons[view], views[view]);
     }
 
     function changeBackground(step) {
