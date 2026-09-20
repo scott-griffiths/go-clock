@@ -207,10 +207,11 @@ function liberties(board, group) {
 }
 
 // How to speak of a game: the players and the year, from the record's
-// properties ("Shusaku – Gennan Inseki, 1846").
+// properties ("Shusaku – Gennan Inseki, 1846"). Where the date of play is
+// unknown, Brouwer's records give the date of publication as DTX instead.
 export function gameTitle(info) {
     const players = [info.PB?.[0], info.PW?.[0]].filter(Boolean).join(' – ');
-    const year = info.DT?.[0]?.match(/\d{4}/)?.[0];
+    const year = (info.DT?.[0] ?? info.DTX?.[0])?.match(/\d{4}/)?.[0];
     return [players, year].filter(Boolean).join(', ') || 'A game';
 }
 
