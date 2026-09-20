@@ -1,6 +1,7 @@
 // The toolbar's line icons, as SVG markup: one per clock face, drawn as
 // each looks at 10:09 (hands or digits alike) and indexed as the views
-// are (faces.js); one per speed; and the rest of the buttons and toasts.
+// are (faces.js); one per speed; one per precision; one per shelf of
+// games; and the rest of the buttons and toasts.
 // A setting's button wears the icon of its current choice, and so does
 // each choice beside its name. Stroked in the text colour, so they take
 // a button's colour when it is pressed.
@@ -49,14 +50,40 @@ export const faceIcons = [
         + dots(12, 16, 6.25, {filled: [0]}) + '<path d="M12 16v-3.6"/>')
 ];
 
-// The speeds, slow to insane: a chevron, laid open for slow, doubled for
-// fast, and doubled and pointed with a bang for insane.
+// The speeds, slow to insane: a chevron, laid open past square for slow,
+// square for normal, doubled for fast, and doubled and pointed with a bang
+// for insane.
 export const speedIcons = [
-    svg('<path d="M6 6.5l11 5.5 -11 5.5"/>'),
+    svg('<path d="M11.5 4.5l3 7.5 -3 7.5"/>'),
     svg('<path d="M8 5l7 7 -7 7"/>'),
     svg('<path d="M4.5 5l7 7 -7 7M12.5 5l7 7 -7 7"/>'),
     svg('<path d="M2.5 5l7 7 -7 7M9.5 5l7 7 -7 7M21 5v9M21 18.5v0.01"/>')
 ];
+
+// The precisions: a target, and the stone put down on it. Exact hits the
+// middle; organic is a little off it; careless is off the inner ring
+// altogether.
+const target = (x, y) => '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.75"/>'
+    + `<circle cx="${x}" cy="${y}" r="1.5" fill="currentColor" stroke="none"/>`;
+
+export const precisionIcons = [
+    svg(target(12, 12)),
+    svg(target(13.6, 10.6)),
+    svg(target(16.3, 15))
+];
+
+// The shelves of games (replay.js): a hanging scroll for the old castle
+// games, a cup for the modern title matches and international finals, and
+// a chip for the games an engine played.
+export const gameIcons = {
+    historical: svg('<path d="M4 4.5h16M4 19.5h16"/><path d="M6.5 4.5v15M17.5 4.5v15"/>'
+        + '<path d="M9.5 8.5h5M9.5 12h5M9.5 15.5h3"/>'),
+    modern: svg('<path d="M8 4h8v4.5a4 4 0 0 1 -8 0Z"/>'
+        + '<path d="M8 5.75H5.25v1.25a3.5 3.5 0 0 0 2.9 3.45M16 5.75h2.75v1.25a3.5 3.5 0 0 1 -2.9 3.45"/>'
+        + '<path d="M12 12.5v3.5M9.6 16h4.8l1.4 4h-7.6Z"/>'),
+    ai: svg('<rect x="7" y="7" width="10" height="10" rx="1.5"/><rect x="10.5" y="10.5" width="3" height="3"/>'
+        + '<path d="M10 7V3.75M14 7V3.75M10 20.25V17M14 20.25V17M7 10H3.75M7 14H3.75M20.25 10H17M20.25 14H17"/>')
+};
 
 // A cog: `teeth` of them round a ring, and the hole.
 function cog(teeth, outer, inner) {
@@ -73,10 +100,57 @@ function cog(teeth, outer, inner) {
     return `<path d="${d}Z"/><circle cx="12" cy="12" r="3"/>`;
 }
 
+// The board the games are played on, cut down to five lines a side so the
+// position on it can be seen at this size: two black stones and two white,
+// the lines drawn finer than the stones and stopping short of each, as the
+// wood does under one.
+function miniGoban() {
+    // The lines, at 3, 7.5, 12, 16.5 and 21; the stones on the second and
+    // fourth of them, black first.
+    const stones = [[7.5, 7.5, true], [16.5, 16.5, true], [16.5, 7.5, false], [7.5, 16.5, false]];
+    const first = 3;
+    const last = 21;
+    const radius = 2.2;
+    const gap = radius + 0.4;
+    // One line, broken wherever a stone sits on it: `down` is a line down
+    // the board, `across` its own place along the other way.
+    const line = (across, down) => {
+        const blocked = stones
+            .filter((stone) => stone[down ? 0 : 1] === across)
+            .map((stone) => stone[down ? 1 : 0])
+            .sort((a, b) => a - b);
+        let from = first;
+        let d = '';
+        [...blocked, null].forEach((at) => {
+            const to = at === null ? last : at - gap;
+            if (to > from) {
+                d += down ? `M${across} ${from}V${to}` : `M${from} ${across}H${to}`;
+            }
+            from = at + gap;
+        });
+        return d;
+    };
+
+    let body = `<g stroke-width="0.9"><rect x="${first}" y="${first}" width="${last - first}" height="${last - first}" rx="0.5"/>`;
+    [7.5, 12, 16.5].forEach((at) => {
+        body += `<path d="${line(at, true)}${line(at, false)}"/>`;
+    });
+    body += '</g>';
+    stones.forEach(([x, y, black]) => {
+        body += `<circle cx="${x}" cy="${y}" r="${radius}" stroke-width="1.6"${black ? ' fill="currentColor" stroke="none"' : ''}/>`;
+    });
+    return body;
+}
+
 export const icons = {
     settings: svg(cog(8, 10.5, 7.75)),
-    // A game replayed: play.
-    replay: svg('<path d="M7.5 4.5l12 7.5 -12 7.5Z"/>'),
+    // A game replayed: a goban with a position on it.
+    replay: svg(miniGoban()),
+    // Sound, on and off: a speaker, with waves coming off it or crossed out.
+    sound: [
+        svg('<path d="M4 9.25h3.4L12 5.25v13.5L7.4 14.75H4Z"/><path d="M15.5 9l5.5 5.5M21 9l-5.5 5.5"/>'),
+        svg('<path d="M4 9.25h3.4L12 5.25v13.5L7.4 14.75H4Z"/><path d="M15.25 9.25a4.5 4.5 0 0 1 0 5.5M18 6.75a8 8 0 0 1 0 10.5"/>')
+    ],
     // The background: a picture in a frame.
     background: svg('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 16.5l5 -5 4.5 4.5 3 -3 5.5 5.5"/><circle cx="15.5" cy="8.5" r="1.5"/>'),
     // The toggle for the rest of the row: a cross while they show, a

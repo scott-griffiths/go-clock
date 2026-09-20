@@ -55,23 +55,33 @@
                         </button>
                         <div id="speed-options" class="setting-options" role="group" aria-label="Speed" hidden></div>
                     </div>
-                    <!-- Not a setting: a game replayed on the board (replay.js),
-                         pressed while it runs. -->
-                    <button id="replay" class="button replay-button" type="button" title="Replay a game" aria-label="Replay a game" aria-pressed="false">
-                        <span class="setting-icon" aria-hidden="true"></span>
-                    </button>
-                    <!-- Under one button: two toggles, the 24-hour clock and
-                         sound, which unlike a choice leave the list open; the
-                         board's wood and the precision, each a submenu of
-                         choices opening out beside the list; and the about
-                         box. -->
+                    <!-- Not a setting: a game replayed on the board (replay.js).
+                         The button drops down the shelves of games to pick
+                         one from; while a game runs it is pressed instead,
+                         and stops it. -->
+                    <div id="replay-control" class="setting-control" data-open="false">
+                        <button id="replay" class="setting-summary" type="button" title="Replay a game" aria-label="Replay a game" aria-expanded="false" aria-controls="replay-options" aria-pressed="false">
+                            <span class="setting-icon" aria-hidden="true"></span>
+                        </button>
+                        <div id="replay-options" class="setting-options" role="group" aria-label="Replay a game" hidden></div>
+                    </div>
+                    <!-- Under one button: the clock's hours and the sound,
+                         which unlike a choice leave the list open, each
+                         showing where it stands (the one in its words, the
+                         other in its icon) and swapping over when clicked;
+                         the board's wood and the precision, each a submenu
+                         of choices opening out beside the list; and the
+                         about box. -->
                     <div id="settings-control" class="setting-control" data-open="false">
                         <button class="setting-summary" type="button" title="Settings" aria-label="Settings" aria-expanded="false" aria-controls="settings-options">
                             <span class="setting-icon" aria-hidden="true"></span>
                         </button>
                         <div id="settings-options" class="setting-options" role="group" aria-label="Settings" hidden>
-                            <button id="mode" class="choice-button" type="button" aria-pressed="true">24-hour clock</button>
-                            <button id="mute" class="choice-button" type="button" aria-pressed="true">Sound</button>
+                            <button id="mode" class="choice-button" type="button"></button>
+                            <button id="mute" class="choice-button choice-with-trailing-icon" type="button" aria-pressed="true">
+                                <span aria-hidden="true">Sound</span>
+                                <span class="setting-icon" aria-hidden="true"></span>
+                            </button>
                             <div id="wood-control" class="setting-control" data-open="false">
                                 <button class="choice-button submenu-button" type="button" title="Board" aria-label="Board" aria-expanded="false" aria-controls="wood-options">
                                     <span aria-hidden="true">Board</span>
@@ -80,7 +90,8 @@
                                 <div id="wood-options" class="setting-options" role="group" aria-label="Board" hidden></div>
                             </div>
                             <div id="placement-control" class="setting-control" data-open="false">
-                                <button class="choice-button submenu-button" type="button" title="Precision" aria-label="Precision" aria-expanded="false" aria-controls="placement-options">
+                                <button class="choice-button submenu-button submenu-with-icon" type="button" title="Precision" aria-label="Precision" aria-expanded="false" aria-controls="placement-options">
+                                    <span class="setting-icon" aria-hidden="true"></span>
                                     <span aria-hidden="true">Precision</span>
                                     <span class="setting-value" aria-hidden="true"></span>
                                 </button>

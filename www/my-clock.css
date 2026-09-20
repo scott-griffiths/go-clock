@@ -229,21 +229,12 @@ body {
     box-shadow: 0 3px 14px rgb(0 0 0 / 0.32);
 }
 
-.menu-toggle,
-.replay-button {
+.menu-toggle {
     width: 42px;
     height: 42px;
     min-height: 42px;
     padding: 0;
     background: rgb(0 0 0 / 0.7);
-}
-
-.replay-button[aria-pressed="true"] {
-    background: rgb(255 255 255 / 0.85);
-    color: black;
-}
-
-.menu-toggle {
     opacity: 0.85;
 }
 
@@ -313,6 +304,13 @@ body {
     color: #261917;
 }
 
+/* A button that is a toggle as well as a list (the replay): pressed while
+   what it started is running. */
+.setting-summary[aria-pressed="true"] {
+    background: rgb(255 255 255 / 0.85);
+    color: #261917;
+}
+
 .setting-icon {
     width: 22px;
 }
@@ -324,11 +322,18 @@ body {
     height: 22px;
 }
 
-/* A choice with an icon before its name. */
+/* A choice with an icon before its name, or after it (a toggle whose
+   icon is what it shows: the sound). */
 .choice-with-icon {
     grid-template-columns: 22px max-content;
     gap: 8px;
     padding-left: 6px;
+}
+
+.choice-with-trailing-icon {
+    grid-template-columns: max-content 22px;
+    gap: 10px;
+    padding-right: 6px;
 }
 
 .setting-options {
@@ -369,10 +374,16 @@ body {
     color: #261917;
 }
 
-/* A submenu's button: its name, the current choice, and an arrow. */
+/* A submenu's button: its name, the current choice, and an arrow; and,
+   where its choices have icons, the icon of the current one before them. */
 .submenu-button {
     grid-template-columns: max-content max-content;
     gap: 8px;
+}
+
+.submenu-with-icon {
+    grid-template-columns: 22px max-content max-content;
+    padding-left: 6px;
 }
 
 .submenu-button .setting-value {
@@ -433,14 +444,12 @@ body {
     }
 
     .menu-toggle,
-    .replay-button,
     .toolbar .setting-summary {
         width: 38px;
         min-height: 38px;
     }
 
-    .menu-toggle,
-    .replay-button {
+    .menu-toggle {
         height: 38px;
     }
 }

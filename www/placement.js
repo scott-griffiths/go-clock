@@ -1,4 +1,4 @@
-// Where a stone lies on its point: not exactly on it, unless the placement
+// Where a stone lies on its point: not exactly on it, unless the precision
 // is "exact", but a little off, as a hand would leave it. A stone lands
 // with a small random offset (bigger the faster the hand and the more
 // careless the placement); a stone that lands too close to a neighbour
@@ -16,9 +16,6 @@ function disorderRadius(clock) {
     }
     // Haste (the settings run from 12 to 80) makes for sloppier landings.
     var speedRatio = Math.pow(Math.max(0, Math.min(1, (clock.speed - 12)/68)), 0.7);
-    if (clock.placement == 3) {
-        return 0.08 + 0.26*speedRatio;
-    }
     if (clock.placement == 2) {
         return 0.045 + 0.145*speedRatio;
     }
@@ -28,9 +25,6 @@ function disorderRadius(clock) {
 function maxOffsetRadius(clock) {
     if (clock.placement == 0) {
         return 0;
-    }
-    if (clock.placement == 3) {
-        return 0.4;
     }
     if (clock.placement == 2) {
         return 0.28;
@@ -93,9 +87,6 @@ function alignmentTargetRadius(clock) {
     if (clock.placement == 0) {
         return 0.004;
     }
-    if (clock.placement == 3) {
-        return 0.095;
-    }
     if (clock.placement == 2) {
         return 0.07;
     }
@@ -124,7 +115,8 @@ function alignedOffset(clock, index) {
 }
 
 function findAlignmentMove(clock, hand, reserved) {
-    if (clock.placement >= 2) {
+    // Careless hands do not go back to tidy up.
+    if (clock.placement == 2) {
         return null;
     }
 

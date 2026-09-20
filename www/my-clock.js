@@ -1,9 +1,9 @@
 import {GoClock} from './go-clock.js';
 import {Sounds} from './sounds.js';
 import {preloadTumbleSheets} from './flight.js';
-import {startReplay, cancelReplay, loadGame, nextGameFile} from './replay.js';
+import {startReplay, cancelReplay, loadGame, nextGameFile, gameCategories} from './replay.js';
 import {gameTitle, gameResult} from './sgf.js';
-import {faceIcons, speedIcons, icons} from './icons.js';
+import {faceIcons, speedIcons, precisionIcons, gameIcons, icons} from './icons.js';
 
 const $ = (selector, scope = document) => scope.querySelector(selector);
 const $$ = (selector, scope = document) => [...scope.querySelectorAll(selector)];
@@ -38,9 +38,8 @@ const views = ['Analogue', 'Jumping hour', 'Digital', 'Hybrid'];
 // difference: a slow player is slow to reach for the next stone, not slow
 // in carrying it.
 const stoneSpeeds = [['Slow', 18, 500], ['Normal', 26, 180], ['Fast', 45, 60], ['Insane!', 80, 15]];
-const placements = ['Exact', 'Organic', 'Careless', 'Haphazard'];
-const placementOptionLabels = ['Exact', 'Organic', 'Careless', 'Meh'];
-const modes = ['12-hour', '24-hour'];
+const placements = ['Exact', 'Organic', 'Careless'];
+const modes = ['12-hour clock', '24-hour clock'];
 const woods = [
     ['Oak', 'saturate(0.8) hue-rotate(-12deg) sepia(0.5)'],
     ['Kaya', 'saturate(1.3) hue-rotate(-7deg)'],
@@ -227,7 +226,9 @@ window.addEventListener('load', () => {
     let view = readIndex('view', 0, views.length);
     let mode = readIndex('mode', 1, modes.length);
     let wood = readIndex('wood', 0, woods.length);
-    let placement = readIndex('placement', 1, placements.length);
+    // The sloppiest placement (the old fourth choice) has gone: a stored
+    // index beyond the end is the sloppiest that is left.
+    let placement = Math.min(readIndex('placement', 1, placements.length + 1), placements.length - 1);
     // Sound is on unless it has been muted.
     let sound = readIndex('sound', 1, 2);
     const sounds = new Sounds();
@@ -237,6 +238,7 @@ window.addEventListener('load', () => {
     const menuToggle = $('#menu-toggle');
     const modeButton = $('#mode');
     const muteButton = $('#mute');
+    const replayControl = $('#replay-control');
     const replayButton = $('#replay');
     const swipeToast = $('#swipe-toast');
     const aboutButton = $('#about');
@@ -261,28 +263,14 @@ window.addEventListener('load', () => {
         const summaryIcon = $('.setting-icon', summary);
 
         labels.forEach((label, index) => {
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.className = 'choice-button';
-            if (icons) {
-                button.classList.add('choice-with-icon');
-                button.innerHTML = `<span class="setting-icon" aria-hidden="true">${icons[index]}</span><span>${label}</span>`;
-            } else {
-                button.textContent = label;
-            }
-            button.title = values[index];
-            button.dataset.index = String(index);
-            button.setAttribute('aria-label', values[index]);
-            button.setAttribute('aria-pressed', 'false');
-            button.addEventListener('click', (event) => {
-                onSelect(index);
-                setOpenControl(null);
-                // Keyboard users land back on the button.
-                if (event.detail === 0) {
-                    summary.focus({preventScroll: true});
-                }
+            const button = addChoice(options, summary, {
+                label,
+                value: values[index],
+                icon: icons?.[index],
+                onChoose: () => onSelect(index)
             });
-            options.append(button);
+            button.dataset.index = String(index);
+            button.setAttribute('aria-pressed', 'false');
         });
 
         openOnClick(control);
@@ -293,13 +281,40 @@ window.addEventListener('load', () => {
             if (valueLabel) {
                 valueLabel.textContent = labels[activeIndex];
             }
-            if (icons) {
+            if (icons && summaryIcon) {
                 summaryIcon.innerHTML = icons[activeIndex];
             }
             $$('.choice-button', options).forEach((button) => {
                 button.setAttribute('aria-pressed', String(Number(button.dataset.index) === activeIndex));
             });
         };
+    }
+
+    // One choice in a list: its name, the icon of what it chooses where
+    // there is one, and what it does. Choosing closes the lists, and a
+    // keyboard lands back on the button that opened them.
+    function addChoice(options, summary, {label, value, icon, onChoose}) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'choice-button';
+        if (icon) {
+            button.classList.add('choice-with-icon');
+            button.innerHTML = `<span class="setting-icon" aria-hidden="true">${icon}</span><span>${label}</span>`;
+        } else {
+            button.textContent = label;
+        }
+        button.title = value;
+        button.setAttribute('aria-label', value);
+        button.addEventListener('click', (event) => {
+            onChoose();
+            setOpenControl(null);
+            // Keyboard users land back on the button.
+            if (event.detail === 0) {
+                summary.focus({preventScroll: true});
+            }
+        });
+        options.append(button);
+        return button;
     }
 
     function summaryOf(control) {
@@ -415,7 +430,7 @@ window.addEventListener('load', () => {
     }, faceIcons);
     const showSpeed = createSettingControl('speed', stoneSpeeds.map(([name]) => name), stoneSpeeds.map(([name]) => name), setClockSpeed, speedIcons);
     const showWood = createSettingControl('wood', woods.map(([name]) => name), woods.map(([name]) => name), setWood);
-    const showPlacement = createSettingControl('placement', placementOptionLabels, placements, setPlacement);
+    const showPlacement = createSettingControl('placement', placements, placements, setPlacement, precisionIcons);
 
     function setClockSpeed(index) {
         stoneSpeed = wrap(index, stoneSpeeds.length);
@@ -425,13 +440,16 @@ window.addEventListener('load', () => {
         writeSetting('pace', stoneSpeed);
     }
 
-    // The mode and sound buttons, under the settings button, are toggles,
-    // pressed while they are on.
+    // The hours and the sound, under the settings button: each shows where
+    // it stands and swaps over when clicked. The hours say which clock is
+    // showing in their own words; the sound wears a speaker, crossed out
+    // while it is muted, and is pressed while it is on.
     function setMode(index) {
         mode = wrap(index, modes.length);
         goClock.twenty_four_hour = mode === 1;
-        modeButton.setAttribute('aria-pressed', String(mode === 1));
-        modeButton.title = modes[mode];
+        modeButton.textContent = modes[mode];
+        modeButton.title = `Showing the ${modes[mode]}`;
+        modeButton.setAttribute('aria-label', modeButton.title);
         writeSetting('mode', mode);
         describeBoard();
     }
@@ -453,6 +471,8 @@ window.addEventListener('load', () => {
         goClock.sound = on ? sounds : null;
         muteButton.setAttribute('aria-pressed', String(on));
         muteButton.title = on ? 'Sound on' : 'Sound off';
+        muteButton.setAttribute('aria-label', muteButton.title);
+        $('.setting-icon', muteButton).innerHTML = icons.sound[sound];
         writeSetting('sound', sound);
     }
 
@@ -484,38 +504,46 @@ window.addEventListener('load', () => {
         writeSetting('background', background);
     }
 
-    // A game replayed on the board (replay.js): the button starts one, and
-    // while it runs is pressed, and stops it. The game is named as it
-    // starts, and its result given as it ends.
+    // A game replayed on the board (replay.js): the button drops down the
+    // shelves of games (historical, modern, and the games an engine
+    // played), and one from the shelf chosen is replayed; while it runs
+    // the button is pressed instead, and stops it. The game is named as it
+    // starts, under the icon of its shelf, and its result given as it ends.
     function setReplaying(on) {
         replayButton.setAttribute('aria-pressed', String(on));
         replayButton.title = on ? 'Stop the replay' : 'Replay a game';
         replayButton.setAttribute('aria-label', replayButton.title);
     }
 
-    function toggleReplay() {
-        if (goClock.replay) {
-            cancelReplay(goClock);
-            return;
-        }
-        const began = startReplay(goClock, loadGame(`games/${nextGameFile()}`), {
-            onStart: (game) => showSwipeToast(icons.replay, gameTitle(game.info), 4000),
+    // A game from one shelf, or, for the key, from any of them.
+    function startGame(category = null) {
+        const icon = category ? gameIcons[category.key] : icons.replay;
+        const began = startReplay(goClock, loadGame(`games/${nextGameFile(category?.files)}`), {
+            onStart: (game) => showSwipeToast(icon, gameTitle(game.info), 4000),
             onRest: (game) => {
                 const result = gameResult(game.info);
                 if (result) {
-                    showSwipeToast(icons.replay, result, 3000);
+                    showSwipeToast(icon, result, 3000);
                 }
             },
             onEnd: (error) => {
                 setReplaying(false);
                 if (error) {
                     console.error('The game could not be replayed', error);
-                    showSwipeToast(icons.replay, 'No game to replay');
+                    showSwipeToast(icon, 'No game to replay');
                 }
             }
         });
         if (began) {
             setReplaying(true);
+        }
+    }
+
+    function toggleReplay() {
+        if (goClock.replay) {
+            cancelReplay(goClock);
+        } else {
+            startGame();
         }
     }
 
@@ -605,6 +633,14 @@ window.addEventListener('load', () => {
     }
 
     $('#replay .setting-icon').innerHTML = icons.replay;
+    gameCategories.forEach((category) => {
+        addChoice($('.setting-options', replayControl), replayButton, {
+            label: category.label,
+            value: category.title,
+            icon: gameIcons[category.key],
+            onChoose: () => startGame(category)
+        });
+    });
     $('#settings-control .setting-icon').innerHTML = icons.settings;
     setClockSpeed(stoneSpeed);
     setView(view);
@@ -737,7 +773,16 @@ window.addEventListener('load', () => {
 
     openOnClick($('#settings-control'));
     muteButton.addEventListener('click', () => setSound(sound === 1 ? 0 : 1));
-    replayButton.addEventListener('click', toggleReplay);
+    // The replay button opens its shelves, unless a game is running, in
+    // which case it stops it.
+    replayButton.addEventListener('click', () => {
+        if (goClock.replay) {
+            cancelReplay(goClock);
+            setOpenControl(null);
+        } else {
+            setOpenControl(replayControl.dataset.open === 'true' ? null : replayControl);
+        }
+    });
     modeButton.addEventListener('click', () => {
         setMode(mode === 1 ? 0 : 1);
         goClock.transform();
