@@ -35,10 +35,14 @@ if (typeof Image !== 'undefined') {
 
 // The table is a little further from the eye than the board, so a stone
 // lying on it is drawn a little smaller: the transform for one that has
-// dropped this far (0 to 1) off the edge.
+// dropped this far (0 to 1) off the edge; and one that has ridden `lift`
+// (0 to 1, physics.js) of the way up onto another stone is that much
+// nearer, and a little bigger for it.
 export const tableStoneScale = 0.92;
-export function tableTransform(drop = 1) {
-    return `scale(${1 - (1 - tableStoneScale)*Math.max(0, Math.min(1, drop))})`;
+export const rideScale = 0.07;
+export function tableTransform(drop = 1, lift = 0) {
+    const table = 1 - (1 - tableStoneScale)*Math.max(0, Math.min(1, drop));
+    return `scale(${table*(1 + rideScale*lift)})`;
 }
 
 export const $ = (selector, scope = document) => scope.querySelector(selector);
@@ -202,8 +206,25 @@ export function looseStone(goban, diameter, src, colour, x, y) {
 
 // A stone's element as it lies on the table, or drops onto it: `drop`
 // (0 to 1) of the way down, the shadow up in the air and the stone that
-// little smaller for being further away.
-export function drawOnTable(element, drop, translate = '') {
-    setStoneShadow(element, drop < 1 ? 8*Math.sin(drop*Math.PI) : 0);
-    element.style.transform = `${translate} ${tableTransform(drop)}`.trim();
+// little smaller for being further away; and up on another stone by
+// `lift`, if it has ridden up one.
+export function drawOnTable(element, drop, translate = '', lift = 0) {
+    setStoneShadow(element, drop < 1 ? 8*Math.sin(drop*Math.PI) : rideHeight*lift);
+    element.style.transform = `${translate} ${tableTransform(drop, lift)}`.trim();
+    element.classList.toggle('riding', lift > 0);
+}
+
+// How high a stone ridden fully up onto another stands, in the units of
+// setStoneShadow: a bit of a stone's thickness, not a hand's lift.
+export const rideHeight = 3;
+
+// A stone's element as it lies on the board, ridden `lift` of the way up
+// onto another stone or not, and drawn over the one beneath if so.
+export function drawOnBoard(element, lift, translate = '') {
+    const scale = lift > 0 ? `scale(${1 + rideScale*lift})` : '';
+    element.style.transform = `${translate} ${scale}`.trim();
+    if (lift > 0 || element.classList.contains('riding')) {
+        setStoneShadow(element, rideHeight*lift);
+        element.classList.toggle('riding', lift > 0);
+    }
 }

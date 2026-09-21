@@ -17,12 +17,21 @@
 // knock sends both up. On water (`isWater`) the drop ends in a splash
 // rather than a landing: the stone is braked hard, beyond the reach of
 // the others, and sinks out of sight in `sinkTime`. Stones in each other's
-// way push apart and bounce a little. A stone off the screen is gone too.
+// way push apart and bounce a little; but a stone shoved hard and kept
+// shoved into another may ride up onto it instead, the way a lens-shaped
+// stone climbs the bevel of the one in front, and lie part over it until
+// it slides off and comes down again — so the stones pile up a little
+// where they are pushed together. A stone off the screen is gone too.
 //
 // Each stone is a plain object; the world reads and writes these fields
 // and ignores whatever else the caller keeps on it (an element, a colour):
 //   x, y, r     centre and radius, in px
 //   vx, vy      velocity, in px/s
+//   lift        how far it has ridden up onto another stone, 0 (flat on
+//               the board or table) to 1 (as high as it goes); onTop and
+//               pressed, whether it is over a lower stone just now, and
+//               being pushed into it; climbs, whether it is a stone that
+//               climbs at all (decided at its first hard shove)
 //   asleep      lying still and taking no part until struck (the sweep's
 //               stones before they let go; the heap already on the table)
 //   offBoard    over the edge; leftAt is the world time it went
@@ -44,11 +53,29 @@
 // The drop from the board's edge to the table, in seconds in the air.
 export const dropTime = 0.12;
 // How long a stone left alone takes to rise out of sight in space.
-export const voidFlightTime = 4.5;
-// Below this height a flying stone is still low enough to hit others.
-export const lowHeight = 0.3;
+export const voidFlightTime = 9;
+// How much faster (per second, in the units of `height`) a knock sends
+// both stones up, at the least, and for each board-height a second they
+// came together at: enough that a stone knocked into another sends it
+// off, and is itself soon over the heads of the rest.
+export const knockLift = 0.6;
+const knockLiftPerSpeed = 4;
+// Below this height a flying stone is still low enough to hit others,
+// and within this much of another's height to hit that one.
+export const lowHeight = 0.15;
+export const stoneDepth = 0.06;
 // How long a stone takes to sink out of sight, in seconds from the splash.
 export const sinkTime = 0.7;
+// Riding up: how far over a lower stone a stone fully up on it may lie,
+// as a share of their radii together; how fast (in stone diameters a
+// second) one has to be shoved into another to start climbing, and what
+// share of stones climb at all; and how long the climb takes, and the
+// slide back down, in seconds.
+export const pileOverlap = 0.45;
+const climbSpeed = 3;
+const climbers = 0.35;
+const riseTime = 0.2;
+const fallTime = 0.15;
 
 export class StoneWorld {
     // board: {left, top, right, bottom}; screen: {right, bottom}; diameter
@@ -79,6 +106,7 @@ export class StoneWorld {
     }
 
     add(stone) {
+        stone.lift = stone.lift || 0;
         this.stones.push(stone);
         return stone;
     }
@@ -98,6 +126,13 @@ export class StoneWorld {
         this.stones.forEach((stone) => {
             if (stone.gone || stone.asleep) {
                 return;
+            }
+            // Up onto the stone it is being pushed into; held there while
+            // it lies over it; and down again once it has slid off.
+            if (stone.pressed) {
+                stone.lift = Math.min(1, stone.lift + dt/riseTime);
+            } else if (stone.lift > 0 && !stone.onTop) {
+                stone.lift = Math.max(0, stone.lift - dt/fallTime);
             }
             if (!stone.offBoard && (this.beyondEdge(stone) || (this.isVoid && this.speedOf(stone) > 0))) {
                 this.leave(stone);
@@ -281,10 +316,19 @@ export class StoneWorld {
 
     // Stones in each other's way: push apart, and bounce a little (less
     // on the table). A stone that is struck wakes. In space a knock sends
-    // both stones up, the harder the more. Returns whether any two touched.
+    // both stones up, the harder the more. Two stones at different
+    // heights may lie closer, the higher part over the lower (see
+    // pileOverlap); and where one is shoved hard into another as high as
+    // itself, the faster of the two starts to ride up (not in space,
+    // where a knock sends them flying instead). Returns whether any two
+    // touched.
     collide() {
         let any = false;
         const {stones} = this;
+        stones.forEach((stone) => {
+            stone.onTop = false;
+            stone.pressed = false;
+        });
         for (let a = 0; a < stones.length; ++a) {
             const p = stones[a];
             if (!this.reachable(p)) {
@@ -292,7 +336,7 @@ export class StoneWorld {
             }
             for (let b = a + 1; b < stones.length; ++b) {
                 const q = stones[b];
-                if (!this.reachable(q) || (p.asleep && q.asleep)) {
+                if (!this.reachable(q) || (p.asleep && q.asleep) || Math.abs(heightOf(p) - heightOf(q)) > stoneDepth) {
                     continue;
                 }
                 const dx = q.x - p.x;
@@ -303,9 +347,18 @@ export class StoneWorld {
                     continue;
                 }
                 any = true;
+                const step = Math.abs(p.lift - q.lift);
+                const upper = p.lift > q.lift ? p : q;
+                if (step > 0) {
+                    upper.onTop = true;
+                }
+                const closest = reach*(1 - pileOverlap*step);
+                if (distance >= closest) {
+                    continue;
+                }
                 const nx = dx/distance;
                 const ny = dy/distance;
-                const overlap = reach - distance;
+                const overlap = closest - distance;
                 p.x -= nx*overlap/2;
                 p.y -= ny*overlap/2;
                 q.x += nx*overlap/2;
@@ -322,9 +375,22 @@ export class StoneWorld {
                     p.asleep = false;
                     q.asleep = false;
                     if (this.isVoid) {
-                        const lift = Math.min(1.2, -closing/this.boardHeight*1.5);
+                        const lift = Math.min(1.5, Math.max(knockLift, -closing/this.boardHeight*knockLiftPerSpeed));
                         p.climb = (p.climb || 0) + lift;
                         q.climb = (q.climb || 0) + lift;
+                    } else if (step > 0) {
+                        upper.pressed = true;
+                    } else if (-closing > climbSpeed*this.diameter) {
+                        // The one going faster into the other.
+                        const rider = p.vx*nx + p.vy*ny > -(q.vx*nx + q.vy*ny) ? p : q;
+                        if (rider.climbs === undefined) {
+                            rider.climbs = Math.random() < climbers;
+                        }
+                        if (rider.climbs) {
+                            rider.lift = Math.max(rider.lift, 1e-6);
+                            rider.onTop = true;
+                            rider.pressed = true;
+                        }
                     }
                 }
             }
@@ -335,7 +401,7 @@ export class StoneWorld {
     // Still in play for a knock or a shove: not gone, not under the water,
     // and not flown too high over the board to touch anything.
     reachable(stone) {
-        return !stone.gone && !stone.sinking && !(stone.falling && stone.height >= lowHeight);
+        return !stone.gone && !stone.sinking && heightOf(stone) < lowHeight;
     }
 
     offScreen(stone) {
@@ -386,12 +452,19 @@ export class StoneWorld {
         return this.stones.filter((stone) => !stone.gone && !stone.offBoard).length;
     }
 
-    // Nothing is moving, dropping, tumbling or sinking. A stone flying
-    // into the void is no longer anyone's concern here (see takeFalling).
+    // Nothing is moving, dropping, tumbling, sinking or coming down off
+    // another stone. A stone flying into the void is no longer anyone's
+    // concern here (see takeFalling).
     still() {
         return this.stones.every((stone) => stone.gone || stone.falling
-            || (!(stone.offBoard && !stone.landed) && !stone.sinking && this.speedOf(stone) === 0 && !isTumbling(stone)));
+            || (!(stone.offBoard && !stone.landed) && !stone.sinking && this.speedOf(stone) === 0 && !isTumbling(stone)
+                && (stone.lift === 0 || stone.onTop || stone.asleep)));
     }
+}
+
+// How high a stone has flown, 0 for one not flying.
+function heightOf(stone) {
+    return stone.falling ? stone.height : 0;
 }
 
 // A stone going the way of `direction` (an angle, clockwise, y down) set

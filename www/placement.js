@@ -14,7 +14,8 @@ function disorderRadius(clock) {
     if (clock.placement == 0) {
         return 0;
     }
-    // Haste (the settings run from 12 to 80) makes for sloppier landings.
+    // Haste makes for sloppier landings, up to a speed of 80 (the insane
+    // setting is well past that, and as sloppy as it gets).
     var speedRatio = Math.pow(Math.max(0, Math.min(1, (clock.speed - 12)/68)), 0.7);
     if (clock.placement == 2) {
         return 0.045 + 0.145*speedRatio;

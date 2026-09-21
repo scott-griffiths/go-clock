@@ -26,6 +26,7 @@ import {gridsize, emptyBoard} from './board.js';
 import {parseSgf, playGame} from './sgf.js';
 import {sweepBoard} from './sweep.js';
 import {flyOn} from './flight.js';
+import {setTumbling} from './physics.js';
 import {$, setVisible, setStoneShadow, cancelElementAnimations} from './stone-dom.js';
 
 // The games that come with the clock, in www/games, on three shelves:
@@ -121,11 +122,12 @@ export const gameCategories = [
 // Every game, whatever shelf it is on.
 export const gameFiles = gameCategories.flatMap((category) => category.files);
 
-// How long the flung stones have the board to themselves before the
-// first stone of the game arrives (a sweep takes its own time), and how
-// long the finished game stays before the clock takes the board back, in ms.
-const flingTime = 900;
-const restTime = 3000;
+// How long the flung stones take to rise out of sight, and so have the
+// board to themselves before the first stone of the game arrives (a
+// sweep takes its own time), and how long the finished game stays before
+// the clock takes the board back, in ms.
+const flingTime = 2500;
+const restTime = 6000;
 
 // The next game to replay from a given set: each of its files once, in a
 // random order, then shuffled again. A set keeps its own deck, so one
@@ -395,23 +397,27 @@ function flingStones(clock) {
     stones.push(...held);
 
     stones.forEach((stone) => {
-        // Straight out from the middle, give or take; a stone at the
-        // middle goes any way.
+        // Out from the middle, give or take, but gently, and mostly up
+        // towards the eye, turning over as it goes; a stone at the middle
+        // goes any way.
         let angle = Math.atan2(stone.y - middleY, stone.x - middleX);
         if (Math.hypot(stone.x - middleX, stone.y - middleY) < diameter) {
             angle = Math.random()*2*Math.PI;
         }
         angle += (Math.random() - 0.5)*0.5;
-        const speed = clock.goban_width*(0.7 + Math.random()*0.7);
+        const speed = clock.goban_width*(0.15 + Math.random()*0.15);
         Object.assign(stone, {
             vx: Math.cos(angle)*speed,
             vy: Math.sin(angle)*speed,
-            offBoard: false,
+            offBoard: true,
             landed: false,
-            falling: false,
+            falling: true,
+            height: 0,
+            climb: 1000/flingTime,
             gone: false,
             leftAt: 0
         });
+        setTumbling(stone, angle, 3 + Math.random()*2);
     });
     flyOn(stones, 0, {board, screen: clock.screenRect(), diameter});
 }

@@ -16,7 +16,7 @@
 
 import {gridsize} from './board.js';
 import {StoneWorld, flatBoard} from './physics.js';
-import {$, setStyles, setVisible, setStoneShadow, cancelElementAnimations, tableTransform, drawOnTable} from './stone-dom.js';
+import {$, setStyles, setVisible, setStoneShadow, cancelElementAnimations, drawOnTable, drawOnBoard} from './stone-dom.js';
 import {drawFlying, flyOn, clearFlying} from './flight.js';
 import {drawSinking, splash, sinkOn} from './water.js';
 
@@ -88,8 +88,9 @@ export function sweepBoard(clock) {
     setStyles(arm, {left: armLeft, width: armWidth, height: armDepth + bow, top: armStart - armDepth - bow});
     arm.style.opacity = '0';
     goban.append(arm);
-    // Lower stones pass in front of higher ones on the way down.
-    var layer = (top) => String(12 + Math.round((top - boardTop)/clock.goban_height*80));
+    // Lower stones pass in front of higher ones on the way down (and one
+    // ridden up onto another over it, whichever is lower: see step).
+    var layer = (top) => 12 + Math.round((top - boardTop)/clock.goban_height*80);
 
     for (var i = 0; i < clock.stones_shown.length; ++i) {
         if (clock.stones_shown[i] == 0) {
@@ -110,6 +111,7 @@ export function sweepBoard(clock) {
             src: element.querySelector('img').src,
             startLeft: left,
             startTop: top,
+            layer: layer(top),
             x: left + size/2,
             y: top + size/2,
             r: size/2,
@@ -122,7 +124,6 @@ export function sweepBoard(clock) {
             gone: false,
             leftAt: 0
         });
-        element.style.zIndex = layer(top);
         setVisible(element.querySelector('.stone-shadow'), true);
         setVisible(element.querySelector('img'), true);
     }
@@ -140,6 +141,7 @@ export function sweepBoard(clock) {
             x: entry.x,
             y: entry.y,
             r: diameter/2,
+            lift: entry.lift || 0,
             vx: 0,
             vy: 0,
             asleep: true,
@@ -155,7 +157,6 @@ export function sweepBoard(clock) {
     // The stones the hand dropped lie on the board, loose, and slide
     // off with the others; they end up on the table like them.
     held.forEach((stone) => {
-        stone.element.style.zIndex = layer(stone.y - stone.r);
         world.add({
             index: -1,
             element: stone.element,
@@ -163,6 +164,7 @@ export function sweepBoard(clock) {
             src: stone.src,
             startLeft: stone.x - stone.r,
             startTop: stone.y - stone.r,
+            layer: layer(stone.y - stone.r),
             x: stone.x,
             y: stone.y,
             r: stone.r,
@@ -185,7 +187,7 @@ export function sweepBoard(clock) {
             var element = stone.element;
             cancelElementAnimations(element);
             clearFlying(element);
-            element.classList.remove('has-stone');
+            element.classList.remove('has-stone', 'riding');
             element.style.removeProperty('z-index');
             element.style.removeProperty('transform');
             element.style.removeProperty('opacity');
@@ -235,17 +237,18 @@ export function sweepBoard(clock) {
             var element = stone.element;
             if (stone.index < 0) {
                 setStyles(element, {left: stone.x - stone.r, top: stone.y - stone.r});
+                element.style.removeProperty('z-index');
             } else {
                 element = clock.looseStone(stone.src, stone.colour, stone.x, stone.y).element;
             }
-            element.style.transform = tableTransform();
-            setStoneShadow(element.querySelector('.stone-shadow'), 0);
+            drawOnTable(element, 1, '', stone.lift);
             clock.table_stones.push({
                 element: element,
                 colour: stone.colour,
                 src: stone.src,
                 x: stone.x,
                 y: stone.y,
+                lift: stone.lift,
                 coords: clock.boardCoords(stone.x, stone.y)
             });
         });
@@ -339,14 +342,21 @@ export function sweepBoard(clock) {
                 drawFlying(stone.element, stone, world, translate);
                 return;
             }
+            if (stone.layer !== undefined) {
+                // Over everything, ridden up onto another stone.
+                var z = String(stone.layer + (stone.lift > 0 ? 100 : 0));
+                if (stone.element.style.zIndex !== z) {
+                    stone.element.style.zIndex = z;
+                }
+            }
             if (stone.sinking) {
                 drawSinking(stone.element, stone, world.sink(stone), translate);
             } else if (stone.offBoard) {
                 // In the air for the drop off the edge, then on the table,
                 // which is that little further away.
-                drawOnTable(stone.element, world.drop(stone), translate);
+                drawOnTable(stone.element, world.drop(stone), translate, stone.lift);
             } else {
-                stone.element.style.transform = translate;
+                drawOnBoard(stone.element, stone.lift, translate);
             }
         });
 

@@ -85,9 +85,11 @@ test('every game shipped with the clock reads and plays out legally', () => {
     });
 });
 
-test('the result is put into words', () => {
+test('the result is put into words, naming the winner where the record does', () => {
     assert.equal(gameResult({RE: ['W+R']}), 'White wins by resignation');
     assert.equal(gameResult({RE: ['B+2']}), 'Black wins by 2');
+    assert.equal(gameResult({RE: ['B+2'], PB: ['Shusaku'], PW: ['Gennan Inseki']}), 'Shusaku (Black) wins by 2');
+    assert.equal(gameResult({RE: ['W+R'], PB: ['Lee Sedol'], PW: ['AlphaGo']}), 'AlphaGo (White) wins by resignation');
     assert.equal(gameResult({RE: ['W+0.5']}), 'White wins by 0.5');
     assert.equal(gameResult({RE: ['B+T']}), 'Black wins on time');
     assert.equal(gameResult({RE: ['0']}), 'A drawn game');

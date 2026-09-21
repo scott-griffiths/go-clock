@@ -215,15 +215,19 @@ export function gameTitle(info) {
     return [players, year].filter(Boolean).join(', ') || 'A game';
 }
 
-// How the game ended, in words, from its RE property ("White wins by
-// resignation", "Black wins by 2"); or nothing, if the record does not say.
+// How the game ended, in words, from its RE property, naming the winner
+// where the record does ("Shusaku (Black) wins by 2", "White wins by
+// resignation"); or nothing, if the record does not say.
 export function gameResult(info) {
     const result = info.RE?.[0]?.trim();
     const match = result?.match(/^([BW])\+(R(?:esign)?|T(?:ime)?|F(?:orfeit)?|[\d.]+)?/i);
     if (!match) {
         return result && /^(0|draw|jigo)$/i.test(result) ? 'A drawn game' : '';
     }
-    const winner = match[1].toUpperCase() === 'B' ? 'Black' : 'White';
+    const black = match[1].toUpperCase() === 'B';
+    const colour = black ? 'Black' : 'White';
+    const name = info[black ? 'PB' : 'PW']?.[0]?.trim();
+    const winner = name ? `${name} (${colour})` : colour;
     const by = match[2]?.toUpperCase();
     if (!by) {
         return `${winner} wins`;

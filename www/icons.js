@@ -60,16 +60,30 @@ export const speedIcons = [
     svg('<path d="M2.5 5l7 7 -7 7M9.5 5l7 7 -7 7M21 5v9M21 18.5v0.01"/>')
 ];
 
-// The precisions: a target, and the stone put down on it. Exact hits the
-// middle; organic is a little off it; careless is off the inner ring
-// altogether.
-const target = (x, y) => '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.75"/>'
-    + `<circle cx="${x}" cy="${y}" r="1.5" fill="currentColor" stroke="none"/>`;
+// The precisions: a circle with cross hairs through its middle. Exact is
+// drawn true; organic has the hairs a touch off centre and askew; and
+// careless has them well off and the circle wobbly.
+const crossHairs = (dx, dy, tilt, wobble = 0) => {
+    const cx = 12 + dx;
+    const cy = 12 + dy;
+    const reach = 8.8;
+    const hairs = [0, Math.PI/2].map((angle) => {
+        const a = angle + tilt;
+        const x = reach*Math.cos(a);
+        const y = reach*Math.sin(a);
+        return `<path d="M${(cx - x).toFixed(2)} ${(cy - y).toFixed(2)}L${(cx + x).toFixed(2)} ${(cy + y).toFixed(2)}"/>`;
+    }).join('');
+    // The circle as an ellipse leaning over, when it is not drawn true.
+    const circle = wobble
+        ? `<ellipse cx="12" cy="12" rx="${(8.5 + wobble).toFixed(2)}" ry="${(8.5 - wobble).toFixed(2)}" transform="rotate(${(tilt*57.3 - 25).toFixed(1)} 12 12)"/>`
+        : '<circle cx="12" cy="12" r="8.5"/>';
+    return circle + hairs;
+};
 
 export const precisionIcons = [
-    svg(target(12, 12)),
-    svg(target(13.6, 10.6)),
-    svg(target(16.3, 15))
+    svg(crossHairs(0, 0, 0)),
+    svg(crossHairs(1.2, -0.9, 0.12)),
+    svg(crossHairs(2.1, 1.6, 0.36, 0.8))
 ];
 
 // The shelves of games (replay.js): a hanging scroll for the old castle
@@ -114,8 +128,8 @@ function miniGoban() {
 
 export const icons = {
     settings: svg(cog(8, 10.5, 7.75)),
-    // A game replayed: the goban, waiting for one.
-    replay: svg(miniGoban()),
+    // A game replayed: the goban, with a play button over it.
+    replay: svg(miniGoban() + '<path d="M8.75 7v10l8.25 -5Z" fill="currentColor" stroke="none"/>'),
     // Sound, on and off: a speaker, with waves coming off it or crossed out.
     sound: [
         svg('<path d="M4 9.25h3.4L12 5.25v13.5L7.4 14.75H4Z"/><path d="M15.5 9l5.5 5.5M21 9l-5.5 5.5"/>'),

@@ -15,14 +15,21 @@
 
 import {gridsize, nearestFreePoint} from './board.js';
 import {StoneWorld, flatBoard} from './physics.js';
-import {$, setStyles, setVisible, setStoneShadow, cancelElementAnimations, elementCentre, colourOfImage, tableTransform,
-        drawOnTable} from './stone-dom.js';
+import {$, setStyles, setVisible, setStoneShadow, cancelElementAnimations, elementCentre, colourOfImage,
+        drawOnTable, drawOnBoard} from './stone-dom.js';
 import {drawFlying, flyOn} from './flight.js';
 import {drawSinking, splash, sinkOn} from './water.js';
 
 // How long the stones lie as the finger left them before the clock
 // tidies up, in ms.
 const tidyDelay = 500;
+// How fast, in stone diameters a second, a stone drifts out from under
+// a finger set down on it.
+const easeSpeed = 0.6;
+// The most a finger can shove a stone at, in diameters a second, and
+// what share of the finger's speed it gets.
+const fastestShove = 15;
+const softness = 0.75;
 
 export function fingerDown(clock, clientX, clientY) {
     if (clock.sweeping_board || typeof document === 'undefined') {
@@ -69,6 +76,7 @@ export function fingerDown(clock, clientX, clientY) {
         entry.element.remove();
         stone.offBoard = true;
         stone.landed = true;
+        stone.lift = entry.lift || 0;
         world.add(stone);
     });
     clock.table_stones = [];
@@ -113,14 +121,16 @@ export function fingerDown(clock, clientX, clientY) {
     clock.finger = finger;
 
     // The finger at (px, py), having just moved `travel` px in `sdt`
-    // seconds: stones under it are shoved out, and they shove their
-    // neighbours. A moving finger clears its path at once; a finger
-    // that has just landed eases the stone out from under it.
-    var shove = (px, py, sdt, travel) => {
-        var give = Math.max(travel*1.5, diameter*0.12);
-        // A little faster than the finger, at most; and a pointer that
-        // jumps (a mouse, say) is not a finger that flicks.
-        var speedCap = Math.min(travel/sdt*1.1 + diameter*3, diameter*40);
+    // seconds the way of (mx, my): stones under it are shoved out, and
+    // they shove their neighbours. A moving finger clears its path at
+    // once; a finger that has just landed eases the stone out from under
+    // it.
+    var shove = (px, py, sdt, travel, mx, my) => {
+        var give = Math.max(travel*1.1, diameter*0.12);
+        // A pointer that jumps (a mouse, say) is not a finger that flicks;
+        // and the pad of a finger is soft, and gives a stone a little
+        // less than its own speed.
+        var fingerSpeed = Math.min(travel/sdt, diameter*fastestShove)*softness;
         for (var pass = 0; pass < 3; ++pass) {
             var moved = false;
             world.stones.forEach((stone) => {
@@ -144,12 +154,23 @@ export function fingerDown(clock, clientX, clientY) {
                 var correction = Math.min(reach - distance, give);
                 stone.x += nx*correction;
                 stone.y += ny*correction;
-                // It leaves at least as fast as it was shoved; a stone
-                // that had to be got going with some force is felt under
-                // the finger.
-                var wanted = Math.min(correction/sdt, speedCap);
+                // It goes as fast as the finger comes at it, no faster
+                // (the finger is a wall: a stone at its side is moved
+                // over, but not sent off sideways), or eased out from
+                // under a finger that has landed on it, at a drift; and a
+                // stone that had to be got going with some force is felt
+                // under the finger. A stone already on its way out is
+                // not sped up again unless the finger is coming after it:
+                // one jammed against a line of others hands its speed on
+                // to them and is knocked back under the finger, and were
+                // it topped up every time, a finger merely resting on it
+                // would pump the whole line up to speed (which on the
+                // board friction hides, but in space sends them all
+                // flying).
+                var pushed = Math.max(0, fingerSpeed*(mx*nx + my*ny));
+                var wanted = Math.min(correction/sdt, Math.max(pushed, diameter*easeSpeed));
                 var along = stone.vx*nx + stone.vy*ny;
-                if (along < wanted) {
+                if (along < wanted && (along <= 0 || along < pushed)) {
                     stone.vx += (wanted - along)*nx;
                     stone.vy += (wanted - along)*ny;
                     var force = (wanted - along)/(diameter*12);
@@ -187,8 +208,10 @@ export function fingerDown(clock, clientX, clientY) {
             var moveY = finger.targetY - finger.y;
             var travel = Math.hypot(moveX, moveY);
             var substeps = Math.max(1, Math.ceil(travel/(diameter*0.25)));
+            var mx = travel > 0 ? moveX/travel : 0;
+            var my = travel > 0 ? moveY/travel : 0;
             for (var s = 1; s <= substeps; ++s) {
-                shove(finger.x + moveX*s/substeps, finger.y + moveY*s/substeps, frame/substeps, travel/substeps);
+                shove(finger.x + moveX*s/substeps, finger.y + moveY*s/substeps, frame/substeps, travel/substeps, mx, my);
             }
             finger.x = finger.targetX;
             finger.y = finger.targetY;
@@ -218,8 +241,9 @@ export function fingerDown(clock, clientX, clientY) {
             if (stone.sinking) {
                 drawSinking(stone.element, stone, world.sink(stone));
             } else if (stone.offBoard) {
-                drawOnTable(stone.element, world.drop(stone));
+                drawOnTable(stone.element, world.drop(stone), '', stone.lift);
             } else {
+                drawOnBoard(stone.element, stone.lift);
                 sliding += Math.min(1, world.speedOf(stone)/(diameter*10));
             }
         });
@@ -350,14 +374,14 @@ export function endFinger(clock) {
     }
 
     fallen.forEach((stone) => {
-        setStoneShadow(stone.element.querySelector('.stone-shadow'), 0);
-        stone.element.style.transform = tableTransform();
+        drawOnTable(stone.element, 1, '', stone.lift);
         clock.table_stones.push({
             element: stone.element,
             colour: stone.colour,
             src: stone.src,
             x: stone.x,
             y: stone.y,
+            lift: stone.lift,
             coords: clock.boardCoords(stone.x, stone.y)
         });
     });

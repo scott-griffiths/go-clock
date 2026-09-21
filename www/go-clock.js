@@ -13,7 +13,7 @@ import {replayWanted, replaySettled} from './replay.js';
 import {fingerDown, fingerMove, fingerUp, endFinger} from './hand.js';
 import {setLandingOffset, alignIdleStone} from './placement.js';
 import {moveStone, moveDuration} from './moves.js';
-import {$, gobanImage, tableTransform, maxLift, setStyles, setVisible, setStoneShadow, stoneImageSrc,
+import {$, gobanImage, drawOnTable, maxLift, setStyles, setVisible, setStoneShadow, stoneImageSrc,
         cancelElementAnimations, animateElement, elementCentre, stoneElement, looseStone} from './stone-dom.js';
 
 function displacedCoords(fromCoords, toCoords) {
@@ -437,7 +437,7 @@ export function GoClock(){
             entry.x = at[0];
             entry.y = at[1];
             entry.element = this.looseStone(entry.src, entry.colour, at[0], at[1]).element;
-            entry.element.style.transform = tableTransform();
+            drawOnTable(entry.element, 1, '', entry.lift || 0);
         });
 
         for (var i = 0; i < gridsize*gridsize; ++i) {
@@ -636,6 +636,17 @@ export function GoClock(){
         switch (plan.kind) {
         case 'table':
             this.table_stones.splice(this.table_stones.indexOf(plan.entry), 1);
+            // A stone that was lying up on it comes down, unless it lies
+            // on another too.
+            var diameter = this.goban_width/20;
+            this.table_stones.forEach((entry) => {
+                if (entry.lift > 0 && Math.hypot(entry.x - plan.entry.x, entry.y - plan.entry.y) < diameter
+                    && !this.table_stones.some((other) => other !== entry && other.lift < entry.lift
+                        && Math.hypot(entry.x - other.x, entry.y - other.y) < diameter)) {
+                    entry.lift = 0;
+                    drawOnTable(entry.element, 1);
+                }
+            });
             hand.table_pickup = plan.entry;
             hand.from = [go_table, go_table];
             hand.colour = plan.entry.colour;

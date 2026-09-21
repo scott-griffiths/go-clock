@@ -7,7 +7,7 @@
 
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {StoneWorld, flatBoard, setTumbling, dropTime, voidFlightTime, lowHeight, sinkTime} from '../www/physics.js';
+import {StoneWorld, flatBoard, setTumbling, dropTime, voidFlightTime, lowHeight, sinkTime, pileOverlap} from '../www/physics.js';
 
 const board = {left: 100, top: 100, right: 500, bottom: 500};
 const screen = {right: 600, bottom: 800};
@@ -95,6 +95,46 @@ test('two stones in each other\'s way part, and a knock wakes a sleeping one', (
     assert.ok(b.x - a.x >= diameter - 1e-9, `still overlapping, ${b.x - a.x} apart`);
     assert.equal(b.asleep, false);
     assert.ok(b.vx > 0, 'the struck stone did not move off');
+});
+
+test('a stone kept shoved hard into another rides up onto it, and comes down once it slides off', () => {
+    const w = world();
+    const a = w.add(stone({x: 300, y: 300, climbs: true}));
+    const b = w.add(stone({x: 320, y: 300, asleep: true}));
+    // Driven on, as the arm drives a stone, into the one ahead.
+    for (let t = 0; t < 0.5; t += 0.016) {
+        a.vx = Math.max(a.vx, diameter*8);
+        b.vx = 0;
+        b.x = 320;
+        w.advance(0.016);
+    }
+    assert.equal(a.lift, 1, 'it never rode up');
+    assert.ok(a.onTop);
+    assert.ok(b.x - a.x < diameter - 1e-9 && b.x - a.x >= diameter*(1 - pileOverlap) - 1e-9, `${b.x - a.x} apart`);
+    assert.equal(b.lift, 0);
+    // The stone under it taken away: down it comes, and it is not still until it has.
+    b.gone = true;
+    w.advance(0.016);
+    w.advance(0.016);
+    assert.ok(a.lift < 1 && a.lift > 0, `lift ${a.lift}`);
+    assert.equal(w.still(), false);
+    run(w, 1, () => w.still());
+    assert.equal(a.lift, 0);
+});
+
+test('a stone that does not climb is pushed off, and a soft knock lifts neither', () => {
+    const w = world();
+    const a = w.add(stone({x: 300, y: 300, vx: diameter*8, climbs: false}));
+    const b = w.add(stone({x: 320, y: 300}));
+    w.advance(0.016);
+    assert.equal(a.lift, 0);
+    assert.equal(b.lift, 0);
+    assert.ok(b.x - a.x >= diameter - 1e-9);
+    const c = w.add(stone({x: 300, y: 400, vx: diameter*1.5, climbs: true}));
+    const d = w.add(stone({x: 320, y: 400}));
+    w.advance(0.016);
+    assert.equal(c.lift, 0);
+    assert.equal(d.lift, 0);
 });
 
 test('two sleeping stones lying together are left alone', () => {

@@ -148,6 +148,11 @@ body {
     z-index: 3;
 }
 
+/* A stone ridden up onto another (physics.js) lies over it. */
+.loose-stone.riding {
+    z-index: 4;
+}
+
 /* A stone tumbling in space wears a frame of its tumble sheet (flight.js);
    one risen off the board passes over everything else. */
 .flying {

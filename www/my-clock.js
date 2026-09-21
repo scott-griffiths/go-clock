@@ -38,13 +38,14 @@ const backgrounds = [
 ];
 
 const views = ['Analogue', 'Jumping hour', 'Digital', 'Hybrid'];
-// Name, how fast a stone moves (see moveDuration in moves.js), and how
-// long a hand rests between stones, in ms. The rest is most of the
-// difference: a slow player is slow to reach for the next stone, not slow
-// in carrying it.
-const stoneSpeeds = [['Slow', 18, 500], ['Normal', 26, 180], ['Fast', 45, 60], ['Insane!', 80, 15]];
+// Name, how fast a stone moves (see moveDuration in moves.js: a move
+// takes the square root of its length over this, so four times the speed
+// is twice as quick), and how long a hand rests between stones, in ms.
+// The rest is most of the difference: a slow player is slow to reach for
+// the next stone, not slow in carrying it.
+const stoneSpeeds = [['Slow', 18, 500], ['Normal', 26, 180], ['Fast', 45, 60], ['Insane!', 320, 8]];
 const placements = ['Exact', 'Organic', 'Careless'];
-const modes = ['12-hour clock', '24-hour clock'];
+const modes = ['12-hour', '24-hour'];
 const woods = [
     ['Oak', 'saturate(0.8) hue-rotate(-12deg) sepia(0.5)'],
     ['Kaya', 'saturate(1.3) hue-rotate(-7deg)'],
@@ -226,7 +227,7 @@ window.addEventListener('load', () => {
     let stoneSpeed = readSetting('pace') !== null || !isInt(oldSpeed)
         ? readIndex('pace', 1, stoneSpeeds.length)
         : wrap(Math.max(0, Number(oldSpeed) - 1), stoneSpeeds.length);
-    let view = readIndex('view', 0, views.length);
+    let view = readIndex('view', 3, views.length);
     let mode = readIndex('mode', 1, modes.length);
     let wood = readIndex('wood', 0, woods.length);
     // The sloppiest placement (the old fourth choice) has gone: a stored
@@ -463,7 +464,7 @@ window.addEventListener('load', () => {
         mode = wrap(index, modes.length);
         goClock.twenty_four_hour = mode === 1;
         modeButton.textContent = modes[mode];
-        modeButton.title = `Showing the ${modes[mode]}`;
+        modeButton.title = `Showing the ${modes[mode]} clock`;
         modeButton.setAttribute('aria-label', modeButton.title);
         writeSetting('mode', mode);
         describeBoard();
@@ -592,11 +593,11 @@ window.addEventListener('load', () => {
     function startGame(category = null) {
         const icon = category ? gameIcons[category.key] : icons.replay;
         const began = startReplay(goClock, loadGame(`games/${nextGameFile(category?.files)}`), {
-            onStart: (game) => showSwipeToast(icon, gameTitle(game.info), 4000),
+            onStart: (game) => showSwipeToast(icon, gameTitle(game.info), 8000),
             onRest: (game) => {
                 const result = gameResult(game.info);
                 if (result) {
-                    showSwipeToast(icon, result, 3000);
+                    showSwipeToast(icon, result, 6000);
                 }
             },
             onEnd: (error) => {

@@ -62,7 +62,7 @@ export function drawTumbling(element, stone, translate = '', more = '') {
 export function drawFlying(element, stone, world, translate = '') {
     const height = world.fall(stone);
     element.classList.add('rising');
-    drawTumbling(element, stone, translate, `scale(${1 + 0.5*height})`);
+    drawTumbling(element, stone, translate, `scale(${1 + 1.0*height})`);
     element.style.opacity = String(height < 0.55 ? 1 : 1 - (height - 0.55)/0.45);
 }
 
