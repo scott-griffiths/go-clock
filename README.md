@@ -141,3 +141,35 @@ account needs to be signed in to Xcode (Settings → Accounts). The encryption
 declaration is in the build settings (`ITSAppUsesNonExemptEncryption = NO`;
 the app makes no network connections of its own), and
 `ios/GoClock/PrivacyInfo.xcprivacy` declares that nothing is collected.
+
+### wolfie
+
+`wolfie` is the iPhone the app is tried on. The simulator is enough for most
+things, but not for the ones the clock is mostly made of: the weight of a
+finger pushing the stones about, the haptic tap when the hand knocks into one,
+how the board sits under a thumb, whether the bowls crowd it in portrait. Those
+are only true on the device.
+
+Two ways a build gets there, depending on what it is for:
+
+- **Straight from Xcode**, for trying something out. Pair wolfie (plugged in,
+  or over the network once it has been paired), pick it as the run destination
+  and run. `xcrun devicectl list devices` says whether it is paired and awake.
+- **TestFlight**, for a build that should still be there tomorrow:
+  `scripts/testflight.sh`, as above. Ten minutes or so from upload to the
+  TestFlight app on the phone.
+
+Either way `www/` is a folder reference, so a change to the web app needs no
+build step beyond running it again.
+
+**A session on Linux cannot deploy to wolfie.** Claude Code on the web runs in
+a Linux container with no macOS, no Xcode and no route to the phone, so
+"deploy to wolfie" there means: commit, push the branch, and pick it up on the
+Mac —
+
+```sh
+git fetch origin <branch> && git checkout <branch>
+open ios/GoClock.xcodeproj
+```
+
+Worth saying plainly rather than half-attempting it.
