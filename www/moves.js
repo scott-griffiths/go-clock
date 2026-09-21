@@ -12,11 +12,7 @@
 import {gridsize, white, go_bowl, go_table, dist, pointX, pointY} from './board.js';
 import {$, setStyles, setVisible, setStoneShadow, stoneImageSrc, cancelElementAnimations, animateElement, tableStoneScale, maxLift} from './stone-dom.js';
 import {settleAfterLanding, setOffset} from './placement.js';
-
-// A stone from the bowl takes as long as a move of this many points: a
-// drop straight in is over in a flash otherwise, and looks nothing like
-// the moves around it.
-const dropDistance = 2.5;
+import {bowlPoint, bowlDistance} from './bowls.js';
 
 // How long a plan (planner.js) will take at `speed`, as the functions below
 // reckon it: for a hand to know, before it starts, when it would put the
@@ -25,7 +21,9 @@ const dropDistance = 2.5;
 export function moveDuration(clock, plan, speed) {
     switch (plan.kind) {
     case 'add':
-        return Math.sqrt(dropDistance/speed);
+        return Math.sqrt(bowlDistance(clock, plan.colour, [pointX(plan.to), pointY(plan.to)])/speed);
+    case 'remove':
+        return Math.sqrt(bowlDistance(clock, clock.stones_shown[plan.from], [pointX(plan.from), pointY(plan.from)])/speed);
     case 'table':
         return Math.sqrt(Math.hypot(pointX(plan.to) - plan.entry.coords[0], pointY(plan.to) - plan.entry.coords[1])/speed);
     case 'move':
@@ -212,14 +210,23 @@ function repositionStone(clock, hand, coords1, coords2, colour, speed) {
     }
 }
 
+// A stone carried out of its bowl and set down on the board: it rises out
+// of the heap, crosses in an arc as a long move does, and is put down.
 function dropStone(clock, hand, coords, colour, speed) {
-    var duration = Math.sqrt(dropDistance/speed);
-    hand.lands(duration);
-    var p1 = clock.stonePosition(coords[0], coords[1], 10);
-    var p2 = clock.stonePosition(coords[0], coords[1], 0);
     var self = clock;
+    var from = bowlPoint(clock, colour);
+    var distance = bowlDistance(clock, colour, coords);
+    var duration = Math.sqrt(distance/speed);
+    hand.lands(duration);
+    var stone = clock.goban_width/20;
+    var p1 = clock.pixelStonePosition(from[0], from[1], 0);
+    // Out of the bowl at the size it lay there, which is the table's.
+    p1 = [p1[0] + p1[2]*(1 - tableStoneScale)/2, p1[1] + p1[3]*(1 - tableStoneScale)/2,
+          p1[2]*tableStoneScale, p1[3]*tableStoneScale];
+    var p2 = clock.stonePosition(coords[0], coords[1], 0);
+    var max_height = Math.min(maxLift, 11 + distance/2);
+    var middle = clock.pixelStonePosition((from[0] + p2[0] + p2[2]/2)/2, (from[1] + p2[1] + p2[3]/2)/2, max_height);
     var end_tasks = function() {
-        // add stone to board
         var landingIndex = Math.round(hand.to[0]) + gridsize*Math.round(hand.to[1]);
         self.stones_shown[landingIndex] = hand.colour;
         setVisible(hand.element(), false);
@@ -231,33 +238,54 @@ function dropStone(clock, hand, coords, colour, speed) {
         hand.moving = false;
         self.transform();
     };
-    
+
     setStyles(hand.element(), {left: p1[0], top: p1[1], width: p1[2], height: p1[3]});
     var movingShadow = hand.element().querySelector('.stone-shadow');
-    setStoneShadow(movingShadow, 10);
-    var src = stoneImageSrc(colour, hand.src);
+    setStoneShadow(movingShadow, 0);
     var movingStoneImage = hand.element().querySelector('img');
-    movingStoneImage.src = src;
+    movingStoneImage.src = stoneImageSrc(colour, hand.src);
     setVisible(movingStoneImage, true);
-    hand.element().style.opacity = '0.3';
+    // A stone come out of the bowl is picked up, not put down: the bowl's
+    // knock is at the start of this trip rather than the end.
+    clock.sound?.bowl(colour == white ? 'white' : 'black');
     requestAnimationFrame(function() {
-        setStoneShadow(movingShadow, 0);
+        setStoneShadow(movingShadow, max_height);
     });
-    animateElement(hand.element(), duration, {
-        left: p2[0],
-        top: p2[1],
-        width: p2[2],
-        height: p2[3],
-        opacity: 1.0,
-        onComplete: end_tasks});
+    animateElement(hand.element(), duration/2, {
+        left: middle[0],
+        top: middle[1],
+        width: middle[2],
+        height: middle[3],
+        easing: 'ease-in',
+        onComplete: function() {
+            setStoneShadow(movingShadow, 0);
+            animateElement(hand.element(), duration/2, {
+                left: p2[0],
+                top: p2[1],
+                width: p2[2],
+                height: p2[3],
+                easing: 'ease-out',
+                onComplete: end_tasks
+            });
+        }
+    });
 }
 
+// A stone lifted off the board and dropped back into its bowl: the same
+// arc the other way, and at the end it goes in among the others and is
+// lost to sight.
 function pickupStone(clock, hand, coords, colour, speed) {
-    var duration = Math.sqrt(1/speed);
+    var self = clock;
+    var to = bowlPoint(clock, colour);
+    var distance = bowlDistance(clock, colour, coords);
+    var duration = Math.sqrt(distance/speed);
     hand.lands(duration);
     var p1 = clock.stonePosition(coords[0], coords[1], 0);
-    var p2 = clock.stonePosition(coords[0], coords[1], 10);
-    var self = clock;
+    var p2 = clock.pixelStonePosition(to[0], to[1], 0);
+    p2 = [p2[0] + p2[2]*(1 - tableStoneScale)/2, p2[1] + p2[3]*(1 - tableStoneScale)/2,
+          p2[2]*tableStoneScale, p2[3]*tableStoneScale];
+    var max_height = Math.min(maxLift, 11 + distance/2);
+    var middle = clock.pixelStonePosition((p1[0] + p1[2]/2 + to[0])/2, (p1[1] + p1[3]/2 + to[1])/2, max_height);
     var end_tasks = function() {
         setVisible(hand.element(), false);
         setVisible(hand.element().querySelector('.stone-shadow'), false);
@@ -267,24 +295,37 @@ function pickupStone(clock, hand, coords, colour, speed) {
         self.sound?.bowl(colour == white ? 'white' : 'black');
         self.transform();
     };
-    
-    setStyles(hand.element(), {left: p1[0], top: p1[1], width: p1[2], height: p1[3]});
+
+    setStyles(hand.element(), {left: p1[0], top: p1[1], width: p1[2], height: p1[3], opacity: 1});
     var movingShadow = hand.element().querySelector('.stone-shadow');
     setStoneShadow(movingShadow, 0);
-    var src = stoneImageSrc(colour, hand.src);
     var movingStoneImage = hand.element().querySelector('img');
-    movingStoneImage.src = src;
+    movingStoneImage.src = stoneImageSrc(colour, hand.src);
     setVisible(movingStoneImage, true);
     requestAnimationFrame(function() {
-        setStoneShadow(movingShadow, 10);
+        setStoneShadow(movingShadow, max_height);
     });
-    animateElement(hand.element(), duration, {
-        left: p2[0],
-        top: p2[1],
-        width: p2[2],
-        height: p2[3],
-        opacity: 0.3,
-        onComplete: end_tasks});
+    animateElement(hand.element(), duration/2, {
+        left: middle[0],
+        top: middle[1],
+        width: middle[2],
+        height: middle[3],
+        easing: 'ease-in',
+        onComplete: function() {
+            setStoneShadow(movingShadow, 0);
+            // Into the bowl: the last of the drop is the stone settling
+            // among the rest, where it stops being one we can pick out.
+            animateElement(hand.element(), duration/2, {
+                left: p2[0],
+                top: p2[1],
+                width: p2[2],
+                height: p2[3],
+                opacity: 0,
+                easing: 'ease-in',
+                onComplete: end_tasks
+            });
+        }
+    });
 }
 
 function showPushedStone(clock, hand, swap, delay, duration) {

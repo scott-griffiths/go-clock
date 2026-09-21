@@ -39,6 +39,8 @@ The public GitHub Pages URL is expected to remain `https://scott-griffiths.githu
   - `www/planner.js` — the hand's next move, from the board as it is and as the face wants it.
   - `www/placement.js` — where a stone lies on its point: the scatter, the nudges, the shoves.
   - `www/moves.js` — a move animated: slid, lifted, dropped in, lifted out, and the push of a swap.
+  - `www/bowls.js` — the two bowls at either end of the board: where a stone comes from and goes
+    back to, and how far away that is.
   - `www/stone-dom.js` — the stones on the page: images, elements, shadows, the animation helper.
   - `www/physics.js` — the stone simulation the sweep and the hand share.
   - `www/sweep.js` — an arm wiping the stones off the board onto the table.

@@ -144,6 +144,26 @@ body {
     visibility: hidden;
 }
 
+/* The two bowls the stones come from and go back to (bowls.js): a circle
+   at either end of the board with a heap of stones lying in it. Rough:
+   the bowl is a gradient rather than a turned wooden one. */
+.go-bowl {
+    position: absolute;
+    z-index: 1;
+    border-radius: 50%;
+    background:
+        radial-gradient(circle at 38% 30%, rgb(255 255 255 / 0.10), rgb(0 0 0 / 0) 55%),
+        radial-gradient(circle at 50% 62%, #3a2317 0%, #23140c 62%, #140b06 100%);
+    box-shadow: inset 0 6px 18px rgb(0 0 0 / 0.65), 0 6px 14px rgb(0 0 0 / 0.45);
+    pointer-events: none;
+}
+
+.bowl-stone {
+    position: absolute;
+    display: block;
+    filter: brightness(0.82);
+}
+
 .loose-stone {
     z-index: 3;
 }

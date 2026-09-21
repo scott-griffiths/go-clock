@@ -13,6 +13,7 @@ import {replayWanted, replaySettled} from './replay.js';
 import {fingerDown, fingerMove, fingerUp, endFinger} from './hand.js';
 import {setLandingOffset, alignIdleStone} from './placement.js';
 import {moveStone, moveDuration} from './moves.js';
+import {drawBowls} from './bowls.js';
 import {$, gobanImage, drawOnTable, maxLift, setStyles, setVisible, setStoneShadow, stoneImageSrc,
         cancelElementAnimations, animateElement, elementCentre, stoneElement, looseStone} from './stone-dom.js';
 
@@ -126,6 +127,9 @@ export function GoClock(){
     // A game being replayed on the board (replay.js), or null: while there
     // is one, transform() works towards its positions instead of the time's.
     this.replay = null;
+
+    // Where the two bowls lie, in px within the goban (bowls.js); set by draw().
+    this.bowls = null;
 
     this.offsets = []; // The small offsets of each stone position to make it less regular-looking
 
@@ -411,6 +415,9 @@ export function GoClock(){
         setStyles(gobanImg, {marginTop: padding, marginBottom: padding});
         var s = this.goban_height / 50 | 0;
         gobanImg.style.boxShadow = `${s}px ${2*s}px ${2*s}px 0px rgba(0,0,0,0.6)`;
+
+        // The bowls, at either end of the board and under everything on it.
+        drawBowls(this, goban);
 
 
         // An element for every point of the grid, sized and placed for its
