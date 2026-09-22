@@ -4,6 +4,7 @@ import {preloadTumbleSheets} from './flight.js';
 import {startReplay, cancelReplay, loadGame, nextGameFile, gameCategories} from './replay.js';
 import {gameTitle, gameResult} from './sgf.js';
 import {faceIcons, speedIcons, precisionIcons, gameIcons, icons} from './icons.js';
+import {computerBoardSrc, gobanImageSrc, setFlatStones, stoneImageSrc, colourOfImage} from './stone-dom.js';
 
 const $ = (selector, scope = document) => scope.querySelector(selector);
 const $$ = (selector, scope = document) => [...scope.querySelectorAll(selector)];
@@ -46,10 +47,13 @@ const views = ['Analogue', 'Jumping hour', 'Digital', 'Hybrid'];
 const stoneSpeeds = [['Slow', 18, 500], ['Normal', 26, 180], ['Fast', 45, 60], ['Insane!', 320, 8]];
 const placements = ['Exact', 'Organic', 'Careless'];
 const modes = ['12-hour', '24-hour'];
+// Each a filter on the board image; the last is no wood at all but the
+// computer's board, drawn plain (stone-dom.js), with flat stones to match.
 const woods = [
     ['Oak', 'saturate(0.8) hue-rotate(-12deg) sepia(0.5)'],
     ['Kaya', 'saturate(1.3) hue-rotate(-7deg)'],
-    ['Bamboo', 'saturate(0.3) contrast(1.4) brightness(1.1) hue-rotate(-6deg)']
+    ['Bamboo', 'saturate(0.3) contrast(1.4) brightness(1.1) hue-rotate(-6deg)'],
+    ['Computer', 'none', true]
 ];
 // Tucked away, the toggle comes back to full strength at a touch anywhere,
 // and dims again this long (in ms) after the last.
@@ -472,10 +476,23 @@ window.addEventListener('load', () => {
 
     function setWood(index) {
         wood = wrap(index, woods.length);
+        const [, filter, computer = false] = woods[wood];
         const boardImage = $('#goban img:first-child');
         if (boardImage) {
-            boardImage.style.filter = woods[wood][1];
+            boardImage.style.filter = filter;
+            const src = computer ? computerBoardSrc : gobanImageSrc;
+            if (!boardImage.src.endsWith(src) && boardImage.src !== src) {
+                boardImage.src = src;
+            }
         }
+        setFlatStones(computer);
+        goClock.flat_stones = computer;
+        // The stones already showing change with the board.
+        $$('#goban img.stone').forEach((image) => {
+            if (!image.hidden && image.src) {
+                image.src = stoneImageSrc(colourOfImage(image), image.src);
+            }
+        });
         showWood(wood);
         writeSetting('wood', wood);
     }

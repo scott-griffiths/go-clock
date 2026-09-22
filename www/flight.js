@@ -13,14 +13,18 @@
 // which sees them out of sight in a world of its own.
 
 import {StoneWorld} from './physics.js';
-import {setStyles, setVisible, stoneSrcs} from './stone-dom.js';
+import {setStyles, setVisible, stoneSrcs, isFlatStoneSrc, flatBlackStoneSrc} from './stone-dom.js';
 
 const frames = 18;
 const columns = 6;
 const rows = Math.ceil(frames/columns);
 
-// The sheet for a stone image: its name with `_tumble` in it.
+// The sheet for a stone image: its name with `_tumble` in it. A flat
+// computer stone has no sheet of its own and tumbles as a real one.
 export function tumbleSheetSrc(stoneSrc) {
+    if (isFlatStoneSrc(stoneSrc)) {
+        stoneSrc = stoneSrc === flatBlackStoneSrc ? stoneSrcs[stoneSrcs.length - 1] : stoneSrcs[0];
+    }
     return stoneSrc.replace(/_160\.png$/, '_tumble_160.png');
 }
 

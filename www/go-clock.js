@@ -122,6 +122,9 @@ export function GoClock(){
     // Water for a table: a stone that goes over the edge splashes in and
     // sinks (the water background).
     this.table_water = false;
+    // The computer board's stones are flat discs, which do not ride up on
+    // one another on the board (set by my-clock.js with the board).
+    this.flat_stones = false;
     this.sweeping_board = false;
     // A game being replayed on the board (replay.js), or null: while there
     // is one, transform() works towards its positions instead of the time's.

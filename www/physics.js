@@ -87,9 +87,11 @@ export class StoneWorld {
     // for a stone going over the edge (a shoved stone tips over it rather
     // than rolling gently off); sound, something with land(strength),
     // knock(strength) and splash(strength); onSplash(stone, strength),
-    // called as a stone goes into the water.
+    // called as a stone goes into the water; flat, the stones are flat
+    // discs (the computer board) with no bevel to climb: none rides up
+    // on another on the board, only off it, where they may pile up.
     constructor({board, screen, diameter, onBoard, grip = 1, isVoid = false, isWater = false, sidesKeepOn = false,
-                 edgeKick = 0, sound = null, onSplash = null}) {
+                 edgeKick = 0, sound = null, onSplash = null, flat = false}) {
         this.board = board;
         this.screen = screen;
         this.diameter = diameter;
@@ -101,6 +103,7 @@ export class StoneWorld {
         this.edgeKick = edgeKick;
         this.sound = sound;
         this.onSplash = onSplash;
+        this.flat = flat;
         this.stones = [];
         this.elapsed = 0;
     }
@@ -380,7 +383,7 @@ export class StoneWorld {
                         q.climb = (q.climb || 0) + lift;
                     } else if (step > 0) {
                         upper.pressed = true;
-                    } else if (-closing > climbSpeed*this.diameter) {
+                    } else if (-closing > climbSpeed*this.diameter && !(this.flat && !(p.offBoard && q.offBoard))) {
                         // The one going faster into the other.
                         const rider = p.vx*nx + p.vy*ny > -(q.vx*nx + q.vy*ny) ? p : q;
                         if (rider.climbs === undefined) {

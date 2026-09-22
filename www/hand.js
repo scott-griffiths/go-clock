@@ -54,6 +54,7 @@ export function fingerDown(clock, clientX, clientY) {
         grip: clock.table_grip,
         isVoid: clock.table_void,
         isWater: clock.table_water,
+        flat: clock.flat_stones,
         edgeKick: diameter*5,
         sound: clock.sound,
         onSplash: (stone, strength) => splash(goban, stone.x, stone.y, stone.r, strength, Math.atan2(stone.vy, stone.vx))

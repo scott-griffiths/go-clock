@@ -137,6 +137,30 @@ test('a stone that does not climb is pushed off, and a soft knock lifts neither'
     assert.equal(d.lift, 0);
 });
 
+test('flat stones never ride up on the board, but may pile up once off it', () => {
+    const w = world({flat: true});
+    const a = w.add(stone({x: 300, y: 300, climbs: true}));
+    const b = w.add(stone({x: 320, y: 300, asleep: true}));
+    for (let t = 0; t < 0.5; t += 0.016) {
+        a.vx = Math.max(a.vx, diameter*8);
+        b.vx = 0;
+        b.x = 320;
+        w.advance(0.016);
+    }
+    assert.equal(a.lift, 0, 'it rode up on the board');
+    assert.ok(b.x - a.x >= diameter - 1e-9, `${b.x - a.x} apart`);
+    // The same shove on the table.
+    const c = w.add(stone({x: 300, y: board.bottom + 100, climbs: true, offBoard: true, landed: true}));
+    const d = w.add(stone({x: 320, y: board.bottom + 100, asleep: true, offBoard: true, landed: true}));
+    for (let t = 0; t < 0.5; t += 0.016) {
+        c.vx = Math.max(c.vx, diameter*8);
+        d.vx = 0;
+        d.x = 320;
+        w.advance(0.016);
+    }
+    assert.equal(c.lift, 1, 'it never rode up on the table');
+});
+
 test('two sleeping stones lying together are left alone', () => {
     const w = world();
     const a = w.add(stone({x: 300, y: 300, asleep: true}));

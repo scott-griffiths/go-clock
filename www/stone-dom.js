@@ -4,7 +4,7 @@
 // sweep.js and hand.js all draw with these; nothing here knows about the
 // time or the grid.
 
-import {white, black} from './board.js';
+import {white, black, gridsize, minx, maxx, miny, maxy} from './board.js';
 
 const ext = "images/";
 
@@ -20,6 +20,50 @@ const alternateWhiteStoneSrcs = [
 const blackStoneSrc = ext + "black_stone1_160.png";
 export const stoneSrcs = [primaryWhiteStoneSrc, ...alternateWhiteStoneSrcs, blackStoneSrc];
 
+// The computer board: no picture, a plain rectangle the shape of the
+// goban image with the same grid drawn on it, and the star points bold;
+// and its stones, plain discs with a thin black rim. All drawn as SVG.
+export const gobanImageSrc = ext + "goban_1200.jpg";
+const boardWidth = 800;
+const boardHeight = 857;
+function svgSrc(svg) {
+    return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+}
+export const computerBoardSrc = (() => {
+    const lines = [];
+    for (let i = 0; i < gridsize; ++i) {
+        const x = (minx + i*(maxx - minx)/(gridsize - 1))*boardWidth;
+        const y = (miny + i*(maxy - miny)/(gridsize - 1))*boardHeight;
+        lines.push(`<line x1="${x.toFixed(1)}" y1="${(miny*boardHeight).toFixed(1)}" x2="${x.toFixed(1)}" y2="${(maxy*boardHeight).toFixed(1)}"/>`);
+        lines.push(`<line x1="${(minx*boardWidth).toFixed(1)}" y1="${y.toFixed(1)}" x2="${(maxx*boardWidth).toFixed(1)}" y2="${y.toFixed(1)}"/>`);
+    }
+    const stars = [];
+    [3, 9, 15].forEach((i) => [3, 9, 15].forEach((j) => {
+        const x = (minx + i*(maxx - minx)/(gridsize - 1))*boardWidth;
+        const y = (miny + j*(maxy - miny)/(gridsize - 1))*boardHeight;
+        stars.push(`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="7"/>`);
+    }));
+    return svgSrc(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${boardWidth} ${boardHeight}">`
+        + `<rect width="${boardWidth}" height="${boardHeight}" fill="#dcb35c"/>`
+        + `<g stroke="#000" stroke-width="1.6">${lines.join('')}</g>`
+        + `<g fill="#000">${stars.join('')}</g></svg>`);
+})();
+const flatStoneSrc = (fill) => svgSrc(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160">`
+    + `<circle cx="80" cy="80" r="77" fill="${fill}" stroke="#000" stroke-width="3"/></svg>`);
+export const flatWhiteStoneSrc = flatStoneSrc('#fff');
+export const flatBlackStoneSrc = flatStoneSrc('#000');
+export function isFlatStoneSrc(src) {
+    return src === flatWhiteStoneSrc || src === flatBlackStoneSrc;
+}
+
+// Whether the stones are the computer's flat discs (set by my-clock.js
+// with the board): stoneImageSrc() gives those, and physics.js is told
+// they do not ride up on each other.
+let flatStones = false;
+export function setFlatStones(on) {
+    flatStones = on;
+}
+
 // The board image, and the stone images fetched ahead of their first use.
 // Only in a browser: the modules this one serves also run under node for
 // the tests, where there is no Image.
@@ -30,7 +74,7 @@ if (typeof Image !== 'undefined') {
         image.src = src;
     });
     gobanImage = new Image();
-    gobanImage.src = ext + "goban_1200.jpg";
+    gobanImage.src = gobanImageSrc;
 }
 
 // The table is a little further from the eye than the board, so a stone
@@ -88,17 +132,21 @@ function randomWhiteStoneSrc() {
     return alternateWhiteStoneSrcs[Math.floor(Math.random()*alternateWhiteStoneSrcs.length)];
 }
 
-// The image for a stone of this colour: the one it already has, if any.
+// The image for a stone of this colour: the one it already has, if any
+// (unless the stones have changed under it, flat to real or back).
 export function stoneImageSrc(colour, preferredSrc = null) {
+    if (flatStones) {
+        return colour == white ? flatWhiteStoneSrc : flatBlackStoneSrc;
+    }
     if (colour == white) {
-        return preferredSrc || randomWhiteStoneSrc();
+        return preferredSrc && !isFlatStoneSrc(preferredSrc) ? preferredSrc : randomWhiteStoneSrc();
     }
     return blackStoneSrc;
 }
 
 // A stone's colour, read off its image.
 export function colourOfImage(image) {
-    return image.src.includes('black_stone') ? black : white;
+    return image.src.includes('black_stone') || image.src === flatBlackStoneSrc ? black : white;
 }
 
 export function cancelElementAnimations(element) {

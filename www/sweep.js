@@ -43,6 +43,7 @@ export function sweepBoard(clock) {
         grip: clock.table_grip,
         isVoid: clock.table_void,
         isWater: clock.table_water,
+        flat: clock.flat_stones,
         sidesKeepOn: true,
         sound: clock.sound,
         onSplash: (stone, strength) => splash(goban, stone.x, stone.y, stone.r, strength, Math.atan2(stone.vy, stone.vx))
