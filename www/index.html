@@ -35,12 +35,11 @@
                      also places them where they fit on the screen); only one
                      is open at a time. A button's accessible name is its setting
                      and current value ("Board: Oak"). The icons (icons.js) are
-                     filled in by my-clock.js: a setting's is that of its choice,
-                     except the background's and the board's, whose choices are
-                     named alone under one fixed icon each. Choosing a face, a
-                     speed, a background or a board leaves the list open,
-                     rather than closing it as most choices do, so several can
-                     be tried in a row. Along the top of the screen in portrait; down the left in
+                     filled in by my-clock.js: a setting's is that of its
+                     choice. Choosing a face, a speed, a background or a
+                     board leaves the list open, rather than closing it as
+                     most choices do, so several can be tried in a row.
+                     Along the top of the screen in portrait; down the left in
                      landscape, where the board leaves the sides free. -->
                 <button id="menu-toggle" class="button menu-toggle" type="button" title="Hide the controls" aria-label="Hide the controls" aria-expanded="true" aria-controls="toolbar-actions">
                     <span aria-hidden="true"></span>
@@ -50,25 +49,25 @@
                         <button class="setting-summary" type="button" title="Face" aria-label="Face" aria-expanded="false" aria-controls="face-options">
                             <span class="setting-icon" aria-hidden="true"></span>
                         </button>
-                        <div id="face-options" class="setting-options" role="group" aria-label="Face" hidden></div>
+                        <div id="face-options" class="setting-options" role="group" aria-label="Face"></div>
                     </div>
                     <div id="speed-control" class="setting-control" data-open="false">
                         <button class="setting-summary" type="button" title="Speed" aria-label="Speed" aria-expanded="false" aria-controls="speed-options">
                             <span class="setting-icon" aria-hidden="true"></span>
                         </button>
-                        <div id="speed-options" class="setting-options" role="group" aria-label="Speed" hidden></div>
+                        <div id="speed-options" class="setting-options" role="group" aria-label="Speed"></div>
                     </div>
                     <div id="background-control" class="setting-control" data-open="false">
                         <button class="setting-summary" type="button" title="Background" aria-label="Background" aria-expanded="false" aria-controls="background-options">
                             <span class="setting-icon" aria-hidden="true"></span>
                         </button>
-                        <div id="background-options" class="setting-options" role="group" aria-label="Background" hidden></div>
+                        <div id="background-options" class="setting-options" role="group" aria-label="Background"></div>
                     </div>
                     <div id="wood-control" class="setting-control" data-open="false">
                         <button class="setting-summary" type="button" title="Board" aria-label="Board" aria-expanded="false" aria-controls="wood-options">
                             <span class="setting-icon" aria-hidden="true"></span>
                         </button>
-                        <div id="wood-options" class="setting-options" role="group" aria-label="Board" hidden></div>
+                        <div id="wood-options" class="setting-options" role="group" aria-label="Board"></div>
                     </div>
                     <!-- Not a setting: a game replayed on the board (replay.js).
                          The button drops down the shelves of games to pick
@@ -80,7 +79,7 @@
                         <button id="replay" class="setting-summary" type="button" title="Replay a game" aria-label="Replay a game" aria-expanded="false" aria-controls="replay-options" aria-pressed="false">
                             <span class="setting-icon" aria-hidden="true"></span>
                         </button>
-                        <div id="replay-options" class="setting-options" role="group" aria-label="Replay a game" hidden></div>
+                        <div id="replay-options" class="setting-options" role="group" aria-label="Replay a game"></div>
                     </div>
                     <!-- Under one button: the clock's hours, whether it
                          shows seconds, and the sound, which unlike a choice
@@ -93,7 +92,7 @@
                         <button class="setting-summary" type="button" title="Settings" aria-label="Settings" aria-expanded="false" aria-controls="settings-options">
                             <span class="setting-icon" aria-hidden="true"></span>
                         </button>
-                        <div id="settings-options" class="setting-options" role="group" aria-label="Settings" hidden>
+                        <div id="settings-options" class="setting-options" role="group" aria-label="Settings">
                             <button id="mode" class="choice-button" type="button"></button>
                             <button id="seconds-toggle" class="choice-button" type="button"></button>
                             <button id="mute" class="choice-button choice-with-trailing-icon" type="button">
@@ -106,7 +105,7 @@
                                     <span aria-hidden="true">Precision</span>
                                     <span class="setting-value" aria-hidden="true"></span>
                                 </button>
-                                <div id="placement-options" class="setting-options" role="group" aria-label="Precision" hidden></div>
+                                <div id="placement-options" class="setting-options" role="group" aria-label="Precision"></div>
                             </div>
                             <button id="about" class="choice-button" type="button" aria-expanded="false" aria-controls="about_box">About</button>
                         </div>
@@ -130,7 +129,7 @@
                     <button class="setting-summary" type="button" title="Playback speed" aria-label="Playback speed" aria-expanded="false" aria-controls="replay-speed-options">
                         <span class="setting-icon" aria-hidden="true"></span>
                     </button>
-                    <div id="replay-speed-options" class="setting-options" role="group" aria-label="Playback speed" hidden></div>
+                    <div id="replay-speed-options" class="setting-options" role="group" aria-label="Playback speed"></div>
                 </div>
                 <div id="replay-track" class="replay-track" role="slider" tabindex="0" aria-label="Move" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0">
                     <div class="replay-line"></div>

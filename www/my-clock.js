@@ -3,7 +3,7 @@ import {Sounds} from './sounds.js';
 import {preloadTumbleSheets} from './flight.js';
 import {startReplay, cancelReplay, setReplayRate, seekReplay, loadGame, nextGameFile, gameCategories} from './replay.js';
 import {gameTitle, gameResult} from './sgf.js';
-import {faceIcons, speedIcons, precisionIcons, gameIcons, icons} from './icons.js';
+import {faceIcons, speedIcons, precisionIcons, gameIcons, backgroundIcons, woodIcons, icons} from './icons.js';
 import {computerBoardSrc, gobanImageSrc, setFlatStones, stoneImageSrc, colourOfImage} from './stone-dom.js';
 
 const $ = (selector, scope = document) => scope.querySelector(selector);
@@ -30,8 +30,7 @@ const tipsOfTheDay = [
 // stop short in grass and slide on ice. Space is a picture rather than a
 // tile, and has no table: a shoved stone glides off the edge and away.
 const backgrounds = [
-    {file: 'mahogany.jpg', name: 'Dark wood', grip: 1, tile: 1.5},
-    {file: 'walnut.jpg', name: 'Light wood', grip: 1, tile: 1.5},
+    {file: 'walnut.jpg', name: 'Wood', grip: 1, tile: 1.5},
     {file: 'turf.jpg', name: 'Grass', grip: 4, tile: 1.4},
     {file: 'ice.jpg', name: 'Ice', grip: 0.15, tile: 1.1, veil: 'rgb(178 196 200 / 0.55)'},
     {file: 'water.jpg', name: 'Water', grip: 1, tile: 1.3, tint: '#123c5e', shimmer: 0.62, isWater: true},
@@ -232,7 +231,14 @@ window.addEventListener('DOMContentLoaded', () => {
 
 window.addEventListener('load', () => {
     const goClock = new GoClock();
-    let background = readIndex('background', 0, backgrounds.length);
+    // Dark wood went the way Slow did (below): an index already stored
+    // under a new key (`background2`) is used as is; one only under the
+    // old `background` is dropped once, on the way to it.
+    const oldBackground = readSetting('background');
+    const newBackground = readSetting('background2');
+    let background = isInt(newBackground)
+        ? wrap(Number(newBackground), backgrounds.length)
+        : isInt(oldBackground) ? wrap(Math.max(0, Number(oldBackground) - 1), backgrounds.length) : 0;
     // Slow speeds keep going: Torpid first, then Slow, each dropped from
     // the front of the list, its key retired and a new one taken up so an
     // index already in the new scheme (`pace2`) is never shifted again —
@@ -420,7 +426,6 @@ window.addEventListener('load', () => {
     function setControlOpen(control, open) {
         control.dataset.open = open ? 'true' : 'false';
         summaryOf(control).setAttribute('aria-expanded', String(open));
-        $('.setting-options', control).hidden = !open;
         if (open) {
             placePanel(control);
         }
@@ -485,9 +490,9 @@ window.addEventListener('load', () => {
         goClock.transform();
     }, faceIcons, true, true);
     const showSpeed = createSettingControl('speed', stoneSpeeds.map(([name]) => name), stoneSpeeds.map(([name]) => name), setClockSpeed, speedIcons.slice(1), true, true);
-    const showWood = createSettingControl('wood', woods.map(([name]) => name), woods.map(([name]) => name), setWood, null, true);
+    const showWood = createSettingControl('wood', woods.map(([name]) => name), woods.map(([name]) => name), setWood, woodIcons, true, true);
     const showPlacement = createSettingControl('placement', placements, placements, setPlacement, precisionIcons);
-    const showBackground = createSettingControl('background', backgrounds.map((table) => table.name), backgrounds.map((table) => table.name), setBackground, null, true);
+    const showBackground = createSettingControl('background', backgrounds.map((table) => table.name), backgrounds.map((table) => table.name), setBackground, backgroundIcons, true, true);
 
     function setClockSpeed(index) {
         stoneSpeed = wrap(index, stoneSpeeds.length);
@@ -612,7 +617,7 @@ window.addEventListener('load', () => {
             preloadTumbleSheets();
         }
         showBackground(background);
-        writeSetting('background', background);
+        writeSetting('background2', background);
     }
 
     // A tiled table repeats every `tile` board-widths; a picture covers
@@ -818,7 +823,7 @@ window.addEventListener('load', () => {
 
     function changeBackground(step) {
         setBackground(background + step);
-        showSwipeToast(icons.background, backgrounds[background].name);
+        showSwipeToast(backgroundIcons[background], backgrounds[background].name);
     }
 
     // What the board shows, for assistive tech: a grid of stones means
@@ -905,8 +910,6 @@ window.addEventListener('load', () => {
         });
     });
     $('#settings-control .setting-icon').innerHTML = icons.settings;
-    $('#background-control .setting-icon').innerHTML = icons.background;
-    $('#wood-control .setting-icon').innerHTML = icons.board;
     setClockSpeed(stoneSpeed);
     setView(view);
     setBackground(background);

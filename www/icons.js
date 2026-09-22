@@ -81,6 +81,31 @@ const crossHairs = (dx, dy, tilt, wobble = 0) => {
     return circle + hairs;
 };
 
+// The backgrounds: a tree for wood, a tuft of grass, a snowflake for
+// ice, a couple of waves for water, and a pair of sparkles for space.
+export const backgroundIcons = [
+    svg('<circle cx="12" cy="10.5" r="6.5"/><path d="M12 17v4"/>'),
+    svg('<path d="M12 20v-4"/><path d="M12 16c0-6 -3.2-7 -3.2-13"/><path d="M12 16c0-6.5 3.2-7.5 3.2-13.5"/>'),
+    svg('<path d="M12 3v18M4.8 7.5l14.4 9M19.2 7.5l-14.4 9"/>'
+        + '<path d="M9.8 4.6l2.2 1.3 2.2-1.3M9.8 19.4l2.2-1.3 2.2 1.3"/>'
+        + '<path d="M5.6 9.7l.3-2.5 2.3-1M5.6 14.3l.3 2.5 2.3 1M18.4 9.7l-.3-2.5-2.3-1M18.4 14.3l-.3 2.5-2.3 1"/>'),
+    svg('<path d="M2.5 9c1.8-2 3.8-2 5.6 0s3.8 2 5.6 0 3.8-2 5.6 0"/>'
+        + '<path d="M2.5 15c1.8-2 3.8-2 5.6 0s3.8 2 5.6 0 3.8-2 5.6 0"/>'),
+    svg('<path d="M8 4l1.3 3.7L13 9l-3.7 1.3L8 14l-1.3-3.7L3 9l3.7-1.3Z" fill="currentColor" stroke="none"/>'
+        + '<path d="M17 12.5l.9 2.6 2.6.9-2.6.9-.9 2.6-.9-2.6-2.6-.9 2.6-.9Z" fill="currentColor" stroke="none"/>')
+];
+
+// The board's wood: a broad, cloud-shaped canopy for oak, a tiered
+// conifer for kaya (a real tree, the one Go boards are prized for), and
+// a robot's head for the computer's own plain board.
+export const woodIcons = [
+    svg('<path d="M7 12a3.3 3.3 0 0 1 1.3-6.2 4 4 0 0 1 7.4 0A3.3 3.3 0 0 1 17 12a3 3 0 0 1-2.4 4.8H9.4A3 3 0 0 1 7 12Z"/><path d="M12 16.8V21"/>'),
+    svg('<path d="M12 3l4 6h-2.6L17 14h-2.8L18 20H6l3.8-6H7l3.6-5H8Z"/><path d="M12 20v2"/>'),
+    svg('<rect x="5.5" y="8" width="13" height="10" rx="2.5"/><path d="M12 8V5M9.5 5h5"/>'
+        + '<circle cx="9.3" cy="13" r="1.1" fill="currentColor" stroke="none"/><circle cx="14.7" cy="13" r="1.1" fill="currentColor" stroke="none"/>'
+        + '<path d="M9 16.3h6"/>')
+];
+
 export const precisionIcons = [
     svg(crossHairs(0, 0, 0)),
     svg(crossHairs(1.2, -0.9, 0.12)),
@@ -139,11 +164,6 @@ export const icons = {
         svg('<path d="M4 9.25h3.4L12 5.25v13.5L7.4 14.75H4Z"/><path d="M15.5 9l5.5 5.5M21 9l-5.5 5.5"/>'),
         svg('<path d="M4 9.25h3.4L12 5.25v13.5L7.4 14.75H4Z"/><path d="M15.25 9.25a4.5 4.5 0 0 1 0 5.5M18 6.75a8 8 0 0 1 0 10.5"/>')
     ],
-    // The background: a picture in a frame.
-    background: svg('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 16.5l5 -5 4.5 4.5 3 -3 5.5 5.5"/><circle cx="15.5" cy="8.5" r="1.5"/>'),
-    // The board: the bare goban, wood or wood alone (the choices are named,
-    // not pictured, as the background's are).
-    board: svg(miniGoban()),
     // The toggle for the rest of the row: a cross while they show, a
     // menu's three bars while they are tucked away.
     close: svg('<path d="M6 6l12 12M18 6L6 18"/>'),
