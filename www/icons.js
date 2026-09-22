@@ -50,14 +50,15 @@ export const faceIcons = [
         + dots(12, 16, 6.25, {filled: [0]}) + '<path d="M12 16v-3.6"/>')
 ];
 
-// The speeds, slow to insane: a chevron, held back by a bar for slow, on
-// its own for normal, doubled for fast, and doubled and pointed with a
-// bang for insane.
+// The speeds, slow to magic: a chevron, held back by a bar for slow, on
+// its own for normal, doubled for fast, doubled and pointed with a bang
+// for insane, and a bang and a query for magic.
 export const speedIcons = [
     svg('<path d="M6.5 5v14M10 5l7 7 -7 7"/>'),
     svg('<path d="M8 5l7 7 -7 7"/>'),
     svg('<path d="M4.5 5l7 7 -7 7M12.5 5l7 7 -7 7"/>'),
-    svg('<path d="M2.5 5l7 7 -7 7M9.5 5l7 7 -7 7M21 5v9M21 18.5v0.01"/>')
+    svg('<path d="M2.5 5l7 7 -7 7M9.5 5l7 7 -7 7M21 5v9M21 18.5v0.01"/>'),
+    svg('<path d="M6.5 5v9M6.5 18.5v0.01M11.5 8.25a3.5 3.5 0 1 1 5 3.15c-1 0.5 -1.5 1.2 -1.5 2.35v0.3M15 18.5v0.01"/>')
 ];
 
 // The precisions: a circle with cross hairs through its middle. Exact is
@@ -130,6 +131,9 @@ export const icons = {
     settings: svg(cog(8, 10.5, 7.75)),
     // A game replayed: the goban, with a play button over it.
     replay: svg(miniGoban() + '<path d="M8.75 7v10l8.25 -5Z" fill="currentColor" stroke="none"/>'),
+    // The replay running or held: a pause while it runs, to stop it; a play while it is held.
+    play: svg('<path d="M8 5.5v13l10 -6.5Z" fill="currentColor" stroke="none"/>'),
+    pause: svg('<path d="M8 5.5v13M16 5.5v13" stroke-width="2.5"/>'),
     // Sound, on and off: a speaker, with waves coming off it or crossed out.
     sound: [
         svg('<path d="M4 9.25h3.4L12 5.25v13.5L7.4 14.75H4Z"/><path d="M15.5 9l5.5 5.5M21 9l-5.5 5.5"/>'),

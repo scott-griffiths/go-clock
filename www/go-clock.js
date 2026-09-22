@@ -13,6 +13,7 @@ import {replayWanted, replaySettled} from './replay.js';
 import {fingerDown, fingerMove, fingerUp, endFinger} from './hand.js';
 import {setLandingOffset, alignIdleStone} from './placement.js';
 import {moveStone, moveDuration} from './moves.js';
+import {magicTransform, dropMagicStones} from './magic.js';
 import {$, gobanImage, drawOnTable, maxLift, setStyles, setVisible, setStoneShadow, stoneImageSrc,
         cancelElementAnimations, animateElement, elementCentre, stoneElement, looseStone} from './stone-dom.js';
 
@@ -102,9 +103,9 @@ export function GoClock(){
     this.hand = new Hand('hand', '#moving_stone', centre);
     this.other = new Hand('other', '#moving_stone2', centre);
     this.hands = [this.hand, this.other];
-    // Whether either hand is carrying a stone.
+    // Whether either hand is carrying a stone (or the magic has any in the air).
     this.busy = function() {
-        return this.hands.some((hand) => hand.moving);
+        return this.hands.some((hand) => hand.moving) || this.magic_flights.length > 0;
     };
     // Something with place/slide/nudge/bowl/knock/land/setRumble methods
     // (see sounds.js), or null for a silent board.
@@ -136,6 +137,10 @@ export function GoClock(){
 
     this.speed = 26; // How fast a stone moves (moves.js)
     this.pause = 180; // How long a hand rests between stones, in ms
+    // Magic: as many hands as there are stones to move, every change
+    // made in one go (magic.js); `magic_flights` the stones in the air.
+    this.magic = false;
+    this.magic_flights = [];
 
     this.placement = 1; // 0 exact, 1 organic, 2 careless
 
@@ -352,7 +357,7 @@ export function GoClock(){
         });
         cancelElementAnimations(pushedStone);
         setVisible(pushedStone, false);
-        return stones;
+        return stones.concat(dropMagicStones(this));
     };
 
     // The hand: hand.js.
@@ -551,6 +556,19 @@ export function GoClock(){
             this.stones = wanted;
         } else {
             this.update();
+        }
+        if (this.magic) {
+            // Every change at once (magic.js); the last landing looks
+            // again. Nothing to do: the next second, or the game's end.
+            if (this.busy() || magicTransform(this)) {
+                return;
+            }
+            if (this.replay) {
+                replaySettled(this);
+            } else {
+                this.idle_timer = setTimeout(this.transform.bind(this), 1000 - Date.now() % 1000 + 5);
+            }
+            return;
         }
         // How long a stone takes to move one point, at this speed; and how
         // close to the other hand's picking up or putting down is too

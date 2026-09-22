@@ -21,6 +21,11 @@
 // the same when it lifts, so the hands put it back and the game goes on.
 // A change of face, or the button again, cancels the replay
 // (cancelReplay), and the clock carries on from the board as it stands.
+// The replay can be paused (pauseReplay): the hands finish what they
+// carry and wait, holding the position reached; and taken to any move
+// (seekReplay): the hands take the board to that position, adding and
+// taking off what it needs, and the game goes on from there once they
+// have.
 
 import {gridsize, emptyBoard} from './board.js';
 import {parseSgf, playGame} from './sgf.js';
@@ -159,34 +164,46 @@ export async function loadGame(url) {
 }
 
 // The positions a game goes through, from the moves with their captures:
-// {board, stoneMore} for each, `stoneMore` when the position is the one
-// before with a stone added (as against captured stones taken off).
+// {board, stoneMore, move} for each, `stoneMore` when the position is the
+// one before with a stone added (as against captured stones taken off),
+// and `move` the index of the move it belongs to.
 export function gameStages(moves) {
     const board = emptyBoard();
     const stages = [];
-    moves.forEach((move) => {
+    moves.forEach((move, index) => {
         board[move.point] = move.colour;
         if (move.captures.length > 0) {
-            stages.push({board: [...board], stoneMore: true});
+            stages.push({board: [...board], stoneMore: true, move: index});
             move.captures.forEach((point) => {
                 board[point] = 0;
             });
-            stages.push({board: [...board], stoneMore: false});
+            stages.push({board: [...board], stoneMore: false, move: index});
         } else {
-            stages.push({board: [...board], stoneMore: true});
+            stages.push({board: [...board], stoneMore: true, move: index});
         }
     });
     return stages;
 }
 
+// The last stage of a move: the position once its stone is down and its
+// captures are off. -1 for `move` -1, the board before the first.
+export function stageOfMove(stages, move) {
+    let at = -1;
+    while (at + 1 < stages.length && stages[at + 1].move <= move) {
+        ++at;
+    }
+    return at;
+}
+
 // The replay begun: the board cleared, and the game, once `loading`
 // (a promise of loadGame's game) has it, played through. `onStart` is
 // called with the game as its first stone sets out, `onRest` with it as
-// the last lands, and `onEnd` when the clock has the board back, with
-// the error if the game could not be had. Returns whether it began: not
-// while a finger is on the board, the board is being swept, or a replay
-// is already under way.
-export function startReplay(clock, loading, {onStart = null, onRest = null, onEnd = null} = {}) {
+// the last lands, `onEnd` when the clock has the board back, with the
+// error if the game could not be had, and `onProgress` with the number
+// of moves the board shows whenever that changes. Returns whether it
+// began: not while a finger is on the board, the board is being swept,
+// or a replay is already under way.
+export function startReplay(clock, loading, {onStart = null, onRest = null, onEnd = null, onProgress = null} = {}) {
     if (clock.replay || clock.sweeping_board || clock.finger || typeof document === 'undefined') {
         return false;
     }
@@ -196,12 +213,15 @@ export function startReplay(clock, loading, {onStart = null, onRest = null, onEn
         cleared: false,
         started: false,
         resting: false,
+        paused: false,
+        seeking: null, // The stage the hands are taking the board to, or null
         cancelled: false,
         error: null,
         timer: null,
         onStart,
         onRest,
-        onEnd
+        onEnd,
+        onProgress
     };
     clock.replay = replay;
     window.clearTimeout(clock.idle_timer);
@@ -240,7 +260,8 @@ export function startReplay(clock, loading, {onStart = null, onRest = null, onEn
 const lookahead = 1;
 
 // The board the replay wants now, for the clock's transform() to plan
-// towards: the next position of the game the board has not reached; or
+// towards: the next position of the game the board has not reached (or,
+// paused, the one it has, so the hands hold there); or
 // one beyond it (up to `lookahead`) when the stones on their way in the
 // hands make the position before it, and each is a stone more — never a
 // stone the game has not yet reached, so the moves cannot go down out of
@@ -264,14 +285,30 @@ export function replayWanted(clock) {
         replay.onStart?.(replay.game);
     }
     const stages = replay.game.stages;
+    // Taken to a move: that position, until the board shows it.
+    if (replay.seeking !== null) {
+        const board = replay.seeking < 0 ? emptyBoard() : stages[replay.seeking].board;
+        if (!sameBoard(clock.stones_shown, board)) {
+            return board;
+        }
+        replay.stage = replay.seeking + 1;
+        replay.seeking = null;
+        if (replay.paused) {
+            return board;
+        }
+    }
     // How far the board has got: the furthest position it shows, of the
     // one wanted and the one it may be reaching for beyond it.
     for (let ahead = lookahead; ahead >= 0; --ahead) {
         const at = replay.stage + ahead;
         if (at < stages.length && sameBoard(clock.stones_shown, stages[at].board)) {
             replay.stage = at + 1;
+            reportProgress(replay);
             break;
         }
+    }
+    if (replay.paused) {
+        return replay.stage > 0 ? stages[replay.stage - 1].board : emptyBoard();
     }
     if (replay.stage >= stages.length) {
         return stages[stages.length - 1].board;
@@ -298,7 +335,7 @@ export function replayWanted(clock) {
 // stones are still settling, and transform() will be called again.
 export function replaySettled(clock) {
     const replay = clock.replay;
-    if (!replay.game || replay.stage < replay.game.stages.length || replay.resting) {
+    if (!replay.game || replay.paused || replay.stage < replay.game.stages.length || replay.resting) {
         return;
     }
     replay.resting = true;
@@ -311,6 +348,63 @@ export function replaySettled(clock) {
             clock.transform();
         }
     }, restTime);
+}
+
+// How many moves the board shows: the move of the last position reached,
+// counted from one; or, while the hands take it to a move, that move.
+export function movesShown(replay) {
+    const at = replay.seeking !== null ? replay.seeking : replay.stage - 1;
+    return at >= 0 ? replay.game.stages[at].move + 1 : 0;
+}
+
+function reportProgress(replay) {
+    if (replay.game) {
+        replay.onProgress?.(movesShown(replay), replay.game.moves.length);
+    }
+}
+
+// The replay held where it is, or let go on. Paused, the hands land what
+// they carry and wait; a game that had finished, and was resting before
+// the clock took the board back, stays. Let go, the game goes on from
+// the position reached.
+export function pauseReplay(clock, paused) {
+    const replay = clock.replay;
+    if (!replay || replay.cancelled) {
+        return;
+    }
+    replay.paused = paused;
+    if (paused && replay.resting) {
+        window.clearTimeout(replay.timer);
+        replay.timer = null;
+        replay.resting = false;
+    }
+    if (!clock.busy() && !clock.finger && !clock.sweeping_board) {
+        clock.transform();
+    }
+}
+
+// The replay taken to the position after `move` moves (0, the empty
+// board): the hands take the board there, putting on and taking off
+// whatever that needs, and the game goes on from it once they have (or
+// waits there, if paused). Not until the game is under way, nor while a
+// finger is on the board.
+export function seekReplay(clock, move) {
+    const replay = clock.replay;
+    if (!replay || replay.cancelled || !replay.game || !replay.cleared || clock.sweeping_board || clock.finger) {
+        return false;
+    }
+    const stages = replay.game.stages;
+    replay.seeking = stageOfMove(stages, Math.max(0, Math.min(replay.game.moves.length, move)) - 1);
+    if (replay.resting) {
+        window.clearTimeout(replay.timer);
+        replay.timer = null;
+        replay.resting = false;
+    }
+    reportProgress(replay);
+    if (!clock.busy() && !clock.finger && !clock.sweeping_board) {
+        clock.transform();
+    }
+    return true;
 }
 
 function sameBoard(a, b) {

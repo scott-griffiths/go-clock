@@ -148,6 +148,11 @@ body {
     z-index: 3;
 }
 
+/* A stone the magic has in the air (magic.js) passes over the rest. */
+.magic-stone {
+    z-index: 4;
+}
+
 /* A stone ridden up onto another (physics.js) lies over it. */
 .loose-stone.riding {
     z-index: 4;
@@ -463,6 +468,60 @@ body {
     pointer-events: none;
 }
 
+/* The replay's bar: play or pause, and the line of the game with a marker
+   on it, under the board (in landscape, down its right side: see the
+   media query below). my-clock.js places it against the board. */
+.replay-bar {
+    position: fixed;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: white;
+}
+
+.replay-track {
+    position: relative;
+    flex: 1;
+    align-self: stretch;
+    min-width: 42px;
+    min-height: 42px;
+    cursor: pointer;
+    touch-action: none;
+}
+
+.replay-track:focus-visible {
+    outline: 2px solid rgb(255 255 255 / 0.8);
+    outline-offset: -2px;
+    border-radius: 6px;
+}
+
+.replay-line {
+    position: absolute;
+    top: 50%;
+    right: 8px;
+    left: 8px;
+    height: 3px;
+    border-radius: 2px;
+    background: rgb(0 0 0 / 0.7);
+    box-shadow: 0 1px 4px rgb(0 0 0 / 0.32);
+    transform: translateY(-50%);
+}
+
+.replay-marker {
+    position: absolute;
+    top: 50%;
+    left: calc(8px + (100% - 16px)*var(--progress, 0));
+    width: 18px;
+    height: 18px;
+    border: 3px solid rgb(0 0 0 / 0.85);
+    border-radius: 50%;
+    background: white;
+    box-shadow: 0 2px 8px rgb(0 0 0 / 0.4);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+
 /* A narrow phone: the row of buttons a little tighter, so it fits in one. */
 @media (orientation: portrait) and (max-width: 400px) {
     .toolbar,
@@ -500,6 +559,25 @@ body {
 
     .toolbar[data-collapsed="true"] .toolbar-actions > * {
         transform: translateY(calc((var(--i) + 1) * -48px));
+    }
+
+    .replay-bar {
+        flex-direction: column;
+    }
+
+    .replay-line {
+        top: 8px;
+        right: 50%;
+        bottom: 8px;
+        left: 50%;
+        width: 3px;
+        height: auto;
+        transform: translateX(-50%);
+    }
+
+    .replay-marker {
+        top: calc(8px + (100% - 16px)*var(--progress, 0));
+        left: 50%;
     }
 }
 

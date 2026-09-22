@@ -74,7 +74,7 @@ function coordsForOffset(clock, index, offset) {
     return [x + offset[0], y + offset[1]];
 }
 
-function offsetRadius(clock, index) {
+export function offsetRadius(clock, index) {
     var offset = clock.offsets[index];
     return Math.sqrt(offset[0]*offset[0] + offset[1]*offset[1]);
 }
@@ -99,11 +99,11 @@ function alignmentTargetRadius(clock) {
 // placement, so a stone put down perfectly well is left alone, and only
 // one a finger left askew, or that was put down in a more careless mode,
 // gets tidied.
-function alignmentTriggerRadius(clock) {
+export function alignmentTriggerRadius(clock) {
     return Math.max(disorderRadius(clock)*1.6, alignmentTargetRadius(clock) + 0.01);
 }
 
-function alignedOffset(clock, index) {
+export function alignedOffset(clock, index) {
     var offset = clock.offsets[index];
     var radius = offsetRadius(clock, index);
     if (clock.placement == 0 || radius == 0) {

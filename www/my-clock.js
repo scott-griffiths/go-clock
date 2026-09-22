@@ -1,7 +1,7 @@
 import {GoClock} from './go-clock.js';
 import {Sounds} from './sounds.js';
 import {preloadTumbleSheets} from './flight.js';
-import {startReplay, cancelReplay, loadGame, nextGameFile, gameCategories} from './replay.js';
+import {startReplay, cancelReplay, pauseReplay, seekReplay, loadGame, nextGameFile, gameCategories} from './replay.js';
 import {gameTitle, gameResult} from './sgf.js';
 import {faceIcons, speedIcons, precisionIcons, gameIcons, icons} from './icons.js';
 import {computerBoardSrc, gobanImageSrc, setFlatStones, stoneImageSrc, colourOfImage} from './stone-dom.js';
@@ -43,8 +43,10 @@ const views = ['Analogue', 'Jumping hour', 'Digital', 'Hybrid'];
 // takes the square root of its length over this, so four times the speed
 // is twice as quick), and how long a hand rests between stones, in ms.
 // The rest is most of the difference: a slow player is slow to reach for
-// the next stone, not slow in carrying it.
-const stoneSpeeds = [['Slow', 18, 500], ['Normal', 26, 180], ['Fast', 45, 60], ['Insane!', 320, 8]];
+// the next stone, not slow in carrying it. Magic (the fourth entry true)
+// has as many hands as it needs: every change is made in one go
+// (magic.js), and the rest is between one go and the next.
+const stoneSpeeds = [['Slow', 18, 500], ['Normal', 26, 180], ['Fast', 45, 60], ['Insane!', 320, 8], ['Magic', 320, 150, true]];
 const placements = ['Exact', 'Organic', 'Careless'];
 const modes = ['12-hour', '24-hour'];
 // Each a filter on the board image; the last is no wood at all but the
@@ -434,11 +436,13 @@ window.addEventListener('load', () => {
         swipeToast.getAnimations?.().forEach((animation) => animation.cancel());
         swipeToast.style.opacity = '1';
         swipeToast.hidden = false;
-        // Just above the board, or at the top of the screen where the
-        // board reaches nearly to it (landscape).
-        const board = $('#goban-image')?.getBoundingClientRect();
+        // Just above the board (or the replay's bar, when that is above
+        // it), or at the top of the screen where the board reaches nearly
+        // to it (landscape).
+        const bar = $('#replay-bar');
+        const above = (!bar.hidden && !isLandscape() ? bar : $('#goban-image'))?.getBoundingClientRect();
         const highest = 10 + safeInsets().top;
-        swipeToast.style.top = `${Math.round(Math.max(highest, (board?.top ?? 0) - 8 - swipeToast.offsetHeight))}px`;
+        swipeToast.style.top = `${Math.round(Math.max(highest, (above?.top ?? 0) - 8 - swipeToast.offsetHeight))}px`;
         swipeToastTimer = window.setTimeout(() => fadeTo(swipeToast, 0, 400), stay);
     }
 
@@ -456,6 +460,7 @@ window.addEventListener('load', () => {
         stoneSpeed = wrap(index, stoneSpeeds.length);
         goClock.speed = stoneSpeeds[stoneSpeed][1];
         goClock.pause = stoneSpeeds[stoneSpeed][2];
+        goClock.magic = Boolean(stoneSpeeds[stoneSpeed][3]);
         showSpeed(stoneSpeed);
         writeSetting('pace', stoneSpeed);
     }
@@ -606,11 +611,122 @@ window.addEventListener('load', () => {
         replayButton.setAttribute('aria-label', replayButton.title);
     }
 
+    // The replay's bar (index.html): play or pause, and the game's line
+    // with a marker at the move the board shows, which can be dragged to
+    // any move. It sits over the board, or down its right side in
+    // landscape, while a game is running.
+    const replayBar = $('#replay-bar');
+    const replayPlay = $('#replay-play');
+    const replayTrack = $('#replay-track');
+    const replayMarker = $('#replay-marker');
+    let replayMoves = 0;
+    let replayPaused = false;
+
+    function placeReplayBar() {
+        const board = $('#goban-image')?.getBoundingClientRect();
+        if (!board) {
+            return;
+        }
+        const gap = 10;
+        if (isLandscape()) {
+            Object.assign(replayBar.style, {
+                left: `${Math.round(board.right + gap)}px`,
+                top: `${Math.round(board.top)}px`,
+                width: '',
+                height: `${Math.round(board.height)}px`
+            });
+        } else {
+            Object.assign(replayBar.style, {
+                left: `${Math.round(board.left)}px`,
+                top: `${Math.round(board.top - gap - 42)}px`,
+                width: `${Math.round(board.width)}px`,
+                height: ''
+            });
+        }
+    }
+
+    function showReplayProgress(moves, total) {
+        replayMoves = total;
+        replayTrack.setAttribute('aria-valuemax', String(total));
+        replayTrack.setAttribute('aria-valuenow', String(moves));
+        replayTrack.setAttribute('aria-valuetext', `Move ${moves} of ${total}`);
+        replayMarker.style.setProperty('--progress', total > 0 ? String(moves/total) : '0');
+    }
+
+    function showReplayPaused(paused) {
+        replayPaused = paused;
+        replayPlay.title = paused ? 'Play the replay' : 'Pause the replay';
+        replayPlay.setAttribute('aria-label', replayPlay.title);
+        $('.setting-icon', replayPlay).innerHTML = paused ? icons.play : icons.pause;
+    }
+
+    replayPlay.addEventListener('click', () => {
+        showReplayPaused(!replayPaused);
+        pauseReplay(goClock, replayPaused);
+    });
+
+    // The marker dragged (or the line touched): the move under the pointer,
+    // from the first at the left (or top) to the last at the right (or
+    // bottom), and the board taken there as it goes.
+    let scrubbing = null;
+    function moveUnderPointer(event) {
+        const rect = replayTrack.getBoundingClientRect();
+        const inset = 8;
+        const along = isLandscape()
+            ? (event.clientY - rect.top - inset)/(rect.height - 2*inset)
+            : (event.clientX - rect.left - inset)/(rect.width - 2*inset);
+        return Math.round(Math.max(0, Math.min(1, along))*replayMoves);
+    }
+    function scrubTo(move) {
+        if (goClock.replay && move !== scrubbing?.move && seekReplay(goClock, move)) {
+            scrubbing.move = move;
+        }
+    }
+    replayTrack.addEventListener('pointerdown', (event) => {
+        if (!event.isPrimary || !goClock.replay) {
+            return;
+        }
+        event.preventDefault();
+        scrubbing = {id: event.pointerId, move: null};
+        replayTrack.setPointerCapture(event.pointerId);
+        scrubTo(moveUnderPointer(event));
+    });
+    replayTrack.addEventListener('pointermove', (event) => {
+        if (scrubbing && event.pointerId === scrubbing.id) {
+            scrubTo(moveUnderPointer(event));
+        }
+    });
+    function endScrub(event) {
+        if (scrubbing && event.pointerId === scrubbing.id) {
+            if (event.type === 'pointerup') {
+                scrubTo(moveUnderPointer(event));
+            }
+            scrubbing = null;
+        }
+    }
+    replayTrack.addEventListener('pointerup', endScrub);
+    replayTrack.addEventListener('pointercancel', endScrub);
+    replayTrack.addEventListener('keydown', (event) => {
+        const step = {ArrowLeft: -1, ArrowUp: -1, ArrowRight: 1, ArrowDown: 1, Home: -Infinity, End: Infinity}[event.key];
+        if (step === undefined || !goClock.replay) {
+            return;
+        }
+        event.preventDefault();
+        const now = Number(replayTrack.getAttribute('aria-valuenow'));
+        seekReplay(goClock, Math.max(0, Math.min(replayMoves, now + step)));
+    });
+
     // A game from one shelf, or, for the key, from any of them.
     function startGame(category = null) {
         const icon = category ? gameIcons[category.key] : icons.replay;
         const began = startReplay(goClock, loadGame(`games/${nextGameFile(category?.files)}`), {
-            onStart: (game) => showSwipeToast(icon, gameTitle(game.info), 8000),
+            onStart: (game) => {
+                showReplayProgress(0, game.moves.length);
+                placeReplayBar();
+                replayBar.hidden = false;
+                showSwipeToast(icon, gameTitle(game.info), 8000);
+            },
+            onProgress: showReplayProgress,
             onRest: (game) => {
                 const result = gameResult(game.info);
                 if (result) {
@@ -619,6 +735,7 @@ window.addEventListener('load', () => {
             },
             onEnd: (error) => {
                 setReplaying(false);
+                replayBar.hidden = true;
                 if (error) {
                     console.error('The game could not be replayed', error);
                     showSwipeToast(icon, 'No game to replay');
@@ -627,6 +744,7 @@ window.addEventListener('load', () => {
         });
         if (began) {
             setReplaying(true);
+            showReplayPaused(false);
         }
     }
 
@@ -696,6 +814,7 @@ window.addEventListener('load', () => {
     goClock.onDraw = () => {
         setWood(wood);
         sizeBackground();
+        placeReplayBar();
     };
 
     function resizeClock() {
