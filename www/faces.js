@@ -15,10 +15,12 @@ export const DATE = 4;
 // The twelve hour markers of the analogue faces, clockwise from twelve.
 export const hourMarkers = [[9, 1], [13, 2], [16, 5], [17, 9], [16, 13], [13, 16], [9, 17], [5, 16], [2, 13], [1, 9], [2, 5], [5, 2]];
 
-// The analogue face's second hand: one black stone walking a ring of sixty
-// points round the outside, clockwise from twelve. A radius of 8.15 is the
-// one that rounds to sixty distinct points, each a single step from the
-// last, and lands on every hour marker at the five-second marks.
+// The analogue face's second hand: one white stone walking a ring of sixty
+// points round the outside, clockwise from twelve, over an hour marker
+// where it lands on one (drawn after them, five-second marks apart). A
+// radius of 8.15 is the one that rounds to sixty distinct points, each a
+// single step from the last, and lands on every hour marker at the
+// five-second marks.
 export const secondRing = [];
 for (let s = 0; s < 60; ++s) {
     const theta = 2*Math.PI*s / 60;
@@ -83,8 +85,12 @@ function drawNumber(stones, number, x_offset, y_offset, size, colour) {
 
 // The board for `view` at the time: 361 of empty (0), white (1) or
 // black (3). `hours` is 0 to 23; in 12-hour mode the faces with digits
-// show 12 rather than 0. `days` is only for the date face.
-export function faceFor(view, {hours, minutes, seconds = 0, days = 0}, twentyFourHour = true) {
+// show 12 rather than 0. `days` is only for the date face. `showSeconds`
+// false drops the analogue second hand and the digital face's ring of
+// counting stones; the jumping hour face shows its minutes alone instead
+// of minutes over seconds (see JUMPING_HOUR, below). The hybrid face
+// keeps its seconds regardless: its ring is most of the face.
+export function faceFor(view, {hours, minutes, seconds = 0, days = 0}, twentyFourHour = true, showSeconds = true) {
     var stones = emptyBoard();
     if (!twentyFourHour) {
         hours %= 12;
@@ -117,16 +123,25 @@ export function faceFor(view, {hours, minutes, seconds = 0, days = 0}, twentyFou
         for (var i = 0; i < hand_stones.length; ++i) {
             addStone(stones, hand_stones[i][0], hand_stones[i][1], black);
         }
-        addStone(stones, secondRing[seconds][0], secondRing[seconds][1], black);
+        if (showSeconds) {
+            addStone(stones, secondRing[seconds][0], secondRing[seconds][1], white);
+        }
     }
     else if (view == JUMPING_HOUR) {
         for (var i = 0; i < hourMarkers.length; ++i) {
             addStone(stones, hourMarkers[i][0], hourMarkers[i][1], hours%12 == i ? white : black);
         }
-        drawNumber(stones, (minutes - minutes%10)/10, 6, 4, 1, black);
-        drawNumber(stones, minutes%10, 10, 4, 1, black);
-        drawNumber(stones, (seconds - seconds%10)/10, 6, 10, 1, white);
-        drawNumber(stones, seconds%10, 10, 10, 1, white);
+        if (showSeconds) {
+            drawNumber(stones, (minutes - minutes%10)/10, 6, 4, 1, black);
+            drawNumber(stones, minutes%10, 10, 4, 1, black);
+            drawNumber(stones, (seconds - seconds%10)/10, 6, 10, 1, white);
+            drawNumber(stones, seconds%10, 10, 10, 1, white);
+        } else {
+            // No seconds to make room for: the minutes alone, centred, in
+            // the digital face's own lower-half style (small, white).
+            drawNumber(stones, (minutes - minutes%10)/10, 4, 6, 2, white);
+            drawNumber(stones, minutes%10, 10, 6, 2, white);
+        }
     }
     else if (view == DIGITAL) {
         var tensOfHours = (hours - hours%10)/10;
@@ -149,17 +164,19 @@ export function faceFor(view, {hours, minutes, seconds = 0, days = 0}, twentyFou
         // stone in turn walks on to the next and is taken off when it meets
         // it, the last coming round to the top of the right as the next
         // minute's first.
-        var ring = function(p) {
-            p %= 30;
-            return p < 15 ? [17, 2 + p, white] : [1, 16 - (p - 15), black];
-        };
-        var kept = [0, 2, 4, 6, 8, 10, 12, 14, 15, 17, 19, 21, 23, 25, 27, 29];
-        var t = seconds%30;
-        var positions = kept.filter(seconds < 30 ? (p) => p <= t : (p) => p > t);
-        positions.push(t);
-        for (var i = 0; i < positions.length; ++i) {
-            var [px, py, pc] = ring(positions[i]);
-            addStone(stones, px, py, pc);
+        if (showSeconds) {
+            var ring = function(p) {
+                p %= 30;
+                return p < 15 ? [17, 2 + p, white] : [1, 16 - (p - 15), black];
+            };
+            var kept = [0, 2, 4, 6, 8, 10, 12, 14, 15, 17, 19, 21, 23, 25, 27, 29];
+            var t = seconds%30;
+            var positions = kept.filter(seconds < 30 ? (p) => p <= t : (p) => p > t);
+            positions.push(t);
+            for (var i = 0; i < positions.length; ++i) {
+                var [px, py, pc] = ring(positions[i]);
+                addStone(stones, px, py, pc);
+            }
         }
     }
     else if (view == HYBRID) {

@@ -149,6 +149,8 @@ export function GoClock(){
 
     this.twenty_four_hour = true; // 24 hour mode for views that make sense
 
+    this.show_seconds = true; // Off drops the second hand and counting stones (faces.js)
+
     this.reset_offsets = function() {
         this.offsets = [];
         for (var i = 0; i < gridsize*gridsize; ++i){
@@ -509,7 +511,7 @@ export function GoClock(){
             minutes: minutes ?? now.getMinutes(),
             seconds: seconds ?? now.getSeconds(),
             days: days ?? 0
-        }, this.twenty_four_hour);
+        }, this.twenty_four_hour, this.show_seconds);
     };
 
     // Given board coordinates and a height, return the stone's pixel x, y, w, h

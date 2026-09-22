@@ -82,11 +82,12 @@
                         </button>
                         <div id="replay-options" class="setting-options" role="group" aria-label="Replay a game" hidden></div>
                     </div>
-                    <!-- Under one button: the clock's hours and the sound,
-                         which unlike a choice leave the list open, each
-                         showing where it stands (the one in its words, the
-                         other in its icon alone) and swapping over when clicked;
-                         the precision, a submenu of choices opening out beside
+                    <!-- Under one button: the clock's hours, whether it
+                         shows seconds, and the sound, which unlike a choice
+                         leave the list open, each showing where it stands
+                         (in words, but for the sound, whose icon alone
+                         does) and swapping over when clicked; the
+                         precision, a submenu of choices opening out beside
                          the list; and the about box. -->
                     <div id="settings-control" class="setting-control" data-open="false">
                         <button class="setting-summary" type="button" title="Settings" aria-label="Settings" aria-expanded="false" aria-controls="settings-options">
@@ -94,6 +95,7 @@
                         </button>
                         <div id="settings-options" class="setting-options" role="group" aria-label="Settings" hidden>
                             <button id="mode" class="choice-button" type="button"></button>
+                            <button id="seconds-toggle" class="choice-button" type="button"></button>
                             <button id="mute" class="choice-button choice-with-trailing-icon" type="button">
                                 <span aria-hidden="true">Sound</span>
                                 <span class="setting-icon" aria-hidden="true"></span>

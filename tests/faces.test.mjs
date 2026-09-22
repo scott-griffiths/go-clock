@@ -12,9 +12,9 @@ import {GoClock} from '../www/go-clock.js';
 import {faceFor, ANALOGUE, JUMPING_HOUR, DIGITAL, HYBRID, hourMarkers, secondRing} from '../www/faces.js';
 import {nearestFreePoint} from '../www/board.js';
 
-function face(view, time, twentyFourHour = true) {
+function face(view, time, twentyFourHour = true, showSeconds = true) {
     const [hours, minutes, seconds = 0] = time.split(':').map(Number);
-    return faceFor(view, {hours, minutes, seconds}, twentyFourHour);
+    return faceFor(view, {hours, minutes, seconds}, twentyFourHour, showSeconds);
 }
 
 function picture(stones) {
@@ -25,8 +25,8 @@ function picture(stones) {
     return rows.join('\n');
 }
 
-function expectFace(view, time, twentyFourHour, expected) {
-    assert.equal(picture(face(view, time, twentyFourHour)), expected.trim().split('\n').map((row) => row.trim()).join('\n'));
+function expectFace(view, time, twentyFourHour, expected, showSeconds = true) {
+    assert.equal(picture(face(view, time, twentyFourHour, showSeconds)), expected.trim().split('\n').map((row) => row.trim()).join('\n'));
 }
 
 test('digital, 24-hour, five past midnight shows 00:05', () => {
@@ -168,9 +168,11 @@ test('hybrid, 12-hour, noon on the second', () => {
 });
 
 test('analogue, 12-hour, midnight: both hands straight up, the hour hand over the minute hand', () => {
+    // The second hand (white) is over the twelve o'clock marker at :00,
+    // and shows instead of it.
     expectFace(ANALOGUE, '00:00:00', false, `
         ···················
-        ·········●·········
+        ·········○·········
         ·····●···○···●·····
         ·········○·········
         ·········○·········
@@ -213,6 +215,77 @@ test('jumping hour, 12-hour, 12:34:56 lights the twelve o\'clock marker', () => 
         ···················`);
 });
 
+test('seconds off: the analogue face drops its second hand', () => {
+    // Midnight, seconds shown, has the white second hand over the twelve
+    // o'clock marker (see above); seconds off, the marker shows instead.
+    expectFace(ANALOGUE, '00:00:00', false, `
+        ···················
+        ·········●·········
+        ·····●···○···●·····
+        ·········○·········
+        ·········○·········
+        ··●······●······●··
+        ·········●·········
+        ·········●·········
+        ·········●·········
+        ·●·······●·······●·
+        ···················
+        ···················
+        ···················
+        ··●·············●··
+        ···················
+        ···················
+        ·····●·······●·····
+        ·········●·········
+        ···················`, false);
+});
+
+test('seconds off: the digital face drops its ring of counting stones', () => {
+    expectFace(DIGITAL, '00:05:33', true, `
+        ···················
+        ····●●●●···●●●●····
+        ···●····●·●····●···
+        ···●····●·●····●···
+        ···●····●·●····●···
+        ···●····●·●····●···
+        ···●····●·●····●···
+        ···●····●·●····●···
+        ···●····●·●····●···
+        ····●●●●···●●●●····
+        ···················
+        ·····○○○··○○○○○····
+        ····○···○·○········
+        ····○···○·○○○○·····
+        ····○···○·····○····
+        ····○···○·····○····
+        ····○···○·○···○····
+        ·····○○○···○○○·····
+        ···················`, false);
+});
+
+test('seconds off: the jumping hour face shows its minutes alone, centred, in the digital face\'s own small white style', () => {
+    expectFace(JUMPING_HOUR, '12:34:56', false, `
+        ···················
+        ·········○·········
+        ·····●·······●·····
+        ···················
+        ···················
+        ··●·············●··
+        ·····○○○·····○·····
+        ····○···○···○○·····
+        ········○··○·○·····
+        ·●····○○··○··○···●·
+        ········○·○○○○○····
+        ····○···○····○·····
+        ·····○○○·····○·····
+        ··●·············●··
+        ···················
+        ···················
+        ·····●·······●·····
+        ·········●·········
+        ···················`, false);
+});
+
 test('every face, every minute of the day, in both modes: 361 points of empty, white or black', () => {
     for (const view of [ANALOGUE, JUMPING_HOUR, DIGITAL, HYBRID]) {
         for (const twentyFourHour of [true, false]) {
@@ -246,7 +319,7 @@ test('the analogue second stone walks sixty distinct points, a step apart, throu
         assert.equal(Math.max(Math.abs(nx - x), Math.abs(ny - y)), 1, `second ${s} to ${s + 1} is not one step`);
         assert.ok(x >= 0 && x <= 18 && y >= 0 && y <= 18, `second ${s} is off the board`);
         const stones = face(ANALOGUE, `03:20:${s}`);
-        assert.equal(stones[y*19 + x], 3, `second ${s}: the ring stone is not black`);
+        assert.equal(stones[y*19 + x], 1, `second ${s}: the ring stone is not white`);
     }
     hourMarkers.forEach((m, i) => assert.deepEqual(secondRing[5*i], m, `the ring misses ${i} o'clock`));
 });
@@ -257,6 +330,15 @@ test('the clock asks for the face of the moment, in its own mode', () => {
     clock.twenty_four_hour = false;
     clock.update(7, 5, 0);
     assert.deepEqual(clock.stones, face(DIGITAL, '00:05:07', false));
+});
+
+test('the clock drops the seconds from its face when show_seconds is off', () => {
+    const clock = new GoClock();
+    clock.view = JUMPING_HOUR;
+    clock.twenty_four_hour = false;
+    clock.show_seconds = false;
+    clock.update(56, 34, 12);
+    assert.deepEqual(clock.stones, face(JUMPING_HOUR, '12:34:56', false, false));
 });
 
 test('the hand takes the nearest free point, however crowded the corner', () => {

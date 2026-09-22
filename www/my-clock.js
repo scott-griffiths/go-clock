@@ -234,13 +234,17 @@ window.addEventListener('load', () => {
     const goClock = new GoClock();
     let background = readIndex('background', 0, backgrounds.length);
     // Slow speeds keep going: Torpid first, then Slow, each dropped from
-    // the front of the list. An index stored before a drop is one further
-    // along after it (or, if it was the one dropped, the new first choice).
+    // the front of the list, its key retired and a new one taken up so an
+    // index already in the new scheme (`pace2`) is never shifted again —
+    // only a `pace` left from before Slow went is dropped once, on the way
+    // to it.
     const dropped = (index) => wrap(Math.max(0, index - 1), stoneSpeeds.length);
     const oldSpeed = readSetting('speed');
     const oldPace = readSetting('pace');
-    let stoneSpeed = oldPace !== null
-        ? dropped(Number(oldPace))
+    const newPace = readSetting('pace2');
+    let stoneSpeed = isInt(newPace)
+        ? wrap(Number(newPace), stoneSpeeds.length)
+        : isInt(oldPace) ? dropped(Number(oldPace))
         : isInt(oldSpeed) ? dropped(Math.max(0, Number(oldSpeed) - 1)) : 0;
     let view = readIndex('view', 3, views.length);
     let mode = readIndex('mode', 1, modes.length);
@@ -250,12 +254,15 @@ window.addEventListener('load', () => {
     let placement = Math.min(readIndex('placement', 1, placements.length + 1), placements.length - 1);
     // Sound is on unless it has been muted.
     let sound = readIndex('sound', 1, 2);
+    // Seconds show unless they have been turned off.
+    let showSeconds = readIndex('seconds', 1, 2);
     const sounds = new Sounds();
 
     const goban = $('#goban');
     const toolbar = $('#toolbar');
     const menuToggle = $('#menu-toggle');
     const modeButton = $('#mode');
+    const secondsButton = $('#seconds-toggle');
     const muteButton = $('#mute');
     const replayControl = $('#replay-control');
     const replayButton = $('#replay');
@@ -488,7 +495,7 @@ window.addEventListener('load', () => {
         goClock.pause = stoneSpeeds[stoneSpeed][2];
         goClock.magic = Boolean(stoneSpeeds[stoneSpeed][3]);
         showSpeed(stoneSpeed);
-        writeSetting('pace', stoneSpeed);
+        writeSetting('pace2', stoneSpeed);
     }
 
     // The hours and the sound, under the settings button: each shows where
@@ -503,6 +510,20 @@ window.addEventListener('load', () => {
         modeButton.setAttribute('aria-label', modeButton.title);
         writeSetting('mode', mode);
         describeBoard();
+    }
+
+    // Whether the second hand and counting stones show at all (faces.js):
+    // off, the analogue face drops its second hand, the digital face its
+    // ring of counting stones, and the jumping hour face shows its minutes
+    // alone rather than over the seconds.
+    function setSeconds(index) {
+        showSeconds = wrap(index, 2);
+        const on = showSeconds === 1;
+        goClock.show_seconds = on;
+        secondsButton.textContent = on ? 'Seconds on' : 'Seconds off';
+        secondsButton.title = on ? 'Seconds shown' : 'Seconds hidden';
+        secondsButton.setAttribute('aria-label', secondsButton.title);
+        writeSetting('seconds', showSeconds);
     }
 
     function setWood(index) {
@@ -890,6 +911,7 @@ window.addEventListener('load', () => {
     setView(view);
     setBackground(background);
     setMode(mode);
+    setSeconds(showSeconds);
     setPlacement(placement);
     setSound(sound);
     goClock.haptic = haptic;
@@ -982,6 +1004,10 @@ window.addEventListener('load', () => {
     });
     modeButton.addEventListener('click', () => {
         setMode(mode === 1 ? 0 : 1);
+        goClock.transform();
+    });
+    secondsButton.addEventListener('click', () => {
+        setSeconds(showSeconds === 1 ? 0 : 1);
         goClock.transform();
     });
     menuToggle.addEventListener('click', () => setCollapsed(toolbar.dataset.collapsed !== 'true'));
