@@ -317,14 +317,104 @@ export class StoneWorld {
         }
     }
 
-    // Stones in each other's way: push apart, and bounce a little (less
-    // on the table). A stone that is struck wakes. In space a knock sends
-    // both stones up, the harder the more. Two stones at different
-    // heights may lie closer, the higher part over the lower (see
-    // pileOverlap); and where one is shoved hard into another as high as
-    // itself, the faster of the two starts to ride up (not in space,
-    // where a knock sends them flying instead). Returns whether any two
-    // touched.
+    // A stone's cell in the grid collide() sorts stones into (see
+    // buckets()): a stone's width across, so two stones within reach of
+    // each other - each at most a stone's radius, so never more than a
+    // stone's width apart - always share a cell or lie in a neighbouring
+    // one.
+    cellOf(x, y) {
+        return [Math.floor(x/this.diameter), Math.floor(y/this.diameter)];
+    }
+
+    // Every stone, by index into `stones`, sorted into its cell (cellOf):
+    // what collide() checks a stone against, rather than every other
+    // stone on the board, almost all of them nowhere near it.
+    buckets() {
+        const buckets = new Map();
+        this.stones.forEach((stone, index) => {
+            const [cx, cy] = this.cellOf(stone.x, stone.y);
+            const key = cx + ',' + cy;
+            const bucket = buckets.get(key);
+            if (bucket) {
+                bucket.push(index);
+            } else {
+                buckets.set(key, [index]);
+            }
+        });
+        return buckets;
+    }
+
+    // Two stones in each other's way: push apart, and bounce a little
+    // (less on the table). A stone that is struck wakes. In space a
+    // knock sends both stones up, the harder the more. Two stones at
+    // different heights may lie closer, the higher part over the lower
+    // (see pileOverlap); and where one is shoved hard into another as
+    // high as itself, the faster of the two starts to ride up (not in
+    // space, where a knock sends them flying instead). Returns whether
+    // they touched (which is not quite the same as whether either
+    // moved: two stones lying closer than their radii, because a lift
+    // between them allows it, still count).
+    resolvePair(p, q) {
+        const dx = q.x - p.x;
+        const dy = q.y - p.y;
+        const distance = Math.hypot(dx, dy);
+        const reach = p.r + q.r;
+        if (distance === 0 || distance >= reach) {
+            return false;
+        }
+        const step = Math.abs(p.lift - q.lift);
+        const upper = p.lift > q.lift ? p : q;
+        if (step > 0) {
+            upper.onTop = true;
+        }
+        const closest = reach*(1 - pileOverlap*step);
+        if (distance >= closest) {
+            return true;
+        }
+        const nx = dx/distance;
+        const ny = dy/distance;
+        const overlap = closest - distance;
+        p.x -= nx*overlap/2;
+        p.y -= ny*overlap/2;
+        q.x += nx*overlap/2;
+        q.y += ny*overlap/2;
+        const closing = (q.vx - p.vx)*nx + (q.vy - p.vy)*ny;
+        if (closing < 0) {
+            this.sound?.knock(-closing/(this.boardHeight*1.2));
+            const bounce = p.offBoard && q.offBoard ? 0.25 : 0.4;
+            const impulse = -(1 + bounce)*closing/2;
+            p.vx -= impulse*nx;
+            p.vy -= impulse*ny;
+            q.vx += impulse*nx;
+            q.vy += impulse*ny;
+            p.asleep = false;
+            q.asleep = false;
+            if (this.isVoid) {
+                const lift = Math.min(1.5, Math.max(knockLift, -closing/this.boardHeight*knockLiftPerSpeed));
+                p.climb = (p.climb || 0) + lift;
+                q.climb = (q.climb || 0) + lift;
+            } else if (step > 0) {
+                upper.pressed = true;
+            } else if (-closing > climbSpeed*this.diameter && !(this.flat && !(p.offBoard && q.offBoard))) {
+                // The one going faster into the other.
+                const rider = p.vx*nx + p.vy*ny > -(q.vx*nx + q.vy*ny) ? p : q;
+                if (rider.climbs === undefined) {
+                    rider.climbs = Math.random() < climbers;
+                }
+                if (rider.climbs) {
+                    rider.lift = Math.max(rider.lift, 1e-6);
+                    rider.onTop = true;
+                    rider.pressed = true;
+                }
+            }
+        }
+        return true;
+    }
+
+    // Every pair of stones that might be touching, resolved (resolvePair):
+    // found through a grid (buckets) rather than by checking each stone
+    // against every other, almost all of them nowhere near it on a
+    // crowded board. Returns whether any two touched.
     collide() {
         let any = false;
         const {stones} = this;
@@ -332,67 +422,26 @@ export class StoneWorld {
             stone.onTop = false;
             stone.pressed = false;
         });
+        const buckets = this.buckets();
         for (let a = 0; a < stones.length; ++a) {
             const p = stones[a];
             if (!this.reachable(p)) {
                 continue;
             }
-            for (let b = a + 1; b < stones.length; ++b) {
-                const q = stones[b];
-                if (!this.reachable(q) || (p.asleep && q.asleep) || Math.abs(heightOf(p) - heightOf(q)) > stoneDepth) {
-                    continue;
-                }
-                const dx = q.x - p.x;
-                const dy = q.y - p.y;
-                const distance = Math.hypot(dx, dy);
-                const reach = p.r + q.r;
-                if (distance === 0 || distance >= reach) {
-                    continue;
-                }
-                any = true;
-                const step = Math.abs(p.lift - q.lift);
-                const upper = p.lift > q.lift ? p : q;
-                if (step > 0) {
-                    upper.onTop = true;
-                }
-                const closest = reach*(1 - pileOverlap*step);
-                if (distance >= closest) {
-                    continue;
-                }
-                const nx = dx/distance;
-                const ny = dy/distance;
-                const overlap = closest - distance;
-                p.x -= nx*overlap/2;
-                p.y -= ny*overlap/2;
-                q.x += nx*overlap/2;
-                q.y += ny*overlap/2;
-                const closing = (q.vx - p.vx)*nx + (q.vy - p.vy)*ny;
-                if (closing < 0) {
-                    this.sound?.knock(-closing/(this.boardHeight*1.2));
-                    const bounce = p.offBoard && q.offBoard ? 0.25 : 0.4;
-                    const impulse = -(1 + bounce)*closing/2;
-                    p.vx -= impulse*nx;
-                    p.vy -= impulse*ny;
-                    q.vx += impulse*nx;
-                    q.vy += impulse*ny;
-                    p.asleep = false;
-                    q.asleep = false;
-                    if (this.isVoid) {
-                        const lift = Math.min(1.5, Math.max(knockLift, -closing/this.boardHeight*knockLiftPerSpeed));
-                        p.climb = (p.climb || 0) + lift;
-                        q.climb = (q.climb || 0) + lift;
-                    } else if (step > 0) {
-                        upper.pressed = true;
-                    } else if (-closing > climbSpeed*this.diameter && !(this.flat && !(p.offBoard && q.offBoard))) {
-                        // The one going faster into the other.
-                        const rider = p.vx*nx + p.vy*ny > -(q.vx*nx + q.vy*ny) ? p : q;
-                        if (rider.climbs === undefined) {
-                            rider.climbs = Math.random() < climbers;
+            const [cx, cy] = this.cellOf(p.x, p.y);
+            for (let gy = cy - 1; gy <= cy + 1; ++gy) {
+                for (let gx = cx - 1; gx <= cx + 1; ++gx) {
+                    const bucket = buckets.get(gx + ',' + gy);
+                    if (!bucket) {
+                        continue;
+                    }
+                    for (const b of bucket) {
+                        const q = stones[b];
+                        if (b <= a || !this.reachable(q) || (p.asleep && q.asleep) || Math.abs(heightOf(p) - heightOf(q)) > stoneDepth) {
+                            continue;
                         }
-                        if (rider.climbs) {
-                            rider.lift = Math.max(rider.lift, 1e-6);
-                            rider.onTop = true;
-                            rider.pressed = true;
+                        if (this.resolvePair(p, q)) {
+                            any = true;
                         }
                     }
                 }

@@ -52,7 +52,9 @@ The public GitHub Pages URL is expected to remain `https://scott-griffiths.githu
     [Andries Brouwer's collection](https://homepages.cwi.nl/~aeb/go/games/), shelved in
     `replay.js` as historical (the Edo houses), modern (1926 onwards) and AI.
 
-  `board.js`, `faces.js`, `planner.js`, `physics.js` and `sgf.js` have no DOM in them and are tested under node.
+  `board.js`, `faces.js`, `planner.js`, `physics.js` and `sgf.js` have no DOM in them and are tested under
+  node; `hand.js` keeps the finger's shove (`pushStones`) free of the DOM for the same reason, so its cost
+  on a packed board can be measured there too.
 - `www/my-clock.css` owns all visual styling.
 - `www/service-worker.js` caches the static app for offline use.
 - `www/manifest.webmanifest` makes the web version installable to a home screen.
@@ -72,7 +74,8 @@ The public GitHub Pages URL is expected to remain `https://scott-griffiths.githu
 Useful checks:
 
 ```sh
-node --test tests/      # the faces at the awkward times, the planner's choices, the stone physics
+node --test tests/      # the faces at the awkward times, the planner's choices, the stone physics,
+                        # the hand sweeping a crowded board
 node --check www/my-clock.js
 node --check www/go-clock.js
 ```

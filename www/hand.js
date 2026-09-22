@@ -24,6 +24,92 @@ import {drawSinking, splash, sinkOn} from './water.js';
 // tidies up, in ms.
 const tidyDelay = 500;
 
+// The finger at (px, py), having just moved `travel` px in `sdt` seconds:
+// every reachable stone within reach of it is shoved clear. Only the
+// finger's own disc is tested here - cheap enough for every substep of a
+// frame (pushStones) - not what a shoved stone then does to its
+// neighbours, which is left for settleStones to sort out once, at the
+// end of the frame, rather than paying for it at every substep along the
+// way. A moving finger clears its path at once; a finger that has just
+// landed eases the stone out from under it. onBump(force), if given, is
+// told of a shove hard enough to feel.
+function shoveAt(world, radius, diameter, px, py, sdt, travel, onBump) {
+    var give = Math.max(travel*1.5, diameter*0.12);
+    // A little faster than the finger, at most; and a pointer that
+    // jumps (a mouse, say) is not a finger that flicks.
+    var speedCap = Math.min(travel/sdt*1.1 + diameter*3, diameter*40);
+    world.stones.forEach((stone) => {
+        if (!world.reachable(stone)) {
+            return;
+        }
+        var dx = stone.x - px;
+        var dy = stone.y - py;
+        var distance = Math.hypot(dx, dy);
+        var reach = radius + stone.r;
+        if (distance >= reach) {
+            return;
+        }
+        if (distance === 0) {
+            dx = 1;
+            dy = 0;
+            distance = 1;
+        }
+        var nx = dx/distance;
+        var ny = dy/distance;
+        var correction = Math.min(reach - distance, give);
+        stone.x += nx*correction;
+        stone.y += ny*correction;
+        // It leaves at least as fast as it was shoved; a stone
+        // that had to be got going with some force is felt under
+        // the finger.
+        var wanted = Math.min(correction/sdt, speedCap);
+        var along = stone.vx*nx + stone.vy*ny;
+        if (along < wanted) {
+            stone.vx += (wanted - along)*nx;
+            stone.vy += (wanted - along)*ny;
+            var force = (wanted - along)/(diameter*12);
+            if (force > 0.25) {
+                onBump?.(Math.min(1, force));
+            }
+        }
+    });
+}
+
+// The stones shoveAt has shoved, this frame, over however many substeps:
+// in up to three passes, each shoves its neighbours in turn, so a chain
+// of touching stones passes a shove along rather than sitting piled on
+// top of one another. Once per frame rather than once per substep -
+// collide() is the expensive part of all this, and what it settles here
+// does not depend on which substep first disturbed a stone, only on
+// where every stone ended up once the finger had passed.
+function settleStones(world) {
+    for (var pass = 0; pass < 3; ++pass) {
+        var bumped = world.collide();
+        world.stones.forEach((stone) => world.keepOffBoard(stone));
+        if (!bumped) {
+            break;
+        }
+    }
+}
+
+// One animation frame of the finger easing from (fromX, fromY) to
+// (toX, toY): in steps small enough that no stone is skipped over, so a
+// finger that has jumped a long way since the last frame (a slow frame, a
+// fast swipe) still clears every stone along the way rather than
+// tunnelling through it. No page in here to draw the result on: hand.js
+// draws each stone where this leaves it, and the performance test drives
+// it directly.
+export function pushStones(world, radius, diameter, fromX, fromY, toX, toY, frame, onBump) {
+    var moveX = toX - fromX;
+    var moveY = toY - fromY;
+    var travel = Math.hypot(moveX, moveY);
+    var substeps = Math.max(1, Math.ceil(travel/(diameter*0.25)));
+    for (var s = 1; s <= substeps; ++s) {
+        shoveAt(world, radius, diameter, fromX + moveX*s/substeps, fromY + moveY*s/substeps, frame/substeps, travel/substeps, onBump);
+    }
+    settleStones(world);
+}
+
 export function fingerDown(clock, clientX, clientY) {
     if (clock.sweeping_board || typeof document === 'undefined') {
         return false;
@@ -114,61 +200,6 @@ export function fingerDown(clock, clientX, clientY) {
     };
     clock.finger = finger;
 
-    // The finger at (px, py), having just moved `travel` px in `sdt`
-    // seconds: stones under it are shoved out, and they shove their
-    // neighbours. A moving finger clears its path at once; a finger
-    // that has just landed eases the stone out from under it.
-    var shove = (px, py, sdt, travel) => {
-        var give = Math.max(travel*1.5, diameter*0.12);
-        // A little faster than the finger, at most; and a pointer that
-        // jumps (a mouse, say) is not a finger that flicks.
-        var speedCap = Math.min(travel/sdt*1.1 + diameter*3, diameter*40);
-        for (var pass = 0; pass < 3; ++pass) {
-            var moved = false;
-            world.stones.forEach((stone) => {
-                if (!world.reachable(stone)) {
-                    return;
-                }
-                var dx = stone.x - px;
-                var dy = stone.y - py;
-                var distance = Math.hypot(dx, dy);
-                var reach = radius + stone.r;
-                if (distance >= reach) {
-                    return;
-                }
-                if (distance === 0) {
-                    dx = 1;
-                    dy = 0;
-                    distance = 1;
-                }
-                var nx = dx/distance;
-                var ny = dy/distance;
-                var correction = Math.min(reach - distance, give);
-                stone.x += nx*correction;
-                stone.y += ny*correction;
-                // It leaves at least as fast as it was shoved; a stone
-                // that had to be got going with some force is felt under
-                // the finger.
-                var wanted = Math.min(correction/sdt, speedCap);
-                var along = stone.vx*nx + stone.vy*ny;
-                if (along < wanted) {
-                    stone.vx += (wanted - along)*nx;
-                    stone.vy += (wanted - along)*ny;
-                    var force = (wanted - along)/(diameter*12);
-                    if (force > 0.25) {
-                        clock.haptic?.('bump', Math.min(1, force));
-                    }
-                }
-                moved = true;
-            });
-            var bumped = world.collide();
-            world.stones.forEach((stone) => world.keepOffBoard(stone));
-            if (!moved && !bumped) {
-                break;
-            }
-        }
-    };
-
     var last = null;
     var step = (now) => {
         if (clock.finger !== finger) {
@@ -185,13 +216,8 @@ export function fingerDown(clock, clientX, clientY) {
         if (finger.pressing) {
             // Towards where the pointer is, in steps small enough that
             // no stone is skipped over.
-            var moveX = finger.targetX - finger.x;
-            var moveY = finger.targetY - finger.y;
-            var travel = Math.hypot(moveX, moveY);
-            var substeps = Math.max(1, Math.ceil(travel/(diameter*0.25)));
-            for (var s = 1; s <= substeps; ++s) {
-                shove(finger.x + moveX*s/substeps, finger.y + moveY*s/substeps, frame/substeps, travel/substeps);
-            }
+            pushStones(world, radius, diameter, finger.x, finger.y, finger.targetX, finger.targetY, frame,
+                (force) => clock.haptic?.('bump', force));
             finger.x = finger.targetX;
             finger.y = finger.targetY;
             setStyles(disc, {left: finger.x - radius, top: finger.y - radius});
