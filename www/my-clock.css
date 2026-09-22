@@ -383,6 +383,38 @@ body {
     box-shadow: 0 3px 14px rgb(0 0 0 / 0.32);
 }
 
+/* A row's choices (face, speed) wear an icon alone: square, like the
+   toolbar's own buttons, rather than a name padded out to fit. */
+.setting-options-row .choice-button {
+    display: grid;
+    place-items: center;
+    width: 42px;
+    min-width: 0;
+    height: 42px;
+    min-height: 0;
+    padding: 0;
+}
+
+/* In portrait, a row's own list lies flat rather than dropping down: no
+   panel of its own, no left inset, so it starts exactly under its
+   button's place in the toolbar row above and, its icons the same size
+   and spacing, lands each one under the button that follows it there
+   (see createSettingControl, my-clock.js). Landscape keeps the plain
+   column of icons the base .setting-options gives it, beside the button
+   like any other list, since there is no row of icons above to line up
+   under. */
+@media (orientation: portrait) {
+    .setting-options-row {
+        display: flex;
+        grid-template-columns: none;
+        gap: 6px;
+        padding: 0;
+        border-radius: 0;
+        background: none;
+        box-shadow: none;
+    }
+}
+
 .choice-button {
     display: grid;
     width: 100%;
@@ -468,23 +500,34 @@ body {
     pointer-events: none;
 }
 
-/* The replay's bar: the line of the game with a marker on it (play, pause
-   and the speed to play at are the toolbar's replay-speed-control, beside
-   the replay button), above the board, or down its left side in landscape
-   (see the media query below), on a panel of its own so it shows up
-   against whatever table is under it. Below the toolbar and its open
-   lists (z-index there is 20), so a list dropped open never finds the bar
-   sitting over it. my-clock.js places it against the board. */
+/* The replay's bar: play or pause, and the speed to play at, next to the
+   line of the game with a marker on it, above the board, or down its left
+   side in landscape (see the media query below), on a panel of its own so
+   it shows up against whatever table is under it. Below the toolbar and
+   its open lists (z-index there is 20), so a list dropped open never finds
+   the bar sitting over it. my-clock.js places it against the board;
+   [hidden] takes it off the screen when no game is running, and, while one
+   is, it fades with the toolbar's own row when that is tucked away or
+   brought back (it is not itself a member of that row, so the CSS keys
+   off the toolbar's data-collapsed rather than the usual rule). */
 .replay-bar {
     position: fixed;
     z-index: 15;
     display: flex;
     align-items: center;
+    gap: 10px;
     padding: 8px;
     border-radius: 8px;
     background: rgb(0 0 0 / 0.55);
     box-shadow: 0 3px 14px rgb(0 0 0 / 0.32);
     color: white;
+    transition: opacity 200ms ease, visibility 0s;
+}
+
+.toolbar[data-collapsed="true"] ~ #replay-bar {
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 200ms ease, visibility 0s 200ms;
 }
 
 .replay-track {
@@ -529,10 +572,13 @@ body {
     pointer-events: none;
 }
 
-/* A narrow phone: the row of buttons a little tighter, so it fits in one. */
+/* A narrow phone: the row of buttons a little tighter, so it fits in one,
+   and a row's own choices (above) shrink and close up the same way, to
+   keep landing under the buttons that follow them. */
 @media (orientation: portrait) and (max-width: 400px) {
     .toolbar,
-    .toolbar-actions {
+    .toolbar-actions,
+    .setting-options-row {
         gap: 4px;
     }
 
@@ -543,6 +589,11 @@ body {
     }
 
     .menu-toggle {
+        height: 38px;
+    }
+
+    .setting-options-row .choice-button {
+        width: 38px;
         height: 38px;
     }
 }
@@ -566,6 +617,10 @@ body {
 
     .toolbar[data-collapsed="true"] .toolbar-actions > * {
         transform: translateY(calc((var(--i) + 1) * -48px));
+    }
+
+    .replay-bar {
+        flex-direction: column;
     }
 
     .replay-line {

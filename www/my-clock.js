@@ -275,15 +275,20 @@ window.addEventListener('load', () => {
     // of the current choice. `keepOpen` leaves the list open once a choice
     // is made, for one tried after another (face, speed, background,
     // board); other choices close it, as a single pick would be expected
-    // to. Returns a setter that marks the chosen option and puts the value
-    // in the button's accessible name.
-    function createSettingControl(name, labels, values, onSelect, icons = null, keepOpen = false) {
+    // to. `row` (face, speed) drops the choices as icons alone, in a row
+    // under the button rather than a list beneath it: it starts under the
+    // button's own place in the toolbar row, and, sized and spaced the
+    // same, lands its choices under the buttons after it. Returns a setter
+    // that marks the chosen option and puts the value in the button's
+    // accessible name.
+    function createSettingControl(name, labels, values, onSelect, icons = null, keepOpen = false, row = false) {
         const control = $(`#${name}-control`);
         const summary = summaryOf(control);
         const options = $('.setting-options', control);
         const settingName = summary.getAttribute('aria-label');
         const valueLabel = $('.setting-value', summary);
         const summaryIcon = $('.setting-icon', summary);
+        options.classList.toggle('setting-options-row', row);
 
         labels.forEach((label, index) => {
             const button = addChoice(options, summary, {
@@ -291,7 +296,8 @@ window.addEventListener('load', () => {
                 value: values[index],
                 icon: icons?.[index],
                 onChoose: () => onSelect(index),
-                keepOpen
+                keepOpen,
+                iconOnly: row
             });
             button.dataset.index = String(index);
             button.setAttribute('aria-pressed', 'false');
@@ -315,13 +321,17 @@ window.addEventListener('load', () => {
     }
 
     // One choice in a list: its name, the icon of what it chooses where
-    // there is one, and what it does. Choosing closes the lists, unless
-    // `keepOpen`, and a keyboard lands back on the button that opened them.
-    function addChoice(options, summary, {label, value, icon, onChoose, keepOpen = false}) {
+    // there is one, and what it does. `iconOnly` (a row's choices) wears
+    // the icon alone, its name left to the accessible label. Choosing
+    // closes the lists, unless `keepOpen`, and a keyboard lands back on
+    // the button that opened them.
+    function addChoice(options, summary, {label, value, icon, onChoose, keepOpen = false, iconOnly = false}) {
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'choice-button';
-        if (icon) {
+        if (iconOnly) {
+            button.innerHTML = `<span class="setting-icon" aria-hidden="true">${icon}</span>`;
+        } else if (icon) {
             button.classList.add('choice-with-icon');
             button.innerHTML = `<span class="setting-icon" aria-hidden="true">${icon}</span><span>${label}</span>`;
         } else {
@@ -466,8 +476,8 @@ window.addEventListener('load', () => {
         setView(index);
         cancelReplay(goClock);
         goClock.transform();
-    }, faceIcons, true);
-    const showSpeed = createSettingControl('speed', stoneSpeeds.map(([name]) => name), stoneSpeeds.map(([name]) => name), setClockSpeed, speedIcons.slice(1), true);
+    }, faceIcons, true, true);
+    const showSpeed = createSettingControl('speed', stoneSpeeds.map(([name]) => name), stoneSpeeds.map(([name]) => name), setClockSpeed, speedIcons.slice(1), true, true);
     const showWood = createSettingControl('wood', woods.map(([name]) => name), woods.map(([name]) => name), setWood, null, true);
     const showPlacement = createSettingControl('placement', placements, placements, setPlacement, precisionIcons);
     const showBackground = createSettingControl('background', backgrounds.map((table) => table.name), backgrounds.map((table) => table.name), setBackground, null, true);
@@ -627,11 +637,12 @@ window.addEventListener('load', () => {
         replayButton.setAttribute('aria-label', replayButton.title);
     }
 
-    // The replay's bar (index.html): the game's line, with a marker at the
-    // move the board shows, which can be dragged to any move. It sits
-    // above the board, or down its left side in landscape, while a game is
-    // running. Play, pause and the speed to play at are the toolbar's own
-    // replay-speed-control, beside the replay button, below.
+    // The replay's bar (index.html): play, pause and the speed to play at,
+    // next to the game's line, with a marker at the move the board shows,
+    // which can be dragged to any move. It sits above the board, or down
+    // its left side in landscape, while a game is running, and comes and
+    // goes with the toolbar's own row when that is tucked away or brought
+    // back (the CSS, keyed off the toolbar's data-collapsed).
     const replayBar = $('#replay-bar');
     const replayTrack = $('#replay-track');
     const replayMarker = $('#replay-marker');
@@ -671,9 +682,8 @@ window.addEventListener('load', () => {
     }
 
     // Held, or playing at one of the hand's own speeds: one setting-control
-    // (createSettingControl, above), in the toolbar row beside the replay
-    // button, hidden except while a game runs.
-    const replaySpeedControl = $('#replay-speed-control');
+    // (createSettingControl, above), shown and hidden with the rest of the
+    // replay bar.
     const showReplaySpeed = createSettingControl('replay-speed',
         playbackRates.map(([name]) => name), playbackRates.map(([name]) => name), setReplayRateIndex,
         [icons.pause, ...speedIcons.slice(1, playbackRates.length)]);
@@ -743,7 +753,6 @@ window.addEventListener('load', () => {
             onStart: (game) => {
                 showReplayProgress(0, game.moves.length);
                 replayBar.hidden = false;
-                replaySpeedControl.hidden = false;
                 placeReplayBar();
                 showSwipeToast(icon, gameTitle(game.info), 8000);
             },
@@ -757,7 +766,6 @@ window.addEventListener('load', () => {
             onEnd: (error) => {
                 setReplaying(false);
                 replayBar.hidden = true;
-                replaySpeedControl.hidden = true;
                 if (error) {
                     console.error('The game could not be replayed', error);
                     showSwipeToast(icon, 'No game to replay');
