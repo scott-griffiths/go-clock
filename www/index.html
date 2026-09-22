@@ -36,8 +36,11 @@
                      is open at a time. A button's accessible name is its setting
                      and current value ("Board: Oak"). The icons (icons.js) are
                      filled in by my-clock.js: a setting's is that of its choice,
-                     except the background's, whose choices are named alone.
-                     Along the top of the screen in portrait; down the left in
+                     except the background's and the board's, whose choices are
+                     named alone under one fixed icon each. Choosing a face, a
+                     speed, a background or a board leaves the list open,
+                     rather than closing it as most choices do, so several can
+                     be tried in a row. Along the top of the screen in portrait; down the left in
                      landscape, where the board leaves the sides free. -->
                 <button id="menu-toggle" class="button menu-toggle" type="button" title="Hide the controls" aria-label="Hide the controls" aria-expanded="true" aria-controls="toolbar-actions">
                     <span aria-hidden="true"></span>
@@ -61,23 +64,37 @@
                         </button>
                         <div id="background-options" class="setting-options" role="group" aria-label="Background" hidden></div>
                     </div>
+                    <div id="wood-control" class="setting-control" data-open="false">
+                        <button class="setting-summary" type="button" title="Board" aria-label="Board" aria-expanded="false" aria-controls="wood-options">
+                            <span class="setting-icon" aria-hidden="true"></span>
+                        </button>
+                        <div id="wood-options" class="setting-options" role="group" aria-label="Board" hidden></div>
+                    </div>
                     <!-- Not a setting: a game replayed on the board (replay.js).
                          The button drops down the shelves of games to pick
                          one from; while a game runs it is pressed instead,
-                         and stops it. -->
+                         and stops it. Beside it, only while a game runs, the
+                         speed to play it at (or held), a setting-control like
+                         the rest so it lines up with them and comes and goes
+                         with the row when the toggle tucks it away. -->
                     <div id="replay-control" class="setting-control" data-open="false">
                         <button id="replay" class="setting-summary" type="button" title="Replay a game" aria-label="Replay a game" aria-expanded="false" aria-controls="replay-options" aria-pressed="false">
                             <span class="setting-icon" aria-hidden="true"></span>
                         </button>
                         <div id="replay-options" class="setting-options" role="group" aria-label="Replay a game" hidden></div>
                     </div>
+                    <div id="replay-speed-control" class="setting-control" data-open="false" hidden>
+                        <button class="setting-summary" type="button" title="Playback speed" aria-label="Playback speed" aria-expanded="false" aria-controls="replay-speed-options">
+                            <span class="setting-icon" aria-hidden="true"></span>
+                        </button>
+                        <div id="replay-speed-options" class="setting-options" role="group" aria-label="Playback speed" hidden></div>
+                    </div>
                     <!-- Under one button: the clock's hours and the sound,
                          which unlike a choice leave the list open, each
                          showing where it stands (the one in its words, the
                          other in its icon alone) and swapping over when clicked;
-                         the board's wood and the precision, each a submenu
-                         of choices opening out beside the list; and the
-                         about box. -->
+                         the precision, a submenu of choices opening out beside
+                         the list; and the about box. -->
                     <div id="settings-control" class="setting-control" data-open="false">
                         <button class="setting-summary" type="button" title="Settings" aria-label="Settings" aria-expanded="false" aria-controls="settings-options">
                             <span class="setting-icon" aria-hidden="true"></span>
@@ -88,13 +105,6 @@
                                 <span aria-hidden="true">Sound</span>
                                 <span class="setting-icon" aria-hidden="true"></span>
                             </button>
-                            <div id="wood-control" class="setting-control" data-open="false">
-                                <button class="choice-button submenu-button" type="button" title="Board" aria-label="Board" aria-expanded="false" aria-controls="wood-options">
-                                    <span aria-hidden="true">Board</span>
-                                    <span class="setting-value" aria-hidden="true"></span>
-                                </button>
-                                <div id="wood-options" class="setting-options" role="group" aria-label="Board" hidden></div>
-                            </div>
                             <div id="placement-control" class="setting-control" data-open="false">
                                 <button class="choice-button submenu-button submenu-with-icon" type="button" title="Precision" aria-label="Precision" aria-expanded="false" aria-controls="placement-options">
                                     <span class="setting-icon" aria-hidden="true"></span>
@@ -113,23 +123,12 @@
                 <span id="swipe-toast-icon" class="setting-icon" aria-hidden="true"></span>
                 <span id="swipe-toast-value"></span>
             </div>
-            <!-- A game being replayed: play or pause, a speed to play it at
-                 (a setting-control, like the hand's), and where it has got to
-                 on a line from the first move to the last, which can be dragged
-                 to any move. Under the board, or beside it in landscape
-                 (my-clock.js places it). -->
+            <!-- A game being replayed: where it has got to, on a line from
+                 the first move to the last, which can be dragged to any
+                 move (play, pause and the speed are the toolbar's
+                 replay-speed-control, above). Under the board, or beside it
+                 in landscape (my-clock.js places it). -->
             <div id="replay-bar" class="replay-bar" hidden>
-                <div id="replay-controls" class="replay-controls" role="group" aria-label="Playback">
-                    <button id="replay-pause" class="setting-summary" type="button" title="Hold the game where it is" aria-label="Hold the game where it is" aria-pressed="false">
-                        <span class="setting-icon" aria-hidden="true"></span>
-                    </button>
-                    <div id="replay-speed-control" class="setting-control" data-open="false">
-                        <button class="setting-summary" type="button" title="Playback speed" aria-label="Playback speed" aria-expanded="false" aria-controls="replay-speed-options">
-                            <span class="setting-icon" aria-hidden="true"></span>
-                        </button>
-                        <div id="replay-speed-options" class="setting-options" role="group" aria-label="Playback speed" hidden></div>
-                    </div>
-                </div>
                 <div id="replay-track" class="replay-track" role="slider" tabindex="0" aria-label="Move" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0">
                     <div class="replay-line"></div>
                     <div id="replay-marker" class="replay-marker"></div>

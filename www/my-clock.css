@@ -468,9 +468,10 @@ body {
     pointer-events: none;
 }
 
-/* The replay's bar: play or pause, a speed to play at, and the line of the
-   game with a marker on it, above the board (in landscape, down its left
-   side: see the media query below), on a panel of its own so it shows up
+/* The replay's bar: the line of the game with a marker on it (play, pause
+   and the speed to play at are the toolbar's replay-speed-control, beside
+   the replay button), above the board, or down its left side in landscape
+   (see the media query below), on a panel of its own so it shows up
    against whatever table is under it. Below the toolbar and its open
    lists (z-index there is 20), so a list dropped open never finds the bar
    sitting over it. my-clock.js places it against the board. */
@@ -479,28 +480,11 @@ body {
     z-index: 15;
     display: flex;
     align-items: center;
-    gap: 10px;
     padding: 8px;
     border-radius: 8px;
     background: rgb(0 0 0 / 0.55);
     box-shadow: 0 3px 14px rgb(0 0 0 / 0.32);
     color: white;
-}
-
-.replay-controls {
-    display: flex;
-    gap: 4px;
-}
-
-/* The choices sit in a row above the line. */
-.replay-controls .setting-summary {
-    width: 38px;
-    min-height: 38px;
-}
-
-.replay-controls .setting-summary[aria-pressed="true"] {
-    background: rgb(255 255 255 / 0.93);
-    color: black;
 }
 
 .replay-track {
@@ -582,11 +566,6 @@ body {
 
     .toolbar[data-collapsed="true"] .toolbar-actions > * {
         transform: translateY(calc((var(--i) + 1) * -48px));
-    }
-
-    .replay-bar,
-    .replay-controls {
-        flex-direction: column;
     }
 
     .replay-line {

@@ -46,14 +46,14 @@ const views = ['Analogue', 'Jumping hour', 'Digital', 'Hybrid'];
 // the next stone, not slow in carrying it. Magic (the fourth entry true)
 // has as many hands as it needs: every change is made in one go
 // (magic.js), and the rest is between one go and the next.
-const stoneSpeeds = [['Slow', 18, 500], ['Normal', 26, 180], ['Fast', 45, 60], ['Insane!', 320, 8], ['Magic', 320, 150, true]];
+const stoneSpeeds = [['Normal', 26, 180], ['Fast', 45, 60], ['Insane!', 320, 8], ['Magic', 320, 150, true]];
 const placements = ['Exact', 'Organic', 'Careless'];
-// How fast a game replays, in moves a second, which is not how fast the
-// hands are (the speed setting): a slow board falls behind a brisk game
-// rather than the game waiting for it. Held (the pause button), the board
-// keeps the position it has reached. Named and pictured as the hand
-// speeds are (icons.js), less Magic, which playback has no use for.
-const playbackRates = [['Slow', 0.75], ['Normal', 2], ['Fast', 6], ['Insane!', 20]];
+// How fast a game replays, in moves a second (0 holds it where it is), which
+// is not how fast the hands are (the speed setting): a slow board falls
+// behind a brisk game rather than the game waiting for it. One control, its
+// choices the hold and the hand's own speeds, less Magic, which playback
+// has no use for.
+const playbackRates = [['Pause', 0], ['Normal', 2], ['Fast', 6], ['Insane!', 20]];
 const defaultRate = 1;
 const modes = ['12-hour', '24-hour'];
 // Each a filter on the board image; the last is no wood at all but the
@@ -233,12 +233,15 @@ window.addEventListener('DOMContentLoaded', () => {
 window.addEventListener('load', () => {
     const goClock = new GoClock();
     let background = readIndex('background', 0, backgrounds.length);
-    // The speed under a new key since Torpid, the slowest, went: an index
-    // stored under the old one is one along.
+    // Slow speeds keep going: Torpid first, then Slow, each dropped from
+    // the front of the list. An index stored before a drop is one further
+    // along after it (or, if it was the one dropped, the new first choice).
+    const dropped = (index) => wrap(Math.max(0, index - 1), stoneSpeeds.length);
     const oldSpeed = readSetting('speed');
-    let stoneSpeed = readSetting('pace') !== null || !isInt(oldSpeed)
-        ? readIndex('pace', 1, stoneSpeeds.length)
-        : wrap(Math.max(0, Number(oldSpeed) - 1), stoneSpeeds.length);
+    const oldPace = readSetting('pace');
+    let stoneSpeed = oldPace !== null
+        ? dropped(Number(oldPace))
+        : isInt(oldSpeed) ? dropped(Math.max(0, Number(oldSpeed) - 1)) : 0;
     let view = readIndex('view', 3, views.length);
     let mode = readIndex('mode', 1, modes.length);
     let wood = readIndex('wood', 0, woods.length);
@@ -269,9 +272,12 @@ window.addEventListener('load', () => {
     // choices down (`.setting-summary` in the row; `.submenu-button` in a
     // list, which also shows the value). Given `icons` (SVG markup, one a
     // choice), each choice wears its icon, and the row's button the icon
-    // of the current choice. Returns a setter that marks the chosen option
-    // and puts the value in the button's accessible name.
-    function createSettingControl(name, labels, values, onSelect, icons = null) {
+    // of the current choice. `keepOpen` leaves the list open once a choice
+    // is made, for one tried after another (face, speed, background,
+    // board); other choices close it, as a single pick would be expected
+    // to. Returns a setter that marks the chosen option and puts the value
+    // in the button's accessible name.
+    function createSettingControl(name, labels, values, onSelect, icons = null, keepOpen = false) {
         const control = $(`#${name}-control`);
         const summary = summaryOf(control);
         const options = $('.setting-options', control);
@@ -284,7 +290,8 @@ window.addEventListener('load', () => {
                 label,
                 value: values[index],
                 icon: icons?.[index],
-                onChoose: () => onSelect(index)
+                onChoose: () => onSelect(index),
+                keepOpen
             });
             button.dataset.index = String(index);
             button.setAttribute('aria-pressed', 'false');
@@ -308,9 +315,9 @@ window.addEventListener('load', () => {
     }
 
     // One choice in a list: its name, the icon of what it chooses where
-    // there is one, and what it does. Choosing closes the lists, and a
-    // keyboard lands back on the button that opened them.
-    function addChoice(options, summary, {label, value, icon, onChoose}) {
+    // there is one, and what it does. Choosing closes the lists, unless
+    // `keepOpen`, and a keyboard lands back on the button that opened them.
+    function addChoice(options, summary, {label, value, icon, onChoose, keepOpen = false}) {
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'choice-button';
@@ -324,6 +331,9 @@ window.addEventListener('load', () => {
         button.setAttribute('aria-label', value);
         button.addEventListener('click', (event) => {
             onChoose();
+            if (keepOpen) {
+                return;
+            }
             setOpenControl(null);
             // Keyboard users land back on the button.
             if (event.detail === 0) {
@@ -456,11 +466,11 @@ window.addEventListener('load', () => {
         setView(index);
         cancelReplay(goClock);
         goClock.transform();
-    }, faceIcons);
-    const showSpeed = createSettingControl('speed', stoneSpeeds.map(([name]) => name), stoneSpeeds.map(([name]) => name), setClockSpeed, speedIcons);
-    const showWood = createSettingControl('wood', woods.map(([name]) => name), woods.map(([name]) => name), setWood);
+    }, faceIcons, true);
+    const showSpeed = createSettingControl('speed', stoneSpeeds.map(([name]) => name), stoneSpeeds.map(([name]) => name), setClockSpeed, speedIcons.slice(1), true);
+    const showWood = createSettingControl('wood', woods.map(([name]) => name), woods.map(([name]) => name), setWood, null, true);
     const showPlacement = createSettingControl('placement', placements, placements, setPlacement, precisionIcons);
-    const showBackground = createSettingControl('background', backgrounds.map((table) => table.name), backgrounds.map((table) => table.name), setBackground);
+    const showBackground = createSettingControl('background', backgrounds.map((table) => table.name), backgrounds.map((table) => table.name), setBackground, null, true);
 
     function setClockSpeed(index) {
         stoneSpeed = wrap(index, stoneSpeeds.length);
@@ -617,11 +627,11 @@ window.addEventListener('load', () => {
         replayButton.setAttribute('aria-label', replayButton.title);
     }
 
-    // The replay's bar (index.html): play or pause, and the game's line
-    // with a marker at the move the board shows, which can be dragged to
-    // any move. It sits above the board, or down its left side in
-    // landscape (its buttons stacked, rather than a row, there too), while
-    // a game is running.
+    // The replay's bar (index.html): the game's line, with a marker at the
+    // move the board shows, which can be dragged to any move. It sits
+    // above the board, or down its left side in landscape, while a game is
+    // running. Play, pause and the speed to play at are the toolbar's own
+    // replay-speed-control, beside the replay button, below.
     const replayBar = $('#replay-bar');
     const replayTrack = $('#replay-track');
     const replayMarker = $('#replay-marker');
@@ -660,34 +670,20 @@ window.addEventListener('load', () => {
         replayMarker.style.setProperty('--progress', total > 0 ? String(moves/total) : '0');
     }
 
-    // Play or pause, and the speed to play at while it is not: a button
-    // each, the second a setting-control (createSettingControl, above)
-    // dropping down the choices, exactly as the hand's speed does. Picking
-    // a speed lets the game go, at that speed, if it was held.
-    const replayPauseButton = $('#replay-pause');
+    // Held, or playing at one of the hand's own speeds: one setting-control
+    // (createSettingControl, above), in the toolbar row beside the replay
+    // button, hidden except while a game runs.
+    const replaySpeedControl = $('#replay-speed-control');
     const showReplaySpeed = createSettingControl('replay-speed',
-        playbackRates.map(([name]) => name), playbackRates.map(([name]) => name), setReplaySpeed, speedIcons);
-    let replaySpeed = defaultRate;
-    let replayHeld = false;
+        playbackRates.map(([name]) => name), playbackRates.map(([name]) => name), setReplayRateIndex,
+        [icons.pause, ...speedIcons.slice(1, playbackRates.length)]);
+    let replayRateIndex = defaultRate;
 
-    function setReplaySpeed(index) {
-        replaySpeed = wrap(index, playbackRates.length);
-        showReplaySpeed(replaySpeed);
-        if (!replayHeld) {
-            setReplayRate(goClock, playbackRates[replaySpeed][1]);
-        }
+    function setReplayRateIndex(index) {
+        replayRateIndex = wrap(index, playbackRates.length);
+        showReplaySpeed(replayRateIndex);
+        setReplayRate(goClock, playbackRates[replayRateIndex][1]);
     }
-
-    function setReplayHeld(held) {
-        replayHeld = held;
-        replayPauseButton.setAttribute('aria-pressed', String(held));
-        replayPauseButton.title = held ? 'Play the game' : 'Hold the game where it is';
-        replayPauseButton.setAttribute('aria-label', replayPauseButton.title);
-        $('.setting-icon', replayPauseButton).innerHTML = held ? icons.play : icons.pause;
-        setReplayRate(goClock, held ? 0 : playbackRates[replaySpeed][1]);
-    }
-
-    replayPauseButton.addEventListener('click', () => setReplayHeld(!replayHeld));
 
     // The marker dragged (or the line touched): the move under the pointer,
     // from the first at the left (or top) to the last at the right (or
@@ -747,6 +743,7 @@ window.addEventListener('load', () => {
             onStart: (game) => {
                 showReplayProgress(0, game.moves.length);
                 replayBar.hidden = false;
+                replaySpeedControl.hidden = false;
                 placeReplayBar();
                 showSwipeToast(icon, gameTitle(game.info), 8000);
             },
@@ -760,6 +757,7 @@ window.addEventListener('load', () => {
             onEnd: (error) => {
                 setReplaying(false);
                 replayBar.hidden = true;
+                replaySpeedControl.hidden = true;
                 if (error) {
                     console.error('The game could not be replayed', error);
                     showSwipeToast(icon, 'No game to replay');
@@ -768,9 +766,7 @@ window.addEventListener('load', () => {
         });
         if (began) {
             setReplaying(true);
-            replaySpeed = defaultRate;
-            showReplaySpeed(replaySpeed);
-            setReplayHeld(false);
+            setReplayRateIndex(defaultRate);
         }
     }
 
@@ -881,6 +877,7 @@ window.addEventListener('load', () => {
     });
     $('#settings-control .setting-icon').innerHTML = icons.settings;
     $('#background-control .setting-icon').innerHTML = icons.background;
+    $('#wood-control .setting-icon').innerHTML = icons.board;
     setClockSpeed(stoneSpeed);
     setView(view);
     setBackground(background);

@@ -131,11 +131,9 @@ export const icons = {
     settings: svg(cog(8, 10.5, 7.75)),
     // A game replayed: the goban, with a play button over it.
     replay: svg(miniGoban() + '<path d="M8.75 7v10l8.25 -5Z" fill="currentColor" stroke="none"/>'),
-    // The replay held where it is: two bars, beside the chevrons of the
-    // playback's speeds (the speed icons); and let go again, a single
-    // triangle.
+    // The replay held where it is: two bars, one of the playback's own
+    // choices of speed (the speed icons, the rest of them).
     pause: svg('<path d="M8.5 5.5v13M15.5 5.5v13" stroke-width="2.5"/>'),
-    play: svg('<path d="M8 5.5v13l10 -6.5Z" fill="currentColor" stroke="none"/>'),
     // Sound, on and off: a speaker, with waves coming off it or crossed out.
     sound: [
         svg('<path d="M4 9.25h3.4L12 5.25v13.5L7.4 14.75H4Z"/><path d="M15.5 9l5.5 5.5M21 9l-5.5 5.5"/>'),
@@ -143,6 +141,9 @@ export const icons = {
     ],
     // The background: a picture in a frame.
     background: svg('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 16.5l5 -5 4.5 4.5 3 -3 5.5 5.5"/><circle cx="15.5" cy="8.5" r="1.5"/>'),
+    // The board: the bare goban, wood or wood alone (the choices are named,
+    // not pictured, as the background's are).
+    board: svg(miniGoban()),
     // The toggle for the rest of the row: a cross while they show, a
     // menu's three bars while they are tucked away.
     close: svg('<path d="M6 6l12 12M18 6L6 18"/>'),
