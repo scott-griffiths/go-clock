@@ -131,9 +131,9 @@ export const icons = {
     settings: svg(cog(8, 10.5, 7.75)),
     // A game replayed: the goban, with a play button over it.
     replay: svg(miniGoban() + '<path d="M8.75 7v10l8.25 -5Z" fill="currentColor" stroke="none"/>'),
-    // The replay running or held: a pause while it runs, to stop it; a play while it is held.
-    play: svg('<path d="M8 5.5v13l10 -6.5Z" fill="currentColor" stroke="none"/>'),
-    pause: svg('<path d="M8 5.5v13M16 5.5v13" stroke-width="2.5"/>'),
+    // The replay held where it is: two bars, beside the chevrons of the
+    // playback's speeds (the speed icons).
+    pause: svg('<path d="M8.5 5.5v13M15.5 5.5v13" stroke-width="2.5"/>'),
     // Sound, on and off: a speaker, with waves coming off it or crossed out.
     sound: [
         svg('<path d="M4 9.25h3.4L12 5.25v13.5L7.4 14.75H4Z"/><path d="M15.5 9l5.5 5.5M21 9l-5.5 5.5"/>'),

@@ -9,7 +9,7 @@ import {setTumbling, voidFlightTime, dropTime} from './physics.js';
 import {flyOn} from './flight.js';
 import {sinkOn} from './water.js';
 import {sweepBoard} from './sweep.js';
-import {replayWanted, replaySettled} from './replay.js';
+import {replayWanted, replaySettled, replayWait} from './replay.js';
 import {fingerDown, fingerMove, fingerUp, endFinger} from './hand.js';
 import {setLandingOffset, alignIdleStone} from './placement.js';
 import {moveStone, moveDuration} from './moves.js';
@@ -138,8 +138,11 @@ export function GoClock(){
     this.speed = 26; // How fast a stone moves (moves.js)
     this.pause = 180; // How long a hand rests between stones, in ms
     // Magic: as many hands as there are stones to move, every change
-    // made in one go (magic.js); `magic_flights` the stones in the air.
+    // made in one go (magic.js); `magic_flights` the stones in the air,
+    // and `magic_once` a single change to be made that way whatever the
+    // speed (a replay taken to a move, replay.js).
     this.magic = false;
+    this.magic_once = false;
     this.magic_flights = [];
 
     this.placement = 1; // 0 exact, 1 organic, 2 careless
@@ -557,18 +560,25 @@ export function GoClock(){
         } else {
             this.update();
         }
-        if (this.magic) {
+        if (this.magic || this.magic_once) {
             // Every change at once (magic.js); the last landing looks
-            // again. Nothing to do: the next second, or the game's end.
+            // again. Nothing left to do: a one-off change is done with,
+            // and the hands take over again; otherwise the next second,
+            // the next move of the game, or its end.
             if (this.busy() || magicTransform(this)) {
                 return;
             }
-            if (this.replay) {
-                replaySettled(this);
-            } else {
-                this.idle_timer = setTimeout(this.transform.bind(this), 1000 - Date.now() % 1000 + 5);
+            if (this.magic_once) {
+                this.magic_once = false;
             }
-            return;
+            if (this.magic) {
+                if (this.replay) {
+                    this.waitForReplay();
+                } else {
+                    this.idle_timer = setTimeout(this.transform.bind(this), 1000 - Date.now() % 1000 + 5);
+                }
+                return;
+            }
         }
         // How long a stone takes to move one point, at this speed; and how
         // close to the other hand's picking up or putting down is too
@@ -637,16 +647,29 @@ export function GoClock(){
         });
         if (!this.busy()) {
             if (this.replay) {
-                // No move found, none waiting its moment: the game is
-                // over, or the board is not ready for it yet.
+                // No move found, none waiting its moment: the game's next
+                // move is not due yet, the board is not ready for it, or
+                // the game is over.
                 if (!this.hands.some((hand) => hand.reaching)) {
-                    replaySettled(this);
+                    this.waitForReplay();
                 }
                 return;
             }
             // Nothing to do: look again just after the next second turns,
             // which is the soonest any face can change.
             this.idle_timer = setTimeout(this.transform.bind(this), 1000 - Date.now() % 1000 + 5);
+        }
+    };
+
+    // The hands have done what they can for the replay: a look again
+    // when its next move comes due, or, with the game over, the rest
+    // before the clock takes the board back (replay.js).
+    this.waitForReplay = function() {
+        var wait = replayWait(this);
+        if (wait === null) {
+            replaySettled(this);
+        } else {
+            this.idle_timer = setTimeout(this.transform.bind(this), Math.max(16, wait));
         }
     };
 

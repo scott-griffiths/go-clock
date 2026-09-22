@@ -1,7 +1,7 @@
 import {GoClock} from './go-clock.js';
 import {Sounds} from './sounds.js';
 import {preloadTumbleSheets} from './flight.js';
-import {startReplay, cancelReplay, pauseReplay, seekReplay, loadGame, nextGameFile, gameCategories} from './replay.js';
+import {startReplay, cancelReplay, setReplayRate, seekReplay, loadGame, nextGameFile, gameCategories} from './replay.js';
 import {gameTitle, gameResult} from './sgf.js';
 import {faceIcons, speedIcons, precisionIcons, gameIcons, icons} from './icons.js';
 import {computerBoardSrc, gobanImageSrc, setFlatStones, stoneImageSrc, colourOfImage} from './stone-dom.js';
@@ -48,6 +48,12 @@ const views = ['Analogue', 'Jumping hour', 'Digital', 'Hybrid'];
 // (magic.js), and the rest is between one go and the next.
 const stoneSpeeds = [['Slow', 18, 500], ['Normal', 26, 180], ['Fast', 45, 60], ['Insane!', 320, 8], ['Magic', 320, 150, true]];
 const placements = ['Exact', 'Organic', 'Careless'];
+// How fast a game replays, in moves a second, which is not how fast the
+// hands are (the speed setting): a slow board falls behind a brisk game
+// rather than the game waiting for it. Held, the board keeps the
+// position it has reached.
+const playbackRates = [['Pause', 0], ['Normal', 2], ['Fast', 6]];
+const defaultRate = 1;
 const modes = ['12-hour', '24-hour'];
 // Each a filter on the board image; the last is no wood at all but the
 // computer's board, drawn plain (stone-dom.js), with flat stones to match.
@@ -616,11 +622,9 @@ window.addEventListener('load', () => {
     // any move. It sits over the board, or down its right side in
     // landscape, while a game is running.
     const replayBar = $('#replay-bar');
-    const replayPlay = $('#replay-play');
     const replayTrack = $('#replay-track');
     const replayMarker = $('#replay-marker');
     let replayMoves = 0;
-    let replayPaused = false;
 
     function placeReplayBar() {
         const board = $('#goban-image')?.getBoundingClientRect();
@@ -653,17 +657,28 @@ window.addEventListener('load', () => {
         replayMarker.style.setProperty('--progress', total > 0 ? String(moves/total) : '0');
     }
 
-    function showReplayPaused(paused) {
-        replayPaused = paused;
-        replayPlay.title = paused ? 'Play the replay' : 'Pause the replay';
-        replayPlay.setAttribute('aria-label', replayPlay.title);
-        $('.setting-icon', replayPlay).innerHTML = paused ? icons.play : icons.pause;
-    }
-
-    replayPlay.addEventListener('click', () => {
-        showReplayPaused(!replayPaused);
-        pauseReplay(goClock, replayPaused);
+    // Held, at a move a half-second, or three times that: a button each,
+    // the chosen one pressed. The pause wears its own icon, the other two
+    // the chevrons of the matching stone speeds.
+    const rateIcons = [icons.pause, speedIcons[1], speedIcons[2]];
+    const rateButtons = playbackRates.map(([name], index) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'setting-summary';
+        button.title = index === 0 ? 'Hold the game where it is' : `Play the game at ${name.toLowerCase()} speed`;
+        button.setAttribute('aria-label', button.title);
+        button.innerHTML = `<span class="setting-icon" aria-hidden="true">${rateIcons[index]}</span>`;
+        button.addEventListener('click', () => {
+            showReplayRate(index);
+            setReplayRate(goClock, playbackRates[index][1]);
+        });
+        $('#replay-rates').append(button);
+        return button;
     });
+
+    function showReplayRate(index) {
+        rateButtons.forEach((button, i) => button.setAttribute('aria-pressed', String(i === index)));
+    }
 
     // The marker dragged (or the line touched): the move under the pointer,
     // from the first at the left (or top) to the last at the right (or
@@ -744,7 +759,8 @@ window.addEventListener('load', () => {
         });
         if (began) {
             setReplaying(true);
-            showReplayPaused(false);
+            showReplayRate(defaultRate);
+            setReplayRate(goClock, playbackRates[defaultRate][1]);
         }
     }
 

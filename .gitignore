@@ -8,3 +8,4 @@ ios/**/xcuserdata/
 ios/**/*.xcworkspace/xcuserdata/
 ios/build/
 DerivedData/
+.idea/

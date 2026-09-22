@@ -480,6 +480,22 @@ body {
     color: white;
 }
 
+.replay-rates {
+    display: flex;
+    gap: 4px;
+}
+
+/* Landscape: the choices sit in a row above the line all the same. */
+.replay-rates .setting-summary {
+    width: 38px;
+    min-height: 38px;
+}
+
+.replay-rates .setting-summary[aria-pressed="true"] {
+    background: rgb(255 255 255 / 0.93);
+    color: black;
+}
+
 .replay-track {
     position: relative;
     flex: 1;

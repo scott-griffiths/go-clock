@@ -5,7 +5,7 @@
 
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {gameStages, replayWanted, stageOfMove, movesShown, seekReplay} from '../www/replay.js';
+import {gameStages, replayWanted, stageOfMove, movesShown, seekReplay, setReplayRate, replayWait} from '../www/replay.js';
 import {playGame} from '../www/sgf.js';
 import {emptyBoard, pointIndex, pointX, pointY, white, black} from '../www/board.js';
 
@@ -13,13 +13,16 @@ const at = (x, y) => pointIndex(x, y);
 
 // A clock with the game under way, the board showing its position
 // `reached` (or empty, before the first), its hands carrying nothing
-// unless told.
+// unless told, and the playback allowing whatever the board can reach.
 function clockWith(stages, reached) {
     return {
         stones_shown: reached < 0 ? emptyBoard() : [...stages[reached].board],
         hands: [{moving: false, to: [0, 0]}, {moving: false, to: [0, 0]}],
         get_index: (coords) => at(coords[0], coords[1]),
-        replay: {game: {stages}, stage: reached + 1, cleared: true, started: true, cancelled: false, seeking: null}
+        busy: () => false,
+        transform: () => {},
+        replay: {game: {stages}, stage: reached + 1, cleared: true, started: true, cancelled: false,
+                 seeking: null, rate: 2, allowed: Infinity, allowedAt: 0}
     };
 }
 
@@ -100,20 +103,39 @@ test('each stage knows its move, and a move\'s last stage is the one with its ca
     assert.equal(stageOfMove(stages, 9), 10);
 });
 
-test('paused, the position reached is wanted and held; the moves shown are reported as the board reaches them', () => {
+test('held, the position reached is wanted and kept; the moves shown are reported as the board reaches them', () => {
     const shown = [];
     const clock = clockWith(stages, 3);
     clock.replay.onProgress = (moves, total) => shown.push([moves, total]);
     clock.replay.game.moves = koMoves;
-    clock.replay.paused = true;
+    setReplayRate(clock, 0);
     assert.deepEqual(replayWanted(clock), stages[3].board);
     assert.equal(movesShown(clock.replay), 4);
-    // A stone that was in the air lands: the board has moved on, and holds there.
+    // A stone that was in the air lands: the board has moved on, and stays there.
     clock.stones_shown = [...stages[4].board];
     assert.deepEqual(replayWanted(clock), stages[4].board);
     assert.deepEqual(shown, [[5, 10]]);
-    clock.replay.paused = false;
+    setReplayRate(clock, 2);
     assert.deepEqual(replayWanted(clock), stages[5].board);
+});
+
+test('the playback allows a move at a time at its rate, and a board too slow for it falls behind rather than racing after', () => {
+    const clock = clockWith(stages, -1);
+    clock.replay.game.moves = koMoves;
+    clock.replay.allowed = 1;
+    clock.replay.allowedAt = performance.now();
+    setReplayRate(clock, 2);
+    // The first move is allowed at once; the second is not due yet.
+    assert.deepEqual(replayWanted(clock), stages[0].board);
+    clock.stones_shown = [...stages[0].board];
+    assert.deepEqual(replayWanted(clock), stages[0].board);
+    assert.ok(replayWait(clock) > 0 && replayWait(clock) <= 500, `wait ${replayWait(clock)}`);
+    // Time enough for many moves while the board stands still: the
+    // allowance does not run away with it, and order is kept.
+    clock.replay.allowedAt = performance.now() - 10000;
+    const wanted = replayWanted(clock);
+    assert.deepEqual(wanted, stages[1].board);
+    assert.ok(clock.replay.allowed <= movesShown(clock.replay) + 2);
 });
 
 test('taken to a move, that position is wanted until the board shows it, and the game goes on from it', () => {
@@ -123,6 +145,8 @@ test('taken to a move, that position is wanted until the board shows it, and the
     clock.transform = () => {};
     assert.equal(seekReplay(clock, 9), true);
     assert.equal(movesShown(clock.replay), 9);
+    // However slow the hands, the board is taken there in one magic change.
+    assert.equal(clock.magic_once, true);
     // Wanted, and still wanted with the board part way there.
     assert.deepEqual(replayWanted(clock), stages[9].board);
     clock.stones_shown = [...stages[6].board];
@@ -133,14 +157,14 @@ test('taken to a move, that position is wanted until the board shows it, and the
     assert.deepEqual(replayWanted(clock), stages[10].board);
     assert.equal(clock.replay.stage, 10);
     assert.equal(clock.replay.seeking, null);
-    // Back to the start: the empty board, and paused, held there.
+    // Back to the start: the empty board, and held there while paused.
     seekReplay(clock, 0);
-    clock.replay.paused = true;
+    setReplayRate(clock, 0);
     assert.deepEqual(replayWanted(clock), emptyBoard());
     clock.stones_shown = emptyBoard();
     assert.deepEqual(replayWanted(clock), emptyBoard());
     assert.equal(clock.replay.stage, 0);
-    clock.replay.paused = false;
+    setReplayRate(clock, 2);
     assert.deepEqual(replayWanted(clock), stages[0].board);
     // Not with a finger on the board.
     clock.finger = {};
