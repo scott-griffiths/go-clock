@@ -5,18 +5,27 @@
 // turned over about the horizontal axis in `frames` equal steps through a
 // half turn and seen from above. A half turn is the whole tumble: the
 // stone's two faces are alike, so turned right over it looks as it did.
+// Besides the real stones (their photographs, from resources/), the
+// computer board's plain flat discs get a sheet of their own too: the
+// same lens, but a very short cylinder rather than a real stone's thicker
+// lens, and a flat colour rather than a photograph.
 //
 //   swift scripts/make-stone-sprites.swift
 //
 // Writes www/images/<stone>_tumble_160.png for each stone in resources/,
-// `columns` frames to a row, each frame 160px square so that the first,
-// the stone flat, is the stone image at its usual size.
+// and www/images/flat_<colour>_tumble_160.png for the computer board's
+// discs, `columns` frames to a row, each frame 160px square so that the
+// first, the stone flat, is the stone image at its usual size.
 //
 // The stone is a lens, two spherical caps meeting at a sharp rim, the
-// shape of a real stone. Each face wears the photograph of the stone, so
-// the frames match the flat stone; the photograph's own lighting is kept,
-// and the tilt is lit relative to it, so that a face turning away from
-// the light darkens and the rim catches it. Needs nothing beyond macOS.
+// shape of a real stone. Each face wears the photograph of the stone (or,
+// for the computer board, its flat colour), so the frames match the flat
+// stone. The light is the camera's own, straight along its view: a stone
+// shows the same face-on brightness and rim shading whichever way it is
+// turned to face the camera, so that turning the tumble to follow a
+// stone's path (flight.js, `heading`) never leaves the light looking as
+// if it had swung round with it — a light fixed to the world would. Needs
+// nothing beyond macOS.
 
 import AppKit
 import Foundation
@@ -30,6 +39,9 @@ let supersample = 3
 // A stone's thickness, as a fraction of its diameter (a size 32 stone is
 // 22mm across and 8.8mm thick).
 let thickness = 0.4
+// The computer board's flat discs: a very short cylinder rather than a
+// real stone's fuller lens.
+let flatThickness = 0.12
 
 let root = URL(fileURLWithPath: CommandLine.arguments[0]).deletingLastPathComponent().deletingLastPathComponent()
 let resources = root.appendingPathComponent("resources")
@@ -50,8 +62,8 @@ struct Photo {
               let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
             fatalError("Could not read \(url.path)")
         }
-        width = image.width
-        height = image.height
+        let width = image.width
+        let height = image.height
         var data = [UInt8](repeating: 0, count: width*height*4)
         let context = CGContext(
             data: &data, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width*4,
@@ -71,8 +83,35 @@ struct Photo {
                 pixels[to + 3] = UInt8(a)
             }
         }
+        self.init(width: width, height: height, pixels: pixels)
+    }
+
+    // A synthetic photograph: a plain disc of `fill`, with the thin dark
+    // rim the computer board's flat stones wear (stone-dom.js's
+    // flatStoneSrc) — nothing to read from disk, so its very short
+    // cylinder can have a tumble sheet of its own too.
+    init(flatDisc fill: (UInt8, UInt8, UInt8), size: Int = 160) {
+        let radius = Double(size)*77/160
+        let rim = Double(size)*3/160
+        var pixels = [UInt8](repeating: 0, count: size*size*4)
+        for y in 0..<size {
+            for x in 0..<size {
+                let d = Foundation.hypot(Double(x) + 0.5 - Double(size)/2, Double(y) + 0.5 - Double(size)/2)
+                guard d <= radius + rim/2 else { continue }
+                let at = (y*size + x)*4
+                let rgb = d <= radius - rim/2 ? fill : (0, 0, 0)
+                (pixels[at], pixels[at + 1], pixels[at + 2], pixels[at + 3]) = (rgb.0, rgb.1, rgb.2, 255)
+            }
+        }
+        self.init(width: size, height: size, pixels: pixels)
+    }
+
+    // Shared by both: the pixels as read or synthesized, and the disc
+    // read off the bounds of their opaque pixels.
+    private init(width: Int, height: Int, pixels: [UInt8]) {
+        self.width = width
+        self.height = height
         self.pixels = pixels
-        // The disc: the bounds of the opaque pixels.
         var minX = width, maxX = -1, minY = height, maxY = -1
         for y in 0..<height {
             for x in 0..<width where pixels[(y*width + x)*4 + 3] > 128 {
@@ -117,9 +156,15 @@ struct Vec {
     }
 }
 
-// The light, from the top left and in front, as in the photographs.
-let light = Vec(x: -0.45, y: -0.55, z: 0.7).unit
-let halfway = (light + Vec(x: 0, y: 0, z: 1)).unit
+// The light, fixed to the camera rather than to the stone: it looks
+// straight along the view, so spinning the stone about that same axis
+// (as flight.js does in CSS, turning each frame to follow the stone's own
+// path) never turns the light with it. A light fixed in the photograph's
+// own frame instead would, and visibly swing round as a stone flew off in
+// a different direction each time — wrong for something meant to read as
+// a fixed light in the room.
+let light = Vec(x: 0, y: 0, z: 1)
+let halfway = light
 
 /// How lit a surface facing `normal` is: some ambient, the diffuse, and a highlight.
 func shade(_ normal: Vec) -> Double {
@@ -144,7 +189,7 @@ struct Lens {
     let sphereRadius: Double  // of each cap's sphere
     let offset: Double        // each sphere's centre, this far from the middle
 
-    init(radius: Double) {
+    init(radius: Double, thickness: Double = thickness) {
         self.radius = radius
         let half = radius*thickness   // half the thickness: thickness*diameter/2
         sphereRadius = (radius*radius + half*half)/(2*half)
@@ -182,9 +227,9 @@ struct Lens {
 
 // MARK: - The sheet
 
-func renderSheet(photo: Photo) -> CGImage {
+func renderSheet(photo: Photo, thickness: Double = thickness) -> CGImage {
     let scale = Double(frameSize)/Double(max(photo.width, photo.height))
-    let lens = Lens(radius: photo.radius*scale)
+    let lens = Lens(radius: photo.radius*scale, thickness: thickness)
     // Where the disc's centre lands in the frame: the photograph scaled to fit, as the app draws it.
     let frameCentreX = photo.centreX*scale
     let frameCentreY = photo.centreY*scale
@@ -256,4 +301,9 @@ func write(_ image: CGImage, to url: URL) {
 for name in ["black_stone1", "white_stone0", "white_stone1", "white_stone2", "white_stone3"] {
     let photo = Photo(url: resources.appendingPathComponent("\(name)_large.png"))
     write(renderSheet(photo: photo), to: images.appendingPathComponent("\(name)_tumble_\(frameSize).png"))
+}
+
+for (name, fill) in [("flat_white", (255, 255, 255)), ("flat_black", (0, 0, 0))] as [(String, (UInt8, UInt8, UInt8))] {
+    let photo = Photo(flatDisc: fill)
+    write(renderSheet(photo: photo, thickness: flatThickness), to: images.appendingPathComponent("\(name)_tumble_\(frameSize).png"))
 }

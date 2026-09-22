@@ -4,28 +4,35 @@
 // (knocking others as it goes, which sends both up) and rising (nothing
 // is below it) until it is too high to see. A flying stone is drawn from a sprite
 // sheet of the stone turning over (scripts/make-stone-sprites.swift
-// renders one for each stone image): a half turn in `frames` steps, which
-// is the whole tumble, a stone's two faces being alike; and turned on the
-// page to put the tumble along its path (`heading`, physics.js).
+// renders one for each stone image, and one for each of the computer
+// board's flat discs, a very short cylinder rather than a real stone's
+// fuller lens): a half turn in `frames` steps, which is the whole tumble,
+// a stone's two faces being alike; and turned on the page to put the
+// tumble along its path (`heading`, physics.js). The sheets' own light is
+// the camera's, so that turn never leaves it looking as if the light had
+// swung round with the stone.
 //
 // The hand and the sweep draw their flying stones with drawFlying() while
 // they last, and hand any still in the air to flyOn() when they finish,
 // which sees them out of sight in a world of its own.
 
 import {StoneWorld} from './physics.js';
-import {setStyles, setVisible, stoneSrcs, isFlatStoneSrc, flatBlackStoneSrc} from './stone-dom.js';
+import {setStyles, setVisible, stoneSrcs, flatWhiteStoneSrc, flatBlackStoneSrc} from './stone-dom.js';
 
 const frames = 18;
 const columns = 6;
 const rows = Math.ceil(frames/columns);
 
-// The sheet for a stone image: its name with `_tumble` in it. A flat
-// computer stone has no sheet of its own and tumbles as a real one.
+const flatTumbleSrcs = new Map([
+    [flatWhiteStoneSrc, 'images/flat_white_tumble_160.png'],
+    [flatBlackStoneSrc, 'images/flat_black_tumble_160.png']
+]);
+
+// The sheet for a stone image: its name with `_tumble` in it, or, for a
+// computer board's flat disc (not a file of its own to rename), its own
+// sheet.
 export function tumbleSheetSrc(stoneSrc) {
-    if (isFlatStoneSrc(stoneSrc)) {
-        stoneSrc = stoneSrc === flatBlackStoneSrc ? stoneSrcs[stoneSrcs.length - 1] : stoneSrcs[0];
-    }
-    return stoneSrc.replace(/_160\.png$/, '_tumble_160.png');
+    return flatTumbleSrcs.get(stoneSrc) ?? stoneSrc.replace(/_160\.png$/, '_tumble_160.png');
 }
 
 // The sheets are big, and only space wants them: fetched once space is
@@ -36,7 +43,7 @@ export function preloadTumbleSheets() {
         return;
     }
     preloaded = true;
-    stoneSrcs.forEach((src) => {
+    [...stoneSrcs, flatWhiteStoneSrc, flatBlackStoneSrc].forEach((src) => {
         const image = new Image();
         image.src = tumbleSheetSrc(src);
     });

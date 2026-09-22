@@ -50,9 +50,10 @@ const stoneSpeeds = [['Slow', 18, 500], ['Normal', 26, 180], ['Fast', 45, 60], [
 const placements = ['Exact', 'Organic', 'Careless'];
 // How fast a game replays, in moves a second, which is not how fast the
 // hands are (the speed setting): a slow board falls behind a brisk game
-// rather than the game waiting for it. Held, the board keeps the
-// position it has reached.
-const playbackRates = [['Pause', 0], ['Normal', 2], ['Fast', 6]];
+// rather than the game waiting for it. Held (the pause button), the board
+// keeps the position it has reached. Named and pictured as the hand
+// speeds are (icons.js), less Magic, which playback has no use for.
+const playbackRates = [['Slow', 0.75], ['Normal', 2], ['Fast', 6], ['Insane!', 20]];
 const defaultRate = 1;
 const modes = ['12-hour', '24-hour'];
 // Each a filter on the board image; the last is no wood at all but the
@@ -60,7 +61,6 @@ const modes = ['12-hour', '24-hour'];
 const woods = [
     ['Oak', 'saturate(0.8) hue-rotate(-12deg) sepia(0.5)'],
     ['Kaya', 'saturate(1.3) hue-rotate(-7deg)'],
-    ['Bamboo', 'saturate(0.3) contrast(1.4) brightness(1.1) hue-rotate(-6deg)'],
     ['Computer', 'none', true]
 ];
 // Tucked away, the toggle comes back to full strength at a touch anywhere,
@@ -619,8 +619,9 @@ window.addEventListener('load', () => {
 
     // The replay's bar (index.html): play or pause, and the game's line
     // with a marker at the move the board shows, which can be dragged to
-    // any move. It sits over the board, or down its right side in
-    // landscape, while a game is running.
+    // any move. It sits above the board, or down its left side in
+    // landscape (its buttons stacked, rather than a row, there too), while
+    // a game is running.
     const replayBar = $('#replay-bar');
     const replayTrack = $('#replay-track');
     const replayMarker = $('#replay-marker');
@@ -634,7 +635,8 @@ window.addEventListener('load', () => {
         const gap = 10;
         if (isLandscape()) {
             Object.assign(replayBar.style, {
-                left: `${Math.round(board.right + gap)}px`,
+                left: '',
+                right: `${Math.round(window.innerWidth - board.left + gap)}px`,
                 top: `${Math.round(board.top)}px`,
                 width: '',
                 height: `${Math.round(board.height)}px`
@@ -642,10 +644,11 @@ window.addEventListener('load', () => {
         } else {
             Object.assign(replayBar.style, {
                 left: `${Math.round(board.left)}px`,
-                top: `${Math.round(board.top - gap - 42)}px`,
+                right: '',
                 width: `${Math.round(board.width)}px`,
                 height: ''
             });
+            replayBar.style.top = `${Math.round(board.top - gap - replayBar.offsetHeight)}px`;
         }
     }
 
@@ -657,28 +660,34 @@ window.addEventListener('load', () => {
         replayMarker.style.setProperty('--progress', total > 0 ? String(moves/total) : '0');
     }
 
-    // Held, at a move a half-second, or three times that: a button each,
-    // the chosen one pressed. The pause wears its own icon, the other two
-    // the chevrons of the matching stone speeds.
-    const rateIcons = [icons.pause, speedIcons[1], speedIcons[2]];
-    const rateButtons = playbackRates.map(([name], index) => {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'setting-summary';
-        button.title = index === 0 ? 'Hold the game where it is' : `Play the game at ${name.toLowerCase()} speed`;
-        button.setAttribute('aria-label', button.title);
-        button.innerHTML = `<span class="setting-icon" aria-hidden="true">${rateIcons[index]}</span>`;
-        button.addEventListener('click', () => {
-            showReplayRate(index);
-            setReplayRate(goClock, playbackRates[index][1]);
-        });
-        $('#replay-rates').append(button);
-        return button;
-    });
+    // Play or pause, and the speed to play at while it is not: a button
+    // each, the second a setting-control (createSettingControl, above)
+    // dropping down the choices, exactly as the hand's speed does. Picking
+    // a speed lets the game go, at that speed, if it was held.
+    const replayPauseButton = $('#replay-pause');
+    const showReplaySpeed = createSettingControl('replay-speed',
+        playbackRates.map(([name]) => name), playbackRates.map(([name]) => name), setReplaySpeed, speedIcons);
+    let replaySpeed = defaultRate;
+    let replayHeld = false;
 
-    function showReplayRate(index) {
-        rateButtons.forEach((button, i) => button.setAttribute('aria-pressed', String(i === index)));
+    function setReplaySpeed(index) {
+        replaySpeed = wrap(index, playbackRates.length);
+        showReplaySpeed(replaySpeed);
+        if (!replayHeld) {
+            setReplayRate(goClock, playbackRates[replaySpeed][1]);
+        }
     }
+
+    function setReplayHeld(held) {
+        replayHeld = held;
+        replayPauseButton.setAttribute('aria-pressed', String(held));
+        replayPauseButton.title = held ? 'Play the game' : 'Hold the game where it is';
+        replayPauseButton.setAttribute('aria-label', replayPauseButton.title);
+        $('.setting-icon', replayPauseButton).innerHTML = held ? icons.play : icons.pause;
+        setReplayRate(goClock, held ? 0 : playbackRates[replaySpeed][1]);
+    }
+
+    replayPauseButton.addEventListener('click', () => setReplayHeld(!replayHeld));
 
     // The marker dragged (or the line touched): the move under the pointer,
     // from the first at the left (or top) to the last at the right (or
@@ -737,8 +746,8 @@ window.addEventListener('load', () => {
         const began = startReplay(goClock, loadGame(`games/${nextGameFile(category?.files)}`), {
             onStart: (game) => {
                 showReplayProgress(0, game.moves.length);
-                placeReplayBar();
                 replayBar.hidden = false;
+                placeReplayBar();
                 showSwipeToast(icon, gameTitle(game.info), 8000);
             },
             onProgress: showReplayProgress,
@@ -759,8 +768,9 @@ window.addEventListener('load', () => {
         });
         if (began) {
             setReplaying(true);
-            showReplayRate(defaultRate);
-            setReplayRate(goClock, playbackRates[defaultRate][1]);
+            replaySpeed = defaultRate;
+            showReplaySpeed(replaySpeed);
+            setReplayHeld(false);
         }
     }
 

@@ -113,12 +113,23 @@
                 <span id="swipe-toast-icon" class="setting-icon" aria-hidden="true"></span>
                 <span id="swipe-toast-value"></span>
             </div>
-            <!-- A game being replayed: play or pause, and where it has got to
+            <!-- A game being replayed: play or pause, a speed to play it at
+                 (a setting-control, like the hand's), and where it has got to
                  on a line from the first move to the last, which can be dragged
                  to any move. Under the board, or beside it in landscape
                  (my-clock.js places it). -->
             <div id="replay-bar" class="replay-bar" hidden>
-                <div id="replay-rates" class="replay-rates" role="group" aria-label="Playback"></div>
+                <div id="replay-controls" class="replay-controls" role="group" aria-label="Playback">
+                    <button id="replay-pause" class="setting-summary" type="button" title="Hold the game where it is" aria-label="Hold the game where it is" aria-pressed="false">
+                        <span class="setting-icon" aria-hidden="true"></span>
+                    </button>
+                    <div id="replay-speed-control" class="setting-control" data-open="false">
+                        <button class="setting-summary" type="button" title="Playback speed" aria-label="Playback speed" aria-expanded="false" aria-controls="replay-speed-options">
+                            <span class="setting-icon" aria-hidden="true"></span>
+                        </button>
+                        <div id="replay-speed-options" class="setting-options" role="group" aria-label="Playback speed" hidden></div>
+                    </div>
+                </div>
                 <div id="replay-track" class="replay-track" role="slider" tabindex="0" aria-label="Move" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0">
                     <div class="replay-line"></div>
                     <div id="replay-marker" class="replay-marker"></div>

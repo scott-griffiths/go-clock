@@ -18,7 +18,7 @@ import {gridsize} from './board.js';
 import {StoneWorld, flatBoard} from './physics.js';
 import {$, setStyles, setVisible, setStoneShadow, cancelElementAnimations, drawOnTable, drawOnBoard} from './stone-dom.js';
 import {drawFlying, flyOn, clearFlying} from './flight.js';
-import {drawSinking, splash, sinkOn} from './water.js';
+import {drawSinking, splash, skimRipple, sinkOn} from './water.js';
 
 export function sweepBoard(clock) {
     if (clock.sweeping_board || clock.finger || typeof document === 'undefined') {
@@ -46,7 +46,9 @@ export function sweepBoard(clock) {
         flat: clock.flat_stones,
         sidesKeepOn: true,
         sound: clock.sound,
-        onSplash: (stone, strength) => splash(goban, stone.x, stone.y, stone.r, strength, Math.atan2(stone.vy, stone.vx))
+        onSplash: (stone, strength, skim = false) => skim
+            ? skimRipple(goban, stone.x, stone.y, stone.r, strength)
+            : splash(goban, stone.x, stone.y, stone.r, strength, Math.atan2(stone.vy, stone.vx))
     });
     // The arm: its leading edge (at the ends; the middle trails by
     // `bow`) starts above the top of the board and wipes down to well

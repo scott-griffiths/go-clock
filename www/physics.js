@@ -15,8 +15,11 @@
 // board is nothing to it) and only slowly gaining height, until it is too
 // high to see. While it is low it still knocks into other stones, and a
 // knock sends both up. On water (`isWater`) the drop ends in a splash
-// rather than a landing: the stone is braked hard, beyond the reach of
-// the others, and sinks out of sight in `sinkTime`. Stones in each other's
+// rather than a landing: going in fast enough, a stone skims across the
+// surface first, throwing off a ripple now and then, before it slows and
+// goes under; a gentler one just goes straight down. Either way it is
+// braked hard once it sinks, beyond the reach of the others, and out of
+// sight in `sinkTime`. Stones in each other's
 // way push apart and bounce a little; but a stone shoved hard and kept
 // shoved into another may ride up onto it instead, the way a lens-shaped
 // stone climbs the bevel of the one in front, and lie part over it until
@@ -39,6 +42,8 @@
 //   falling     into the void instead of onto the table; height, how high
 //               it has risen, 0 to 1 (too high to see), and climb, how
 //               fast that is going up, per second
+//   skimming    over the water, going too fast to sink yet; nextSkimRippleAt
+//               is the world time it next throws one off
 //   sinking     under the water instead of on the table; sankAt is the
 //               world time it went in
 //   gone        off the screen, fallen away or sunk: finished with
@@ -66,6 +71,14 @@ export const lowHeight = 0.15;
 export const stoneDepth = 0.06;
 // How long a stone takes to sink out of sight, in seconds from the splash.
 export const sinkTime = 0.7;
+// A stone going into the water faster than this (stone diameters a second)
+// skims across the surface instead of sinking at once: a lighter splash,
+// then a moment sliding over the water, throwing off a ripple now and then
+// as it goes, before it slows enough to go under. One going in gently just
+// sinks.
+const skimSpeed = 2.2;
+const skimDrag = 3;
+const skimRippleEvery = 0.12;
 // Riding up: how far over a lower stone a stone fully up on it may lie,
 // as a share of their radii together; how fast (in stone diameters a
 // second) one has to be shoved into another to start climbing, and what
@@ -86,8 +99,9 @@ export class StoneWorld {
     // leave over the top or bottom edge (the sweep); edgeKick, px/s outward
     // for a stone going over the edge (a shoved stone tips over it rather
     // than rolling gently off); sound, something with land(strength),
-    // knock(strength) and splash(strength); onSplash(stone, strength),
-    // called as a stone goes into the water; flat, the stones are flat
+    // knock(strength) and splash(strength); onSplash(stone, strength, skim),
+    // called as a stone goes into the water, `skim` true for the light
+    // ripples a fast one throws off before it sinks; flat, the stones are flat
     // discs (the computer board) with no bevel to climb: none rides up
     // on another on the board, only off it, where they may pile up.
     constructor({board, screen, diameter, onBoard, grip = 1, isVoid = false, isWater = false, sidesKeepOn = false,
@@ -160,6 +174,18 @@ export class StoneWorld {
                     if (this.elapsed - stone.sankAt >= sinkTime) {
                         stone.gone = true;
                     }
+                } else if (stone.skimming) {
+                    // Over the water, not yet in it: heavy drag, a ripple
+                    // thrown off now and then, and under once it is slow
+                    // enough that the water can hold it.
+                    this.slow(stone, this.speedOf(stone)*skimDrag + this.diameter*30, dt);
+                    if (this.elapsed >= stone.nextSkimRippleAt) {
+                        stone.nextSkimRippleAt = this.elapsed + skimRippleEvery;
+                        this.onSplash?.(stone, Math.min(0.35, this.speedOf(stone)/(this.diameter*skimSpeed)*0.3), true);
+                    }
+                    if (this.speedOf(stone) <= this.diameter*skimSpeed*0.55) {
+                        this.beginSink(stone);
+                    }
                 } else {
                     // Skidding on the flat table: nothing pulls, friction slows.
                     this.slow(stone, (this.speedOf(stone)*6 + this.diameter*20)*this.grip, dt);
@@ -229,24 +255,42 @@ export class StoneWorld {
     }
 
     // Down on the table: landing takes the edge off its speed. Into the
-    // water: a splash, most of its speed goes at once, and it turns over
-    // lazily as it goes down, the way it was going.
+    // water: going in fast enough, it skims across the surface a moment
+    // first (skimming, below); otherwise, or once it has slowed, a splash,
+    // most of its speed goes at once, and it turns over lazily as it goes
+    // down, the way it was going.
     land(stone) {
         stone.landed = true;
-        const strength = this.speedOf(stone)/(this.boardHeight*1.8);
-        if (this.isWater) {
-            stone.sinking = true;
-            stone.sankAt = this.elapsed;
-            setTumbling(stone, Math.atan2(stone.vy, stone.vx), (2.5 + Math.random()*1.5)*(Math.random() < 0.5 ? -1 : 1));
-            stone.vx *= 0.25;
-            stone.vy *= 0.25;
-            this.sound?.splash(strength);
-            this.onSplash?.(stone, strength);
+        if (this.isWater && this.speedOf(stone) > this.diameter*skimSpeed) {
+            stone.skimming = true;
+            stone.nextSkimRippleAt = this.elapsed;
+            this.onSplash?.(stone, 0.25, true);
+            stone.vx *= 0.7;
+            stone.vy *= 0.7;
             return;
         }
+        if (this.isWater) {
+            this.beginSink(stone);
+            return;
+        }
+        const strength = this.speedOf(stone)/(this.boardHeight*1.8);
         this.sound?.land(strength);
         stone.vx *= 0.5;
         stone.vy *= 0.5;
+    }
+
+    // Under: a splash, most of its speed goes at once, and it turns over
+    // lazily as it goes down, the way it was going.
+    beginSink(stone) {
+        stone.skimming = false;
+        stone.sinking = true;
+        stone.sankAt = this.elapsed;
+        const strength = this.speedOf(stone)/(this.boardHeight*1.8);
+        setTumbling(stone, Math.atan2(stone.vy, stone.vx), (2.5 + Math.random()*1.5)*(Math.random() < 0.5 ? -1 : 1));
+        stone.vx *= 0.25;
+        stone.vy *= 0.25;
+        this.sound?.splash(strength);
+        this.onSplash?.(stone, strength);
     }
 
     // Friction: `deceleration` px/s² off the stone's speed, and a stone
@@ -484,9 +528,9 @@ export class StoneWorld {
         return this.take((stone) => stone.falling);
     }
 
-    // Likewise the stones still going under.
+    // Likewise the stones still going under, or still skimming towards it.
     takeSinking() {
-        return this.take((stone) => stone.sinking);
+        return this.take((stone) => stone.sinking || stone.skimming);
     }
 
     take(which) {

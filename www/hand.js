@@ -18,7 +18,7 @@ import {StoneWorld, flatBoard} from './physics.js';
 import {$, setStyles, setVisible, setStoneShadow, cancelElementAnimations, elementCentre, colourOfImage,
         drawOnTable, drawOnBoard} from './stone-dom.js';
 import {drawFlying, flyOn} from './flight.js';
-import {drawSinking, splash, sinkOn} from './water.js';
+import {drawSinking, splash, skimRipple, sinkOn} from './water.js';
 
 // How long the stones lie as the finger left them before the clock
 // tidies up, in ms.
@@ -143,7 +143,9 @@ export function fingerDown(clock, clientX, clientY) {
         flat: clock.flat_stones,
         edgeKick: diameter*5,
         sound: clock.sound,
-        onSplash: (stone, strength) => splash(goban, stone.x, stone.y, stone.r, strength, Math.atan2(stone.vy, stone.vx))
+        onSplash: (stone, strength, skim = false) => skim
+            ? skimRipple(goban, stone.x, stone.y, stone.r, strength)
+            : splash(goban, stone.x, stone.y, stone.r, strength, Math.atan2(stone.vy, stone.vx))
     });
 
     // Whatever the hand was doing stops, and the stone it held drops

@@ -57,6 +57,16 @@ export function splash(goban, x, y, r, strength, direction = 0) {
     }
 }
 
+// The light ring a stone skimming across the water throws off now and
+// then (physics.js, `skimming`), rather than the full splash and drops of
+// one going under: just a small, quick ripple where it is.
+export function skimRipple(goban, x, y, r, strength) {
+    if (!Element.prototype.animate) {
+        return;
+    }
+    ring(goban, x, y, r, {spread: 1.7 + strength*1.3, duration: 480, opacity: 0.5*Math.min(1, strength + 0.3)});
+}
+
 // One ring, r (a stone's radius) across to start, widening to `spread`
 // times that and fading as it goes.
 function ring(goban, x, y, r, {spread, duration, delay = 0, opacity}) {
@@ -110,7 +120,9 @@ export function sinkOn(stones, elapsed, {board, screen, diameter}) {
         board, screen, diameter,
         onBoard: () => {},
         isWater: true,
-        onSplash: (stone, strength) => splash(goban, stone.x, stone.y, stone.r, strength, Math.atan2(stone.vy, stone.vx))
+        onSplash: (stone, strength, skim = false) => skim
+            ? skimRipple(goban, stone.x, stone.y, stone.r, strength)
+            : splash(goban, stone.x, stone.y, stone.r, strength, Math.atan2(stone.vy, stone.vx))
     });
     world.elapsed = elapsed;
     stones.forEach((stone) => {

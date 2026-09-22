@@ -265,24 +265,24 @@ test('a stone off the screen is gone', () => {
     assert.equal(w.live().length, 0);
 });
 
-test('on water, a stone over the edge splashes as it lands, is out of reach, and is gone after sinkTime', () => {
+test('on water, a stone over the edge going in gently splashes as it lands, is out of reach, and is gone after sinkTime', () => {
     const splashes = [];
     const w = world({
         isWater: true,
-        edgeKick: diameter*5,
         sound: {splash: (strength) => splashes.push(['sound', strength]), knock: () => {}},
         onSplash: (s, strength) => splashes.push([s, strength])
     });
-    const s = w.add(stone({x: 300, y: 495, vy: 300}));
+    const s = w.add(stone({x: 300, y: 501, offBoard: true, vy: 30}));
     const other = w.add(stone({x: 300, y: 600, asleep: true}));
     run(w, 1, () => s.sinking);
     assert.ok(s.sinking, 'it never splashed');
+    assert.ok(!s.skimming, 'it went in too gently to skim');
     assert.ok(!w.still(), 'the world is not still while it sinks');
     assert.equal(splashes.length, 2);
     assert.equal(splashes[1][0], s);
     assert.ok(splashes[0][1] > 0);
     // Braked hard: nothing like the speed it went in with.
-    assert.ok(s.vy < 300*0.3);
+    assert.ok(s.vy < 30*0.3);
     const splashY = s.y;
     assert.ok(!w.reachable(s));
     run(w, sinkTime + 0.05, () => s.gone);
@@ -293,6 +293,35 @@ test('on water, a stone over the edge splashes as it lands, is out of reach, and
     assert.ok(s.y - splashY < diameter*2, `it drifted ${s.y - splashY}`);
     assert.ok(other.asleep);
     assert.ok(w.still());
+});
+
+test('on water, a stone going in fast enough skims across the surface, throwing off ripples, before it sinks', () => {
+    const splashes = [];
+    const w = world({
+        isWater: true,
+        edgeKick: diameter*5,
+        sound: {splash: (strength) => splashes.push(['sound', strength]), knock: () => {}},
+        onSplash: (s, strength, skim = false) => splashes.push([s, strength, skim])
+    });
+    const s = w.add(stone({x: 300, y: 495, vy: 300}));
+    run(w, 0.2, () => s.landed);
+    assert.ok(s.landed, 'it never landed');
+    assert.ok(s.skimming, 'going in this fast, it should have skimmed rather than sunk at once');
+    assert.ok(!s.sinking, 'it went under before it had a chance to skim');
+    // Slowed by the skim, but still going: nothing like a dead stop.
+    assert.ok(s.vy > 0 && s.vy < 300);
+    // Ripples along the way, then the real splash and sound as it goes
+    // under, its speed worn down by then.
+    run(w, 1, () => s.sinking);
+    assert.ok(s.sinking, 'it never went under');
+    assert.ok(!s.skimming);
+    assert.ok(splashes.some(([, , skim]) => skim), 'it never threw off a ripple while it skimmed');
+    assert.ok(splashes.some(([who]) => who === 'sound'), 'it never made a splash going under');
+    const [lastStone, , lastSkim] = splashes.at(-1);
+    assert.equal(lastStone, s);
+    assert.equal(lastSkim, false);
+    run(w, sinkTime + 0.05, () => s.gone);
+    assert.ok(s.gone, 'it never sank');
 });
 
 test('the sinking stones can be taken out of the world to sink on elsewhere', () => {
