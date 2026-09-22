@@ -15,6 +15,16 @@ export const DATE = 4;
 // The twelve hour markers of the analogue faces, clockwise from twelve.
 export const hourMarkers = [[9, 1], [13, 2], [16, 5], [17, 9], [16, 13], [13, 16], [9, 17], [5, 16], [2, 13], [1, 9], [2, 5], [5, 2]];
 
+// The analogue face's second hand: one black stone walking a ring of sixty
+// points round the outside, clockwise from twelve. A radius of 8.15 is the
+// one that rounds to sixty distinct points, each a single step from the
+// last, and lands on every hour marker at the five-second marks.
+export const secondRing = [];
+for (let s = 0; s < 60; ++s) {
+    const theta = 2*Math.PI*s / 60;
+    secondRing.push([Math.round(9 + 8.15*Math.sin(theta)), Math.round(9 - 8.15*Math.cos(theta))]);
+}
+
 // Small numbers, 5 wide by 7 tall
 var s0 = [[3, 0], [2, 0], [1, 0], [0, 1], [0, 2], [0, 3], [0, 4], [0, 5], [1, 6], [2, 6], [3, 6], [4, 5], [4, 4], [4, 3], [4, 2], [4, 1]];
 var s1 = [[1, 1], [2, 0], [2, 1], [2, 2], [2, 3], [2, 4], [2, 5], [2, 6], [1, 6], [3, 6]];
@@ -107,6 +117,7 @@ export function faceFor(view, {hours, minutes, seconds = 0, days = 0}, twentyFou
         for (var i = 0; i < hand_stones.length; ++i) {
             addStone(stones, hand_stones[i][0], hand_stones[i][1], black);
         }
+        addStone(stones, secondRing[seconds][0], secondRing[seconds][1], black);
     }
     else if (view == JUMPING_HOUR) {
         for (var i = 0; i < hourMarkers.length; ++i) {
@@ -129,6 +140,27 @@ export function faceFor(view, {hours, minutes, seconds = 0, days = 0}, twentyFou
         }
         drawNumber(stones, (minutes - minutes%10)/10, 4, 11, 2, white);
         drawNumber(stones, minutes%10, 10, 11, 2, white);
+        // The seconds: a ring of thirty points, down the right-hand edge
+        // (white) and up the left (black), the top two points of each
+        // skipped. A stone walks it a point a second for the first half of
+        // the minute, leaving a stone every other point (eight a side, the
+        // two at each corner adjacent: sixteen gaps in thirty steps), and
+        // comes round to the first at the half. In the second half each
+        // stone in turn walks on to the next and is taken off when it meets
+        // it, the last coming round to the top of the right as the next
+        // minute's first.
+        var ring = function(p) {
+            p %= 30;
+            return p < 15 ? [17, 2 + p, white] : [1, 16 - (p - 15), black];
+        };
+        var kept = [0, 2, 4, 6, 8, 10, 12, 14, 15, 17, 19, 21, 23, 25, 27, 29];
+        var t = seconds%30;
+        var positions = kept.filter(seconds < 30 ? (p) => p <= t : (p) => p > t);
+        positions.push(t);
+        for (var i = 0; i < positions.length; ++i) {
+            var [px, py, pc] = ring(positions[i]);
+            addStone(stones, px, py, pc);
+        }
     }
     else if (view == HYBRID) {
         var tensOfHours = (hours - hours%10)/10;

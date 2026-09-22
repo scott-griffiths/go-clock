@@ -9,7 +9,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {GoClock} from '../www/go-clock.js';
-import {faceFor, ANALOGUE, JUMPING_HOUR, DIGITAL, HYBRID, hourMarkers} from '../www/faces.js';
+import {faceFor, ANALOGUE, JUMPING_HOUR, DIGITAL, HYBRID, hourMarkers, secondRing} from '../www/faces.js';
 import {nearestFreePoint} from '../www/board.js';
 
 function face(view, time, twentyFourHour = true) {
@@ -33,7 +33,7 @@ test('digital, 24-hour, five past midnight shows 00:05', () => {
     expectFace(DIGITAL, '00:05', true, `
         ···················
         ····●●●●···●●●●····
-        ···●····●·●····●···
+        ···●····●·●····●·○·
         ···●····●·●····●···
         ···●····●·●····●···
         ···●····●·●····●···
@@ -56,7 +56,7 @@ test('digital, 12-hour, five past midnight shows 12:05', () => {
     expectFace(DIGITAL, '00:05', false, `
         ···················
         ······●····●●●●····
-        ·····●●···●····●···
+        ·····●●···●····●·○·
         ····●·●········●···
         ······●········●···
         ······●····●●●●····
@@ -79,7 +79,7 @@ test('digital, 12-hour, a single-digit hour is centred', () => {
     expectFace(DIGITAL, '01:05', false, `
         ···················
         ·········●·········
-        ········●●·········
+        ········●●·······○·
         ·······●·●·········
         ·········●·········
         ·········●·········
@@ -102,7 +102,7 @@ test('digital, 24-hour, eleven minutes past eleven', () => {
     expectFace(DIGITAL, '11:11', true, `
         ···················
         ······●·····●······
-        ·····●●····●●······
+        ·····●●····●●····○·
         ····●·●···●·●······
         ······●·····●······
         ······●·····●······
@@ -238,6 +238,19 @@ test('the jumping hour marker is the hour on the clock face, in either mode', ()
     }
 });
 
+test('the analogue second stone walks sixty distinct points, a step apart, through every hour marker', () => {
+    assert.equal(new Set(secondRing.map((p) => p.join(','))).size, 60);
+    for (let s = 0; s < 60; s++) {
+        const [x, y] = secondRing[s];
+        const [nx, ny] = secondRing[(s + 1) % 60];
+        assert.equal(Math.max(Math.abs(nx - x), Math.abs(ny - y)), 1, `second ${s} to ${s + 1} is not one step`);
+        assert.ok(x >= 0 && x <= 18 && y >= 0 && y <= 18, `second ${s} is off the board`);
+        const stones = face(ANALOGUE, `03:20:${s}`);
+        assert.equal(stones[y*19 + x], 3, `second ${s}: the ring stone is not black`);
+    }
+    hourMarkers.forEach((m, i) => assert.deepEqual(secondRing[5*i], m, `the ring misses ${i} o'clock`));
+});
+
 test('the clock asks for the face of the moment, in its own mode', () => {
     const clock = new GoClock();
     clock.view = DIGITAL;
@@ -258,4 +271,27 @@ test('the hand takes the nearest free point, however crowded the corner', () => 
     assert.equal(nearestFreePoint([5.4, 7.6], new Set()), 5 + 19*8);
     const everything = new Set(Array.from({length: 361}, (_, i) => i));
     assert.equal(nearestFreePoint([9, 9], everything), -1);
+});
+
+test('the digital seconds: a stone walks the ring leaving eight a side, then each walks on to the next and off', () => {
+    const at = (p) => (p%30) < 15 ? 17 + 19*(2 + p%30) : 1 + 19*(16 - (p%30 - 15));
+    const edge = (stones) => stones.map((v, i) => v !== 0 && (i%19 === 1 || i%19 === 17) ? i : -1).filter((i) => i >= 0);
+    const kept = [0, 2, 4, 6, 8, 10, 12, 14, 15, 17, 19, 21, 23, 25, 27, 29];
+    const expected = (s) => {
+        const t = s%30;
+        const ps = kept.filter(s < 30 ? (p) => p <= t : (p) => p > t).concat([t]);
+        return [...new Set(ps.map(at))].sort((a, b) => a - b);
+    };
+    for (let s = 0; s < 60; s++) {
+        assert.deepEqual(edge(face(DIGITAL, `12:34:${s}`)), expected(s), `second ${s}`);
+    }
+    assert.equal(edge(face(DIGITAL, '12:34:29')).length, 16);
+    assert.equal(edge(face(DIGITAL, '12:34:30')).length, 16);
+    assert.equal(edge(face(DIGITAL, '12:34:59')).length, 1);
+    assert.deepEqual(edge(face(DIGITAL, '12:35:00')), [at(0)]);
+    // White down the right, black up the left, the top two points clear.
+    const half = face(DIGITAL, '12:34:30');
+    assert.deepEqual(kept.map((p) => half[at(p)]), [1, 1, 1, 1, 1, 1, 1, 1, 3, 3, 3, 3, 3, 3, 3, 3]);
+    assert.equal(half[17 + 19*1], 0);
+    assert.equal(half[1 + 19*1], 0);
 });
