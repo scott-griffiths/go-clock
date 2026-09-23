@@ -126,8 +126,10 @@ export function magicTransform(clock) {
     // Staggered by the order the flights were decided above, so a whole
     // group lifted at once does not rise as one indistinguishable block:
     // each stone starts a little after the last, roughly a twentieth of a
-    // full lifted move apart.
-    const stagger = (liftTime + slideTime + landTime) / 20;
+    // full lifted move apart. A replay jumping straight to a position
+    // (magic_once) can mean hundreds of flights at once, so there the
+    // stagger is a tenth as long again, or the jump would take forever.
+    const stagger = (liftTime + slideTime + landTime) / (clock.magic_once ? 200 : 20);
     flights.forEach((flight, i) => {
         clock.magic_flights.push(flight);
         flight.timeoutId = window.setTimeout(() => {
