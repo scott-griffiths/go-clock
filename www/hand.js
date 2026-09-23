@@ -1,17 +1,19 @@
-// The hand: a finger held on the board, driven by my-clock.js from the
-// pointer events. It is a disc two stones wide that follows the pointer.
-// Stones in its way are shoved aside and skid a little (physics.js),
-// knocking into each other; any pushed over the edge drop onto the
-// table and skid to a stop (or, in space, fly away the moment they are
-// touched: flight.js). The hand
-// stops what it is doing (the stone it held drops where it is), waits
-// for the finger to go and the stones to lie still, and then carries on
-// with the board as it finds it: a stone stays where it was left, and
-// counts as being at the nearest point.
+// The hand: up to two fingers held on the board at once, driven by
+// my-clock.js from the pointer events. Each is a disc two stones wide
+// that follows its own pointer, and both share the one world of loose
+// stones. Stones in a disc's way are shoved aside and skid a little
+// (physics.js), knocking into each other, and a finger can shove a stone
+// into another finger's way just as it would a wall; any pushed over the
+// edge drop onto the table and skid to a stop (or, in space, fly away
+// the moment they are touched: flight.js). The hand stops what it is
+// doing (the stone it held drops where it is), waits for every finger to
+// go and the stones to lie still, and then carries on with the board as
+// it finds it: a stone stays where it was left, and counts as being at
+// the nearest point.
 //
-// Functions of the clock (go-clock.js), which keeps `finger` while one is
-// down: the world of loose stones, where the pointer is, and whether it
-// is still pressing.
+// Functions of the clock (go-clock.js), which keeps `finger` while a
+// hand is on the board: the world of loose stones, the fingers on it
+// keyed by pointer id, and where each is pressing.
 
 import {gridsize, nearestFreePoint} from './board.js';
 import {StoneWorld, flatBoard} from './physics.js';
@@ -20,9 +22,13 @@ import {$, setStyles, setVisible, setStoneShadow, cancelElementAnimations, eleme
 import {drawFlying, flyOn} from './flight.js';
 import {drawSinking, splash, skimRipple, sinkOn} from './water.js';
 
-// How long the stones lie as the finger left them before the clock
+// How long the stones lie as the fingers left them before the clock
 // tidies up, in ms.
 const tidyDelay = 500;
+
+// The disc elements going spare for a finger to take, one per finger
+// my-clock.js allows down on the board at once.
+const discIds = ['finger', 'finger2'];
 
 // The finger at (px, py), having just moved `travel` px in `sdt` seconds:
 // every reachable stone within reach of it is shoved clear. Only the
@@ -110,98 +116,110 @@ export function pushStones(world, radius, diameter, fromX, fromY, toX, toY, fram
     settleStones(world);
 }
 
-export function fingerDown(clock, clientX, clientY) {
+export function fingerDown(clock, id, clientX, clientY) {
     if (clock.sweeping_board || typeof document === 'undefined') {
         return false;
     }
-    if (clock.finger) {
-        // The last finger has lifted, but its stones are still sliding:
-        // this one takes them on where they are, rather than waiting.
-        if (clock.finger.pressing) {
-            return false;
-        }
-        pressAgain(clock, clock.finger, clientX, clientY);
-        return true;
+    var finger = clock.finger;
+    if (finger && finger.touches.size >= discIds.length) {
+        // A third finger: both discs are already spoken for.
+        return false;
     }
-    var goban = $('#goban');
-    var rect = goban.getBoundingClientRect();
-    var diameter = clock.goban_width/20;
     var radius = clock.fingerRadius();
     window.clearTimeout(clock.idle_timer);
 
-    // A shoved stone that goes over the edge tips outward as it falls,
-    // so it lands clear of the side. In space nothing holds a stone to
-    // the board: a shove sends it straight off into the dark.
-    var world = new StoneWorld({
-        board: clock.boardRect(),
-        screen: clock.screenRect(),
-        diameter: diameter,
-        onBoard: flatBoard,
-        grip: clock.table_grip,
-        isVoid: clock.table_void,
-        isWater: clock.table_water,
-        flat: clock.flat_stones,
-        edgeKick: diameter*5,
-        sound: clock.sound,
-        onSplash: (stone, strength, skim = false) => skim
-            ? skimRipple(goban, stone.x, stone.y, stone.r, strength)
-            : splash(goban, stone.x, stone.y, stone.r, strength, Math.atan2(stone.vy, stone.vx))
-    });
+    if (!finger) {
+        var goban = $('#goban');
+        var rect = goban.getBoundingClientRect();
+        var diameter = clock.goban_width/20;
 
-    // Whatever the hand was doing stops, and the stone it held drops
-    // where it is; so does one it was pushing aside.
-    clock.dropHeldStones().forEach((stone) => world.add(stone));
+        // A shoved stone that goes over the edge tips outward as it falls,
+        // so it lands clear of the side. In space nothing holds a stone to
+        // the board: a shove sends it straight off into the dark.
+        var world = new StoneWorld({
+            board: clock.boardRect(),
+            screen: clock.screenRect(),
+            diameter: diameter,
+            onBoard: flatBoard,
+            grip: clock.table_grip,
+            isVoid: clock.table_void,
+            isWater: clock.table_water,
+            flat: clock.flat_stones,
+            edgeKick: diameter*5,
+            sound: clock.sound,
+            onSplash: (stone, strength, skim = false) => skim
+                ? skimRipple(goban, stone.x, stone.y, stone.r, strength)
+                : splash(goban, stone.x, stone.y, stone.r, strength, Math.atan2(stone.vy, stone.vx))
+        });
 
-    // The stones on the table are in it too.
-    clock.table_stones.forEach((entry) => {
-        var stone = clock.looseStone(entry.src, entry.colour, entry.x, entry.y);
-        entry.element.remove();
-        stone.offBoard = true;
-        stone.landed = true;
-        stone.lift = entry.lift || 0;
-        world.add(stone);
-    });
-    clock.table_stones = [];
+        // Whatever the hand was doing stops, and the stone it held drops
+        // where it is; so does one it was pushing aside.
+        clock.dropHeldStones().forEach((stone) => world.add(stone));
 
-    // The stones on the board come loose; their points are hidden until
-    // the finger has gone. A stone drawn on a point the model has as
-    // empty is a stone all the same (it should not happen, but a stuck
-    // stone that nothing can move is worse than a spare): its colour is
-    // read off its image.
-    for (var i = 0; i < clock.stones_shown.length; ++i) {
-        var element = $('#p' + i);
-        var image = element.querySelector('img');
-        var colour = clock.stones_shown[i];
-        if (colour == 0 && !image.hidden && image.src) {
-            colour = colourOfImage(image);
+        // The stones on the table are in it too.
+        clock.table_stones.forEach((entry) => {
+            var stone = clock.looseStone(entry.src, entry.colour, entry.x, entry.y);
+            entry.element.remove();
+            stone.offBoard = true;
+            stone.landed = true;
+            stone.lift = entry.lift || 0;
+            world.add(stone);
+        });
+        clock.table_stones = [];
+
+        // The stones on the board come loose; their points are hidden until
+        // every finger has gone. A stone drawn on a point the model has as
+        // empty is a stone all the same (it should not happen, but a stuck
+        // stone that nothing can move is worse than a spare): its colour is
+        // read off its image.
+        for (var i = 0; i < clock.stones_shown.length; ++i) {
+            var element = $('#p' + i);
+            var image = element.querySelector('img');
+            var colour = clock.stones_shown[i];
+            if (colour == 0 && !image.hidden && image.src) {
+                colour = colourOfImage(image);
+            }
+            if (colour == 0) {
+                continue;
+            }
+            var at = elementCentre(element, diameter);
+            cancelElementAnimations(element);
+            world.add(clock.looseStone(image.src, colour, at[0], at[1]));
+            setVisible(element.querySelector('.stone-shadow'), false);
+            setVisible(image, false);
         }
-        if (colour == 0) {
-            continue;
-        }
-        var at = elementCentre(element, diameter);
-        cancelElementAnimations(element);
-        world.add(clock.looseStone(image.src, colour, at[0], at[1]));
-        setVisible(element.querySelector('.stone-shadow'), false);
-        setVisible(image, false);
+
+        finger = {
+            world: world,
+            left: rect.left,
+            top: rect.top,
+            diameter: diameter,
+            touches: new Map(),
+            releasedAt: 0,
+            frame: null
+        };
+        clock.finger = finger;
+        runHand(clock, finger);
     }
 
-    var disc = $('#finger');
-    showDisc(disc, radius, clientX - rect.left, clientY - rect.top);
+    // The disc not already following another finger.
+    var taken = new Set(Array.from(finger.touches.values(), (touch) => touch.discId));
+    var discId = discIds.find((candidate) => !taken.has(candidate));
+    var x = clientX - finger.left;
+    var y = clientY - finger.top;
+    showDisc($('#' + discId), radius, x, y);
+    finger.touches.set(id, {discId: discId, radius: radius, x: x, y: y, targetX: x, targetY: y, pressing: true});
+    return true;
+}
 
-    var finger = {
-        world: world,
-        left: rect.left,
-        top: rect.top,
-        x: clientX - rect.left,
-        y: clientY - rect.top,
-        targetX: clientX - rect.left,
-        targetY: clientY - rect.top,
-        pressing: true,
-        releasedAt: 0,
-        frame: null
-    };
-    clock.finger = finger;
-
+// One animation frame for every finger down on the board, sharing the
+// one world of loose stones: each pressing finger shoves its way towards
+// where its pointer now is (a finger can shove a stone into another
+// finger's way just as it would a wall), then the world settles and
+// draws once for the frame as a whole.
+function runHand(clock, finger) {
+    var world = finger.world;
+    var diameter = finger.diameter;
     var last = null;
     var step = (now) => {
         if (clock.finger !== finger) {
@@ -215,15 +233,20 @@ export function fingerDown(clock, clientX, clientY) {
         var frame = Math.max(0.001, Math.min((now - last)/1000, 0.25));
         last = now;
 
-        if (finger.pressing) {
+        var pressing = false;
+        finger.touches.forEach((touch) => {
+            if (!touch.pressing) {
+                return;
+            }
+            pressing = true;
             // Towards where the pointer is, in steps small enough that
             // no stone is skipped over.
-            pushStones(world, radius, diameter, finger.x, finger.y, finger.targetX, finger.targetY, frame,
+            pushStones(world, touch.radius, diameter, touch.x, touch.y, touch.targetX, touch.targetY, frame,
                 (force) => clock.haptic?.('bump', force));
-            finger.x = finger.targetX;
-            finger.y = finger.targetY;
-            setStyles(disc, {left: finger.x - radius, top: finger.y - radius});
-        }
+            touch.x = touch.targetX;
+            touch.y = touch.targetY;
+            setStyles($('#' + touch.discId), {left: touch.x - touch.radius, top: touch.y - touch.radius});
+        });
 
         var steps = Math.max(1, Math.ceil(frame/0.032));
         for (var s = 0; s < steps; ++s) {
@@ -256,16 +279,15 @@ export function fingerDown(clock, clientX, clientY) {
         });
         clock.sound?.setRumble(Math.min(1, sliding/4)*0.2);
 
-        // Done once the finger has gone and everything lies still (or,
+        // Done once every finger has gone and everything lies still (or,
         // failing that, after a while).
-        if (finger.pressing || (!world.still() && world.elapsed - finger.releasedAt < 6)) {
+        if (pressing || (!world.still() && world.elapsed - finger.releasedAt < 6)) {
             finger.frame = window.requestAnimationFrame(step);
         } else {
             clock.endFinger();
         }
     };
     finger.frame = window.requestAnimationFrame(step);
-    return true;
 }
 
 // The hand's disc, landing at (x, y) in the goban.
@@ -276,37 +298,29 @@ function showDisc(disc, radius, x, y) {
     disc.animate?.([{opacity: 0, transform: 'scale(0.7)'}, {opacity: 1, transform: 'scale(1)'}], {duration: 160, easing: 'ease-out'});
 }
 
-// A finger down again before the last one's stones have come to rest:
-// the same hand, landing afresh where the pointer is, with the stones as
-// they lie (its loop is still running, and picks up from the new point).
-function pressAgain(clock, finger, clientX, clientY) {
-    finger.x = finger.targetX = clientX - finger.left;
-    finger.y = finger.targetY = clientY - finger.top;
-    finger.pressing = true;
-    finger.releasedAt = 0;
-    showDisc($('#finger'), clock.fingerRadius(), finger.x, finger.y);
-}
-
-export function fingerMove(clock, clientX, clientY) {
+export function fingerMove(clock, id, clientX, clientY) {
     var finger = clock.finger;
-    if (!finger || !finger.pressing) {
+    var touch = finger?.touches.get(id);
+    if (!touch || !touch.pressing) {
         return;
     }
-    finger.targetX = clientX - finger.left;
-    finger.targetY = clientY - finger.top;
+    touch.targetX = clientX - finger.left;
+    touch.targetY = clientY - finger.top;
 }
 
-export function fingerUp(clock) {
+export function fingerUp(clock, id) {
     var finger = clock.finger;
-    if (!finger || !finger.pressing) {
+    var touch = finger?.touches.get(id);
+    if (!touch || !touch.pressing) {
         return;
     }
-    finger.pressing = false;
+    touch.pressing = false;
     finger.releasedAt = finger.world.elapsed;
-    setVisible($('#finger'), false);
+    setVisible($('#' + touch.discId), false);
+    finger.touches.delete(id);
 }
 
-// The finger has gone and the stones lie still: read the board as it
+// Every finger has gone and the stones lie still: read the board as it
 // is. Each stone stays put and is recorded at its nearest point, with
 // its displacement as its offset; only when two stones share a nearest
 // point does the second take the next free one, with a short slide.
@@ -318,7 +332,7 @@ export function endFinger(clock) {
     }
     clock.finger = null;
     window.cancelAnimationFrame(finger.frame);
-    setVisible($('#finger'), false);
+    discIds.forEach((discId) => setVisible($('#' + discId), false));
     clock.sound?.setRumble(0);
 
     clock.stones_shown = Array(gridsize*gridsize).fill(0);

@@ -204,14 +204,15 @@ export function GoClock(){
         sweepBoard(this);
     };
 
-    // The hand: a finger held on the board, driven by my-clock.js from the
-    // pointer events. It is a disc two stones wide that follows the pointer.
-    // Stones in its way are shoved aside and skid a little, knocking into
-    // each other; any pushed over the edge drop onto the table, skid to a
-    // stop, and fade. The hand stops what it is doing (the stone it held
-    // drops where it is), waits for the finger to go and the stones to lie
-    // still, and then carries on with the board as it finds it: a stone
-    // stays where it was left, and counts as being at the nearest point.
+    // The hand: up to two fingers held on the board at once, driven by
+    // my-clock.js from the pointer events. Each is a disc two stones wide
+    // that follows its own pointer. Stones in their way are shoved aside
+    // and skid a little, knocking into each other; any pushed over the
+    // edge drop onto the table, skid to a stop, and fade. The hand stops
+    // what it is doing (the stone it held drops where it is), waits for
+    // every finger to go and the stones to lie still, and then carries on
+    // with the board as it finds it: a stone stays where it was left, and
+    // counts as being at the nearest point.
     this.finger = null;
     this.idle_timer = null;
     // Stones a finger pushed off the board that are still on the screen.
@@ -365,15 +366,16 @@ export function GoClock(){
         return stones.concat(dropMagicStones(this));
     };
 
-    // The hand: hand.js.
-    this.fingerDown = function(clientX, clientY) {
-        return fingerDown(this, clientX, clientY);
+    // The hand: hand.js. Each finger down (my-clock.js allows up to two at
+    // once) is tracked by its own pointer id.
+    this.fingerDown = function(id, clientX, clientY) {
+        return fingerDown(this, id, clientX, clientY);
     };
-    this.fingerMove = function(clientX, clientY) {
-        fingerMove(this, clientX, clientY);
+    this.fingerMove = function(id, clientX, clientY) {
+        fingerMove(this, id, clientX, clientY);
     };
-    this.fingerUp = function() {
-        fingerUp(this);
+    this.fingerUp = function(id) {
+        fingerUp(this, id);
     };
     this.endFinger = function() {
         endFinger(this);
@@ -440,11 +442,14 @@ export function GoClock(){
         goban.append(stoneElement({id: 'moving_stone2', imageHidden: true}));
         goban.append(stoneElement({id: 'pushed_stone', hidden: true}));
 
-        // The hand's disc, and the stones on the table.
-        var finger = document.createElement('div');
-        finger.id = 'finger';
-        goban.append(finger);
-        setVisible(finger, false);
+        // The hand's discs, one for each finger that can be down on the
+        // board at once, and the stones on the table.
+        ['finger', 'finger2'].forEach((id) => {
+            var finger = document.createElement('div');
+            finger.id = id;
+            goban.append(finger);
+            setVisible(finger, false);
+        });
         this.table_stones.forEach((entry) => {
             var at = this.pixelForCoords(entry.coords);
             entry.x = at[0];

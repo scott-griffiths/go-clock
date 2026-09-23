@@ -58,8 +58,9 @@ body {
     padding-top: 1px;
     padding-bottom: 1px;
     overflow: hidden;
-    /* A one-finger drag is the hand for my-clock.js to read, not a pan; pinch
-       zoom is left to the browser (Safari allows it, the iOS app does not). */
+    /* A one- or two-finger drag is the hand for my-clock.js to read, not a
+       pan; pinch zoom is left to the browser (Safari allows it, the iOS app
+       does not, so there a two-finger drag is never mistaken for one). */
     touch-action: pinch-zoom;
 }
 
@@ -109,9 +110,11 @@ body {
     background: transparent;
 }
 
-/* The hand pushing the stones about, the arm sweeping the board (sweep.js),
-   and the stones while they are loose under them or lying on the table. */
+/* The hand pushing the stones about (one disc per finger down), the arm
+   sweeping the board (sweep.js), and the stones while they are loose under
+   them or lying on the table. */
 #finger,
+#finger2,
 #arm {
     position: absolute;
     z-index: 5;
@@ -137,9 +140,10 @@ body {
     stroke-width: 1;
 }
 
-/* Neither is drawn for now: the stones moving are enough to show the hand
+/* None are drawn for now: the stones moving are enough to show the hand
    and the arm. Delete this rule to bring the discs back. */
 #finger,
+#finger2,
 #arm {
     visibility: hidden;
 }

@@ -1054,32 +1054,32 @@ window.addEventListener('load', () => {
     setSound(sound);
     goClock.haptic = haptic;
 
-    // The hand: a finger on the board or its surround is the hand
-    // (go-clock.js) from the moment it lands until it lifts, pushing the
-    // stones about.
-    let hand = null;
+    // The hand: up to two fingers on the board or its surround are the
+    // hand (go-clock.js) from the moment each lands until it lifts,
+    // pushing the stones about. A third finger touching down is left
+    // alone rather than crowding the board.
+    const hands = new Set();
 
     goban.addEventListener('pointerdown', (event) => {
-        if (!event.isPrimary) {
+        if (hands.has(event.pointerId)) {
             return;
         }
-        hand = null;
-        if (goClock.fingerDown(event.clientX, event.clientY)) {
-            hand = {id: event.pointerId};
+        if (goClock.fingerDown(event.pointerId, event.clientX, event.clientY)) {
+            hands.add(event.pointerId);
             haptic('prepare');
             // So the release is heard even if it lands on the toolbar.
             goban.setPointerCapture(event.pointerId);
         }
     });
     goban.addEventListener('pointermove', (event) => {
-        if (hand && event.pointerId === hand.id) {
-            goClock.fingerMove(event.clientX, event.clientY);
+        if (hands.has(event.pointerId)) {
+            goClock.fingerMove(event.pointerId, event.clientX, event.clientY);
         }
     });
     function endPointer(event) {
-        if (hand && event.pointerId === hand.id) {
-            goClock.fingerUp();
-            hand = null;
+        if (hands.has(event.pointerId)) {
+            goClock.fingerUp(event.pointerId);
+            hands.delete(event.pointerId);
         }
     }
     goban.addEventListener('pointerup', endPointer);
