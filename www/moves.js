@@ -10,7 +10,7 @@
 // element, since only the one hand swaps.
 
 import {gridsize, white, go_bowl, go_table, dist, pointX, pointY} from './board.js';
-import {$, setStyles, setVisible, setStoneShadow, stoneImageSrc, cancelElementAnimations, animateElement, tableStoneScale, maxLift} from './stone-dom.js';
+import {$, setStyles, setVisible, setStoneShadow, stoneImageSrc, cancelElementAnimations, animateElement, tableStoneScale, carryHeight} from './stone-dom.js';
 import {settleAfterLanding, setOffset} from './placement.js';
 
 // A stone from the bowl takes as long as a move of this many points: a
@@ -79,7 +79,7 @@ function liftFromTable(clock, hand, entry, coords2, colour, speed) {
     var distance = Math.hypot(coords2[0] - entry.coords[0], coords2[1] - entry.coords[1]);
     var duration = Math.sqrt(distance/speed);
     hand.lands(duration);
-    var max_height = Math.min(maxLift, 11 + distance/2);
+    var max_height = carryHeight(distance);
     var middle = clock.pixelStonePosition((entry.x + p2[0] + p2[2]/2)/2, (entry.y + p2[1] + p2[3]/2)/2, max_height);
     var end_tasks = function() {
         var landingIndex = Math.round(hand.to[0]) + gridsize*Math.round(hand.to[1]);
@@ -186,7 +186,7 @@ function repositionStone(clock, hand, coords1, coords2, colour, speed) {
             top: p2[1],
             onComplete: end_tasks});
     } else {
-        var max_height = Math.min(maxLift, 11 + distance/2);
+        var max_height = carryHeight(distance);
         var middle = clock.stonePosition((coords1[0] + coords2[0])/2, (coords1[1] + coords2[1])/2, max_height);
         requestAnimationFrame(function() {
             setStoneShadow(movingShadow, max_height);

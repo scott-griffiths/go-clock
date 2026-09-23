@@ -18,11 +18,11 @@ import {setLandingOffset, setOffset, alignedOffset, alignmentTriggerRadius, offs
 // seconds; how high a lifted stone is carried; and how long a stone
 // slid across the board takes, a point of it (the hand's slide over the
 // same ground, more or less, and never so quick as to be a jump).
-const liftTime = 0.08;
-const slideTime = 0.28;
-const landTime = 0.08;
+const liftTime = 0.16;
+const slideTime = 0.56;
+const landTime = 0.16;
 const flightHeight = 5;
-const slidePerPoint = 0.075;
+const slidePerPoint = 0.15;
 
 // Everything the board wants done, set going at once. Returns whether
 // anything is in flight (the last landing calls transform() again);

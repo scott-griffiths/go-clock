@@ -51,10 +51,10 @@
                 </button>
                 <div id="toolbar-actions" class="toolbar-actions">
                     <div id="face-control" class="setting-control" data-open="false">
-                        <button class="setting-summary" type="button" title="Face" aria-label="Face" aria-expanded="false" aria-controls="face-options">
+                        <button class="setting-summary" type="button" title="Clock face" aria-label="Clock face" aria-expanded="false" aria-controls="face-options">
                             <span class="setting-icon" aria-hidden="true"></span>
                         </button>
-                        <div id="face-options" class="setting-options" role="group" aria-label="Face"></div>
+                        <div id="face-options" class="setting-options" role="group" aria-label="Clock face"></div>
                     </div>
                     <div id="speed-control" class="setting-control" data-open="false">
                         <button class="setting-summary" type="button" title="Speed" aria-label="Speed" aria-expanded="false" aria-controls="speed-options">
@@ -130,10 +130,14 @@
                     </div>
                 </div>
             </div>
-            <!-- What a key or the replay just chose, shown briefly at the foot of the screen. -->
-            <div id="swipe-toast" class="setting-summary swipe-toast" role="status" aria-live="polite" hidden>
-                <span id="swipe-toast-icon" class="setting-icon" aria-hidden="true"></span>
-                <span id="swipe-toast-value"></span>
+            <!-- The one place a line of information shows, on the board's
+                 top edge in either orientation (my-clock.js places it): a
+                 setting as it changes ("Board: Kaya"), or held while its
+                 button or choice is, and a replayed game's name and result,
+                 under its shelf's icon. -->
+            <div id="info" class="info" role="status" aria-live="polite" hidden>
+                <span id="info-icon" class="setting-icon" aria-hidden="true"></span>
+                <span id="info-text"></span>
             </div>
             <!-- A game being replayed: play or pause, and the speed to play
                  at (a setting-control, like the hand's own), next to where

@@ -45,7 +45,7 @@ const views = ['Analogue', 'Jumping hour', 'Digital', 'Hybrid'];
 // the next stone, not slow in carrying it. Magic (the fourth entry true)
 // has as many hands as it needs: every change is made in one go
 // (magic.js), and the rest is between one go and the next.
-const stoneSpeeds = [['Normal', 26, 180], ['Fast', 45, 60], ['Insane!', 320, 8], ['Magic', 320, 150, true]];
+const stoneSpeeds = [['Slow', 26, 180], ['Normal', 45, 60], ['Fast', 320, 8], ['Magic!', 320, 150, true]];
 const placements = ['Exact', 'Organic', 'Careless'];
 // How fast a game replays, in moves a second (0 holds it where it is), which
 // is not how fast the hands are (the speed setting): a slow board falls
@@ -272,10 +272,13 @@ window.addEventListener('load', () => {
     const muteButton = $('#mute');
     const replayControl = $('#replay-control');
     const replayButton = $('#replay');
-    const swipeToast = $('#swipe-toast');
+    const info = $('#info');
     const aboutButton = $('#about');
     const aboutBox = $('#about_box');
-    let swipeToastTimer = null;
+    let infoTimer = null;
+    // The button or choice a finger (or pointer) is holding down, whose
+    // line of information stays until it lets go.
+    let infoHeld = false;
     let toggleWakeTimer = null;
     // The settings whose choices are showing, outermost first: a submenu
     // is open only while the list it is in is.
@@ -291,9 +294,10 @@ window.addEventListener('load', () => {
     // to. `row` (face, speed) drops the choices as icons alone, in a row
     // under the button rather than a list beneath it: it starts under the
     // button's own place in the toolbar row, and, sized and spaced the
-    // same, lands its choices under the buttons after it. Returns a setter
-    // that marks the chosen option and puts the value in the button's
-    // accessible name.
+    // same, lands its choices under the buttons after it. Each choice, and
+    // the button, carries its line of information ("Board: Kaya"). Returns
+    // a setter that marks the chosen option and puts the value in the
+    // button's accessible name and its information.
     function createSettingControl(name, labels, values, onSelect, icons = null, keepOpen = false, row = false) {
         const control = $(`#${name}-control`);
         const summary = summaryOf(control);
@@ -313,7 +317,8 @@ window.addEventListener('load', () => {
                 icon: icons?.[index],
                 onChoose: () => onSelect(index),
                 keepOpen,
-                iconOnly: row
+                iconOnly: row,
+                info: `${settingName}: ${values[index]}`
             });
             button.dataset.index = String(index);
             button.setAttribute('aria-pressed', 'false');
@@ -324,6 +329,7 @@ window.addEventListener('load', () => {
         return (activeIndex) => {
             summary.setAttribute('aria-label', `${settingName}: ${values[activeIndex]}`);
             summary.title = `${settingName}: ${values[activeIndex]}`;
+            summary.dataset.info = summary.title;
             if (valueLabel) {
                 valueLabel.textContent = labels[activeIndex];
             }
@@ -340,8 +346,9 @@ window.addEventListener('load', () => {
     // there is one, and what it does. `iconOnly` (a row's choices) wears
     // the icon alone, its name left to the accessible label. Choosing
     // closes the lists, unless `keepOpen`, and a keyboard lands back on
-    // the button that opened them.
-    function addChoice(options, summary, {label, value, icon, onChoose, keepOpen = false, iconOnly = false}) {
+    // the button that opened them. A setting's choice shows its `info`
+    // once chosen (and while held, see holdInfo).
+    function addChoice(options, summary, {label, value, icon, onChoose, keepOpen = false, iconOnly = false, info = null}) {
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'choice-button';
@@ -355,8 +362,14 @@ window.addEventListener('load', () => {
         }
         button.title = value;
         button.setAttribute('aria-label', value);
+        if (info) {
+            button.dataset.info = info;
+        }
         button.addEventListener('click', (event) => {
             onChoose();
+            if (info) {
+                showInfo(info);
+            }
             if (keepOpen) {
                 return;
             }
@@ -375,16 +388,26 @@ window.addEventListener('load', () => {
     // pointer) reaches it, so trying several is one held gesture rather
     // than a tap, a lift, a tap, a lift. Release wherever; whatever was
     // last under the finger stays chosen, exactly as tapping it would
-    // have left it.
+    // have left it. The row holds on to the pointer, so the browser's own
+    // click lands on the row, or (iOS) on the first choice touched,
+    // rather than the one let go of: those are ignored, and the row
+    // clicks its choices itself. A keyboard's click (detail 0) goes
+    // through as usual.
     function enableRowScrub(options) {
         let dragging = false;
         let current = null;
+        let chosen = null;
         function choiceUnder(x, y) {
             return $$('.choice-button', options).find((button) => {
                 const rect = button.getBoundingClientRect();
                 return x >= rect.left && x < rect.right && y >= rect.top && y < rect.bottom;
             });
         }
+        options.addEventListener('click', (event) => {
+            if (event.isTrusted && event.detail > 0) {
+                event.stopImmediatePropagation();
+            }
+        }, true);
         options.addEventListener('pointerdown', (event) => {
             const button = event.target.closest('.choice-button');
             if (!event.isPrimary || !button) {
@@ -392,6 +415,7 @@ window.addEventListener('load', () => {
             }
             dragging = true;
             current = button;
+            chosen = null;
             options.setPointerCapture?.(event.pointerId);
         });
         options.addEventListener('pointermove', (event) => {
@@ -401,15 +425,23 @@ window.addEventListener('load', () => {
             const button = choiceUnder(event.clientX, event.clientY);
             if (button && button !== current) {
                 current = button;
+                chosen = button;
                 button.click();
             }
         });
         function endDrag(event) {
-            if (dragging) {
-                options.releasePointerCapture?.(event.pointerId);
-                dragging = false;
-                current = null;
+            if (!dragging) {
+                return;
             }
+            options.releasePointerCapture?.(event.pointerId);
+            dragging = false;
+            // A tap, or a drag let go on a choice it has not yet picked.
+            const button = event.type === 'pointerup' ? choiceUnder(event.clientX, event.clientY) : null;
+            if (button && button !== chosen) {
+                button.click();
+            }
+            current = null;
+            chosen = null;
         }
         options.addEventListener('pointerup', endDrag);
         options.addEventListener('pointercancel', endDrag);
@@ -513,23 +545,71 @@ window.addEventListener('load', () => {
         }, toggleWakeTime);
     }
 
-    // What a key just chose, in a button's dress, at the foot of the screen
-    // for a moment. The icon is a character or one of our own SVGs.
-    function showSwipeToast(icon, value, stay = 1400) {
-        $('#swipe-toast-icon').innerHTML = icon;
-        $('#swipe-toast-value').textContent = value;
-        window.clearTimeout(swipeToastTimer);
-        swipeToast.getAnimations?.().forEach((animation) => animation.cancel());
-        swipeToast.style.opacity = '1';
-        swipeToast.hidden = false;
-        // Just above the board (or the replay's bar, when that is above
-        // it), or at the top of the screen where the board reaches nearly
-        // to it (landscape).
+    // The one line of information, on the board's top edge (see index.html):
+    // `text`, under an `icon` (a replayed game's shelf) if there is one,
+    // for `stay` milliseconds, or for as long as a button or choice is
+    // held down and then that long.
+    function showInfo(text, {icon = '', stay = 1600} = {}) {
+        $('#info-icon').innerHTML = icon;
+        $('#info-text').textContent = text;
+        window.clearTimeout(infoTimer);
+        info.getAnimations?.().forEach((animation) => animation.cancel());
+        info.style.opacity = '1';
+        info.hidden = false;
+        placeInfo();
+        info.dataset.stay = String(stay);
+        if (!infoHeld) {
+            fadeInfoLater();
+        }
+    }
+
+    function fadeInfoLater() {
+        window.clearTimeout(infoTimer);
+        infoTimer = window.setTimeout(() => fadeTo(info, 0, 400), Number(info.dataset.stay));
+    }
+
+    // Centred on the board's top edge, but kept on the screen (in
+    // landscape the board reaches nearly to the top of it) and clear of
+    // the replay's bar where that sits just above the board (portrait).
+    function placeInfo() {
+        const board = $('#goban-image')?.getBoundingClientRect();
+        if (!board) {
+            return;
+        }
+        const width = info.offsetWidth;
+        const height = info.offsetHeight;
+        const margin = 10;
+        const inset = safeInsets();
+        let top = board.top - height/2;
         const bar = $('#replay-bar');
-        const above = (!bar.hidden && !isLandscape() ? bar : $('#goban-image'))?.getBoundingClientRect();
-        const highest = 10 + safeInsets().top;
-        swipeToast.style.top = `${Math.round(Math.max(highest, (above?.top ?? 0) - 8 - swipeToast.offsetHeight))}px`;
-        swipeToastTimer = window.setTimeout(() => fadeTo(swipeToast, 0, 400), stay);
+        if (!bar.hidden && !isLandscape()) {
+            top = Math.max(top, bar.getBoundingClientRect().bottom + 4);
+        }
+        top = Math.max(top, 4 + inset.top);
+        const centre = board.left + board.width/2;
+        const left = Math.max(margin + inset.left + width/2, Math.min(window.innerWidth - margin - inset.right - width/2, centre));
+        info.style.top = `${Math.round(top)}px`;
+        info.style.left = `${Math.round(left)}px`;
+    }
+
+    // A setting's button or choice held down shows its line of
+    // information until it is let go: what an icon means, before (or
+    // without) choosing it.
+    function holdInfo(event) {
+        const held = event.isPrimary && event.target.closest?.('#toolbar [data-info], #replay-bar [data-info]');
+        if (held) {
+            infoHeld = true;
+            showInfo(held.dataset.info);
+        }
+    }
+
+    function releaseInfo() {
+        if (infoHeld) {
+            infoHeld = false;
+            if (!info.hidden) {
+                fadeInfoLater();
+            }
+        }
     }
 
     const showFace = createSettingControl('face', views, views, (index) => {
@@ -561,6 +641,7 @@ window.addEventListener('load', () => {
         modeButton.textContent = modes[mode];
         modeButton.title = `Showing the ${modes[mode]} clock`;
         modeButton.setAttribute('aria-label', modeButton.title);
+        modeButton.dataset.info = `Clock: ${modes[mode]}`;
         writeSetting('mode', mode);
         describeBoard();
     }
@@ -576,6 +657,7 @@ window.addEventListener('load', () => {
         secondsButton.textContent = on ? 'Seconds on' : 'Seconds off';
         secondsButton.title = on ? 'Seconds shown' : 'Seconds hidden';
         secondsButton.setAttribute('aria-label', secondsButton.title);
+        secondsButton.dataset.info = on ? 'Seconds: On' : 'Seconds: Off';
         writeSetting('seconds', showSeconds);
     }
 
@@ -609,6 +691,7 @@ window.addEventListener('load', () => {
         goClock.sound = on ? sounds : null;
         muteButton.title = on ? 'Sound on' : 'Sound off';
         muteButton.setAttribute('aria-label', muteButton.title);
+        muteButton.dataset.info = on ? 'Sound: On' : 'Sound: Off';
         $('.setting-icon', muteButton).innerHTML = icons.sound[sound];
         writeSetting('sound', sound);
     }
@@ -828,13 +911,13 @@ window.addEventListener('load', () => {
                 showReplayProgress(0, game.moves.length);
                 replayBar.hidden = false;
                 placeReplayBar();
-                showSwipeToast(icon, gameTitle(game.info), 8000);
+                showInfo(gameTitle(game.info), {icon, stay: 8000});
             },
             onProgress: showReplayProgress,
             onRest: (game) => {
                 const result = gameResult(game.info);
                 if (result) {
-                    showSwipeToast(icon, result, 6000);
+                    showInfo(result, {icon, stay: 6000});
                 }
             },
             onEnd: (error) => {
@@ -842,7 +925,7 @@ window.addEventListener('load', () => {
                 replayBar.hidden = true;
                 if (error) {
                     console.error('The game could not be replayed', error);
-                    showSwipeToast(icon, 'No game to replay');
+                    showInfo('No game to replay', {icon});
                 }
             }
         });
@@ -860,18 +943,18 @@ window.addEventListener('load', () => {
         }
     }
 
-    // The next (or previous) face or background, announced with a toast:
-    // what the arrow keys do.
+    // The next (or previous) face or background, announced on the board's
+    // top edge: what the arrow keys do.
     function changeView(step) {
         setView(view + step);
         cancelReplay(goClock);
         goClock.transform();
-        showSwipeToast(faceIcons[view], views[view]);
+        showInfo(summaryOf($('#face-control')).dataset.info);
     }
 
     function changeBackground(step) {
         setBackground(background + step);
-        showSwipeToast(backgroundIcons[background], backgrounds[background].name);
+        showInfo(summaryOf($('#background-control')).dataset.info);
     }
 
     // What the board shows, for assistive tech: a grid of stones means
@@ -919,6 +1002,9 @@ window.addEventListener('load', () => {
         setWood(wood);
         sizeBackground();
         placeReplayBar();
+        if (!info.hidden) {
+            placeInfo();
+        }
     };
 
     function resizeClock() {
@@ -1008,7 +1094,10 @@ window.addEventListener('load', () => {
         ArrowLeft: () => changeView(-1),
         ArrowDown: () => changeBackground(1),
         ArrowUp: () => changeBackground(-1),
-        m: () => setSound(sound === 1 ? 0 : 1),
+        m: () => {
+            setSound(sound === 1 ? 0 : 1);
+            showInfo(muteButton.dataset.info);
+        },
         r: toggleReplay,
         i: () => aboutButton.click()
     };
@@ -1040,10 +1129,16 @@ window.addEventListener('load', () => {
     document.addEventListener('touchstart', closeOutside, {passive: true});
     document.addEventListener('click', closeOutside);
     document.addEventListener('pointerdown', wakeToggle);
+    document.addEventListener('pointerdown', holdInfo);
+    document.addEventListener('pointerup', releaseInfo);
+    document.addEventListener('pointercancel', releaseInfo);
     document.addEventListener('touchstart', wakeToggle, {passive: true});
 
     openOnClick($('#tools-control'));
-    muteButton.addEventListener('click', () => setSound(sound === 1 ? 0 : 1));
+    muteButton.addEventListener('click', () => {
+        setSound(sound === 1 ? 0 : 1);
+        showInfo(muteButton.dataset.info);
+    });
     // The replay button opens its shelves, unless a game is running, in
     // which case it stops it.
     replayButton.addEventListener('click', () => {
@@ -1056,10 +1151,12 @@ window.addEventListener('load', () => {
     });
     modeButton.addEventListener('click', () => {
         setMode(mode === 1 ? 0 : 1);
+        showInfo(modeButton.dataset.info);
         goClock.transform();
     });
     secondsButton.addEventListener('click', () => {
         setSeconds(showSeconds === 1 ? 0 : 1);
+        showInfo(secondsButton.dataset.info);
         goClock.transform();
     });
     menuToggle.addEventListener('click', () => setCollapsed(toolbar.dataset.collapsed !== 'true'));

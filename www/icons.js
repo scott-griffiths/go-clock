@@ -50,9 +50,9 @@ export const faceIcons = [
         + dots(12, 16, 6.25, {filled: [0]}) + '<path d="M12 16v-3.6"/>')
 ];
 
-// The hand's speeds, normal to magic: a chevron held back by a bar for
-// normal, on its own for fast, doubled for insane, and doubled and
-// pointed with a bang for magic. Playback, which has its own pause, goes
+// The hand's speeds, slow to magic: a chevron held back by a bar for
+// slow, on its own for normal, doubled for fast, and doubled and pointed
+// with a bang for magic. Playback, which has its own pause, goes
 // without the bar.
 export const speedIcons = [
     svg('<path d="M6.5 5v14M10 5l7 7 -7 7"/>'),

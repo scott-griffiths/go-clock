@@ -48,8 +48,11 @@ export const computerBoardSrc = (() => {
         + `<g stroke="#000" stroke-width="1.6">${lines.join('')}</g>`
         + `<g fill="#000">${stars.join('')}</g></svg>`);
 })();
+// A flat stone's outline is its own, a pixel or so wide on a phone, and
+// grows with the stone as it is lifted: the shadow, which fades as it
+// rises, is not left to draw the edge of a white one.
 const flatStoneSrc = (fill) => svgSrc(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160">`
-    + `<circle cx="80" cy="80" r="77" fill="${fill}" stroke="#000" stroke-width="3"/></svg>`);
+    + `<circle cx="80" cy="80" r="75.5" fill="${fill}" stroke="#000" stroke-width="9"/></svg>`);
 export const flatWhiteStoneSrc = flatStoneSrc('#fff');
 export const flatBlackStoneSrc = flatStoneSrc('#000');
 export function isFlatStoneSrc(src) {
@@ -107,6 +110,13 @@ export function setVisible(element, visible) {
 // How high a carried stone rises, in the units of a stone's `height`:
 // each unit is a twentieth more across, and a little higher up the board.
 export const maxLift = 14;
+
+// How high a stone carried `points` across the board is lifted at the
+// top of its arc (moves.js, magic.js): a little higher the further it
+// goes, but not so high that it looms, many at once in magic.
+export function carryHeight(points) {
+    return Math.min(8, 4 + points/3);
+}
 
 // A stone's shadow, for a stone `height` (0 to maxLift) off the board:
 // further away, softer and fainter the higher it is. The CSS reads these.
