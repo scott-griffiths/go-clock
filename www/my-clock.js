@@ -1,9 +1,9 @@
 import {GoClock} from './go-clock.js';
 import {Sounds} from './sounds.js';
 import {preloadTumbleSheets} from './flight.js';
-import {startReplay, cancelReplay, setReplayRate, seekReplay, loadGame, nextGameFile, gameCategories} from './replay.js';
+import {startReplay, cancelReplay, setReplayRate, seekReplay, loadGame, nextGameFile} from './replay.js';
 import {gameTitle, gameResult} from './sgf.js';
-import {faceIcons, speedIcons, precisionIcons, gameIcons, backgroundIcons, woodIcons, icons} from './icons.js';
+import {faceIcons, speedIcons, precisionIcons, backgroundIcons, woodIcons, icons} from './icons.js';
 import {computerBoardSrc, gobanImageSrc, setFlatStones, stoneImageSrc, colourOfImage} from './stone-dom.js';
 
 const $ = (selector, scope = document) => scope.querySelector(selector);
@@ -47,13 +47,12 @@ const views = ['Analogue', 'Jumping hour', 'Digital', 'Hybrid'];
 // (magic.js), and the rest is between one go and the next.
 const stoneSpeeds = [['Slow', 26, 180], ['Normal', 45, 60], ['Fast', 320, 8], ['Magic!', 320, 150, true]];
 const placements = ['Exact', 'Organic', 'Careless'];
-// How fast a game replays, in moves a second (0 holds it where it is), which
-// is not how fast the hands are (the speed setting): a slow board falls
-// behind a brisk game rather than the game waiting for it. One control, its
-// choices the hold and the hand's own speeds, less Magic, which playback
-// has no use for.
-const playbackRates = [['Pause', 0], ['Normal', 2], ['Fast', 6], ['Insane!', 20]];
-const defaultRate = 1;
+// How fast a game replays, in moves a second, at each of the hand's
+// speeds (stoneSpeeds, above): not how fast the hands are, but how fast
+// the game asks them for moves, so a slow board falls behind a brisk game
+// rather than the game waiting for it. Magic has as many hands as it
+// needs, and plays as fast as the hands can.
+const playbackRates = [1, 2, 6, 20];
 const modes = ['12-hour', '24-hour'];
 // Each a filter on the board image; the last is no wood at all but the
 // computer's board, drawn plain (stone-dom.js), with flat stones to match.
@@ -270,7 +269,6 @@ window.addEventListener('load', () => {
     const modeButton = $('#mode');
     const secondsButton = $('#seconds-toggle');
     const muteButton = $('#mute');
-    const replayControl = $('#replay-control');
     const replayButton = $('#replay');
     const info = $('#info');
     const aboutButton = $('#about');
@@ -613,7 +611,7 @@ window.addEventListener('load', () => {
     }, faceIcons, true, true);
     const showSpeed = createSettingControl('speed', stoneSpeeds.map(([name]) => name), stoneSpeeds.map(([name]) => name), setClockSpeed, speedIcons, true, true);
     const showWood = createSettingControl('wood', woods.map(([name]) => name), woods.map(([name]) => name), setWood, woodIcons, true, true);
-    const showPlacement = createSettingControl('placement', placements, placements, setPlacement, precisionIcons);
+    const showPlacement = createSettingControl('placement', placements, placements, setPlacement, precisionIcons, true, true);
     const showBackground = createSettingControl('background', backgrounds.map((table) => table.name), backgrounds.map((table) => table.name), setBackground, backgroundIcons, true, true);
 
     function setClockSpeed(index) {
@@ -621,21 +619,26 @@ window.addEventListener('load', () => {
         goClock.speed = stoneSpeeds[stoneSpeed][1];
         goClock.pause = stoneSpeeds[stoneSpeed][2];
         goClock.magic = Boolean(stoneSpeeds[stoneSpeed][3]);
+        playReplay();
         showSpeed(stoneSpeed);
         writeSetting('pace2', stoneSpeed);
     }
 
-    // The hours and the sound, under the settings button: each shows where
-    // it stands and swaps over when clicked. The hours say which clock is
-    // showing in their own words; the sound wears a speaker, crossed out
-    // while it is muted.
+    // The hours, the seconds and the sound, in the tools' row: each shows
+    // where it stands by its icon and swaps over when clicked. The hours
+    // wear their own figures, 12 or 24; the seconds a dial, and the sound
+    // a speaker, each crossed out while it is off.
+    function describeToggle(button, text, icon) {
+        button.title = text;
+        button.setAttribute('aria-label', text);
+        button.dataset.info = text;
+        $('.setting-icon', button).innerHTML = icon;
+    }
+
     function setMode(index) {
         mode = wrap(index, modes.length);
         goClock.twenty_four_hour = mode === 1;
-        modeButton.textContent = modes[mode];
-        modeButton.title = `Showing the ${modes[mode]} clock`;
-        modeButton.setAttribute('aria-label', modeButton.title);
-        modeButton.dataset.info = `Clock: ${modes[mode]}`;
+        describeToggle(modeButton, `Clock: ${modes[mode]}`, icons.hours[mode]);
         writeSetting('mode', mode);
         describeBoard();
     }
@@ -648,10 +651,7 @@ window.addEventListener('load', () => {
         showSeconds = wrap(index, 2);
         const on = showSeconds === 1;
         goClock.show_seconds = on;
-        secondsButton.textContent = on ? 'Seconds on' : 'Seconds off';
-        secondsButton.title = on ? 'Seconds shown' : 'Seconds hidden';
-        secondsButton.setAttribute('aria-label', secondsButton.title);
-        secondsButton.dataset.info = on ? 'Seconds: On' : 'Seconds: Off';
+        describeToggle(secondsButton, on ? 'Seconds: On' : 'Seconds: Off', icons.seconds[showSeconds]);
         writeSetting('seconds', showSeconds);
     }
 
@@ -683,10 +683,7 @@ window.addEventListener('load', () => {
         const on = sound === 1;
         sounds.setEnabled(on);
         goClock.sound = on ? sounds : null;
-        muteButton.title = on ? 'Sound on' : 'Sound off';
-        muteButton.setAttribute('aria-label', muteButton.title);
-        muteButton.dataset.info = on ? 'Sound: On' : 'Sound: Off';
-        $('.setting-icon', muteButton).innerHTML = icons.sound[sound];
+        describeToggle(muteButton, on ? 'Sound: On' : 'Sound: Off', icons.sound[sound]);
         writeSetting('sound', sound);
     }
 
@@ -777,21 +774,35 @@ window.addEventListener('load', () => {
         }
     }
 
-    // A game replayed on the board (replay.js): the button drops down the
-    // shelves of games (historical, modern, and the games an engine
-    // played), and one from the shelf chosen is replayed; while it runs
-    // the button is pressed instead, and stops it. The game is named as it
-    // starts, under the icon of its shelf, and its result given as it ends.
+    // The clock and a game replayed on the board (replay.js) are one or
+    // the other, like radio buttons: the face's button is pressed while the
+    // board is the clock's, and the replay's while a game is on it. The
+    // replay's starts a game, picked at random; the face's, while a game
+    // is on, stops it and gives the board back to the clock (and only
+    // once it has the board opens the faces). The game is named as it
+    // starts, and its result given as it ends.
+    const faceSummary = summaryOf($('#face-control'));
     function setReplaying(on) {
         replayButton.setAttribute('aria-pressed', String(on));
-        replayButton.title = on ? 'Stop the replay' : 'Replay a game';
-        replayButton.setAttribute('aria-label', replayButton.title);
+        faceSummary.setAttribute('aria-pressed', String(!on));
     }
+    // Ahead of the button's own opening of the faces.
+    faceSummary.addEventListener('click', (event) => {
+        if (goClock.replay) {
+            event.stopImmediatePropagation();
+            cancelReplay(goClock);
+            // At once, though the clock may take the board back only once
+            // the hands have landed what they carry.
+            setReplaying(false);
+            replayBar.hidden = true;
+        }
+    }, true);
 
-    // The replay's bar (index.html): play, pause and the speed to play at,
-    // next to the game's line, with a marker at the move the board shows,
-    // which can be dragged to any move. It sits below the board, or down
-    // its left side in landscape, while a game is running, and comes and
+    // The replay's bar (index.html): play or pause, next to the game's
+    // line, with a marker at the move the board shows, which can be dragged
+    // to any move. It sits in the row beneath the toolbar's, from under the
+    // replay button to the board's right edge (in landscape, beside the
+    // button, running down to the board's foot), while a game is running, and comes and
     // goes with the toolbar's own row when that is tucked away or brought
     // back (the CSS, keyed off the toolbar's data-collapsed).
     const replayBar = $('#replay-bar');
@@ -804,23 +815,23 @@ window.addEventListener('load', () => {
         if (!board) {
             return;
         }
-        const gap = 10;
+        const button = replayButton.getBoundingClientRect();
+        // The row beneath the toolbar's, spaced as the toolbar's own are.
+        const gap = parseFloat(getComputedStyle(replayBar).columnGap) || 6;
         if (isLandscape()) {
             Object.assign(replayBar.style, {
-                left: '',
-                right: `${Math.round(window.innerWidth - board.left + gap)}px`,
-                top: `${Math.round(board.top)}px`,
+                left: `${Math.round(button.right + gap)}px`,
+                top: `${Math.round(button.top)}px`,
                 width: '',
-                height: `${Math.round(board.height)}px`
+                height: `${Math.round(board.bottom - button.top)}px`
             });
         } else {
             Object.assign(replayBar.style, {
-                left: `${Math.round(board.left)}px`,
-                right: '',
-                width: `${Math.round(board.width)}px`,
+                left: `${Math.round(button.left)}px`,
+                top: `${Math.round(button.bottom + gap)}px`,
+                width: `${Math.round(board.right - button.left)}px`,
                 height: ''
             });
-            replayBar.style.top = `${Math.round(board.bottom + gap)}px`;
         }
     }
 
@@ -852,18 +863,18 @@ window.addEventListener('load', () => {
         replayMarker.style.setProperty('--progress', total > 0 ? String(moves/total) : '0');
     }
 
-    // Held, or playing at one of the hand's own speeds: one setting-control
-    // (createSettingControl, above), shown and hidden with the rest of the
-    // replay bar.
-    const showReplaySpeed = createSettingControl('replay-speed',
-        playbackRates.map(([name]) => name), playbackRates.map(([name]) => name), setReplayRateIndex,
-        [icons.pause, ...speedIcons.slice(1)]);
-    let replayRateIndex = defaultRate;
+    // Held where it is, or playing at the rate for the hand's speed: the
+    // play button shows the one it would change to.
+    const playButton = $('#replay-play');
+    let replayPaused = false;
 
-    function setReplayRateIndex(index) {
-        replayRateIndex = wrap(index, playbackRates.length);
-        showReplaySpeed(replayRateIndex);
-        setReplayRate(goClock, playbackRates[replayRateIndex][1]);
+    function playReplay() {
+        setReplayRate(goClock, replayPaused ? 0 : playbackRates[stoneSpeed]);
+        const label = replayPaused ? 'Play' : 'Pause';
+        playButton.title = label;
+        playButton.setAttribute('aria-label', label);
+        playButton.dataset.info = replayPaused ? 'Replay: Paused' : 'Replay: Playing';
+        $('.setting-icon', playButton).innerHTML = replayPaused ? icons.play : icons.pause;
     }
 
     // The marker dragged (or the line touched): the move under the pointer,
@@ -917,18 +928,20 @@ window.addEventListener('load', () => {
         seekReplay(goClock, Math.max(0, Math.min(replayMoves, now + step)));
     });
 
-    // A game from one shelf, or, for the key, from any of them.
-    function startGame(category = null) {
-        const icon = category ? gameIcons[category.key] : icons.replay;
-        const began = startReplay(goClock, loadGame(`games/${nextGameFile(category?.files)}`), {
+    function startGame() {
+        const icon = icons.replay;
+        const began = startReplay(goClock, loadGame(`games/${nextGameFile()}`), {
             onStart: (game) => {
                 showReplayProgress(0, game.moves.length);
-                replayBar.hidden = false;
-                placeReplayBar();
                 showInfo(gameTitle(game.info), {icon, stay: 8000});
             },
             onProgress: showReplayProgress,
+            // Held at its last move rather than handed back to the clock:
+            // play starts it again from the beginning, and the replay
+            // button gives the board back to the time.
             onRest: (game) => {
+                replayPaused = true;
+                playReplay();
                 const result = gameResult(game.info);
                 if (result) {
                     showInfo(result, {icon, stay: 6000});
@@ -945,7 +958,12 @@ window.addEventListener('load', () => {
         });
         if (began) {
             setReplaying(true);
-            setReplayRateIndex(defaultRate);
+            replayPaused = false;
+            playReplay();
+            // Straight away, while the board is still being cleared.
+            showReplayProgress(0, 0);
+            replayBar.hidden = false;
+            placeReplayBar();
         }
     }
 
@@ -1050,14 +1068,6 @@ window.addEventListener('load', () => {
     }
 
     $('#replay .setting-icon').innerHTML = icons.replay;
-    gameCategories.forEach((category) => {
-        addChoice($('.setting-options', replayControl), replayButton, {
-            label: category.label,
-            value: category.title,
-            icon: gameIcons[category.key],
-            onChoose: () => startGame(category)
-        });
-    });
     $('#tools-control .setting-icon').innerHTML = icons.tools;
     $('#about .setting-icon').innerHTML = icons.about;
     setClockSpeed(stoneSpeed);
@@ -1067,6 +1077,7 @@ window.addEventListener('load', () => {
     setSeconds(showSeconds);
     setPlacement(placement);
     setSound(sound);
+    setReplaying(false);
     goClock.haptic = haptic;
 
     // The hand: up to two fingers on the board or its surround are the
@@ -1133,6 +1144,12 @@ window.addEventListener('load', () => {
     // about which taps become clicks, a swipe never does, and closing twice
     // is harmless.
     function closeOutside(event) {
+        // A toggle redraws its own icon as it is clicked, so by the time
+        // the click reaches here what was touched may have gone: it was
+        // inside, not out.
+        if (!event.target.isConnected) {
+            return;
+        }
         // The innermost open list that was touched stays, with its
         // parents; a touch outside them all closes everything.
         setOpenControl(openControls.findLast((c) => c.contains(event.target)) ?? null);
@@ -1154,15 +1171,19 @@ window.addEventListener('load', () => {
         setSound(sound === 1 ? 0 : 1);
         showInfo(muteButton.dataset.info);
     });
-    // The replay button opens its shelves, unless a game is running, in
-    // which case it stops it.
     replayButton.addEventListener('click', () => {
-        if (goClock.replay) {
-            cancelReplay(goClock);
-            setOpenControl(null);
-        } else {
-            setOpenControl(replayControl.dataset.open === 'true' ? null : replayControl);
+        if (!goClock.replay) {
+            startGame();
         }
+    });
+    playButton.addEventListener('click', () => {
+        const atEnd = replayMoves > 0 && Number(replayTrack.getAttribute('aria-valuenow')) >= replayMoves;
+        if (replayPaused && atEnd) {
+            seekReplay(goClock, 0);
+        }
+        replayPaused = !replayPaused;
+        playReplay();
+        showInfo(playButton.dataset.info);
     });
     modeButton.addEventListener('click', () => {
         setMode(mode === 1 ? 0 : 1);

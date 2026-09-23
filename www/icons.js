@@ -1,7 +1,7 @@
 // The toolbar's line icons, as SVG markup: one per clock face, drawn as
 // each looks at 10:09 (hands or digits alike) and indexed as the views
-// are (faces.js); one per speed; one per precision; one per shelf of
-// games; and the rest of the buttons and toasts.
+// are (faces.js); one per speed; one per precision; and the rest of the
+// buttons and toasts.
 // A setting's button wears the icon of its current choice, and so does
 // each choice beside its name. Stroked in the text colour, so they take
 // a button's colour when it is pressed.
@@ -135,19 +135,6 @@ export const precisionIcons = [
     svg(crossHairs(2.1, 1.6, 0.36, 0.8))
 ];
 
-// The shelves of games (replay.js): a hanging scroll for the old castle
-// games, a cup for the modern title matches and international finals, and
-// a chip for the games an engine played.
-export const gameIcons = {
-    historical: svg('<path d="M4 4.5h16M4 19.5h16"/><path d="M6.5 4.5v15M17.5 4.5v15"/>'
-        + '<path d="M9.5 8.5h5M9.5 12h5M9.5 15.5h3"/>'),
-    modern: svg('<path d="M8 4h8v4.5a4 4 0 0 1 -8 0Z"/>'
-        + '<path d="M8 5.75H5.25v1.25a3.5 3.5 0 0 0 2.9 3.45M16 5.75h2.75v1.25a3.5 3.5 0 0 1 -2.9 3.45"/>'
-        + '<path d="M12 12.5v3.5M9.6 16h4.8l1.4 4h-7.6Z"/>'),
-    ai: svg('<rect x="7" y="7" width="10" height="10" rx="1.5"/><rect x="10.5" y="10.5" width="3" height="3"/>'
-        + '<path d="M10 7V3.75M14 7V3.75M10 20.25V17M14 20.25V17M7 10H3.75M7 14H3.75M20.25 10H17M20.25 14H17"/>')
-};
-
 // The board the games are played on, empty and cut down to five lines a
 // side, drawn finer than the rest.
 function miniGoban() {
@@ -166,8 +153,9 @@ export const icons = {
     tools: svg('<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94Z"/>'),
     // A game replayed: the goban, with a play button over it.
     replay: svg(miniGoban() + '<path d="M8.75 7v10l8.25 -5Z" fill="currentColor" stroke="none"/>'),
-    // The replay held where it is: two bars, one of the playback's own
-    // choices of speed (the speed icons, the rest of them).
+    // The replay held, or playing: a play triangle, for the button that
+    // would set it going again; two bars, for the one that would hold it.
+    play: svg('<path d="M7.5 5v14l11.5 -7Z" fill="currentColor" stroke="none"/>'),
     pause: svg('<path d="M8.5 5.5v13M15.5 5.5v13" stroke-width="2.5"/>'),
     // Sound, on and off: a speaker, with waves coming off it or crossed out.
     sound: [
@@ -179,5 +167,13 @@ export const icons = {
     close: svg('<path d="M6 6l12 12M18 6L6 18"/>'),
     menu: svg('<path d="M4 7h16M4 12h16M4 17h16"/>'),
     // About: an "i" in a ring.
-    about: svg('<circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7.5v.01"/>')
+    about: svg('<circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7.5v.01"/>'),
+    // The clock's hours, 12 or 24, in figures.
+    hours: ['12', '24'].map((figures) => svg(`<text x="12" y="16.3" text-anchor="middle" font-size="12" font-weight="700" font-family="system-ui, sans-serif" fill="currentColor" stroke="none">${figures}</text>`)),
+    // The seconds, off and on: a dial with its second hand, crossed out
+    // while they are hidden.
+    seconds: [
+        svg('<circle cx="12" cy="12" r="8.5"/>' + dots(12, 12, 6.2) + '<path d="M4 20L20 4"/>'),
+        svg('<circle cx="12" cy="12" r="8.5"/>' + dots(12, 12, 6.2) + '<path d="M12 12V5.5" stroke-width="1.2"/><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/>')
+    ]
 };

@@ -351,7 +351,6 @@ export function replaySettled(clock) {
         return;
     }
     replay.resting = true;
-    replay.onRest?.(replay.game);
     replay.timer = window.setTimeout(() => {
         replay.timer = null;
         finish(clock);
@@ -360,6 +359,9 @@ export function replaySettled(clock) {
             clock.transform();
         }
     }, restTime);
+    // After the timer is set, so that onRest holding the game (a rate of
+    // 0) can call it off.
+    replay.onRest?.(replay.game);
 }
 
 // How many moves the board shows: the move of the last position reached,

@@ -370,6 +370,12 @@ body {
     box-shadow: 0 3px 14px rgb(0 0 0 / 0.32);
 }
 
+/* A button in the row that is not a setting's own (the replay's) takes
+   the white its neighbours get from .setting-control. */
+.toolbar-actions > .setting-summary {
+    color: white;
+}
+
 .setting-summary:focus-visible {
     background: rgb(0 0 0 / 0.8);
     outline: 2px solid rgb(255 255 255 / 0.8);
@@ -609,12 +615,14 @@ body {
     display: none;
 }
 
-/* The replay's bar: play or pause, and the speed to play at, next to the
-   line of the game with a marker on it, below the board, or down its left
-   side in landscape (see the media query below), on a panel of its own so
-   it shows up against whatever table is under it. Below the toolbar and
-   its open lists (z-index there is 20), so a list dropped open never finds
-   the bar sitting over it. my-clock.js places it against the board;
+/* The replay's bar: play or pause, next to the line of the game with a
+   marker on it, in the row beneath the toolbar's from under the replay
+   button, or beside that button running down in landscape (see the media
+   query below). In the dress of the toolbar's own icons: the play button
+   is one, square under the replay button, and the line is one long one,
+   as tall as they are. Below the toolbar and its open lists (z-index there
+   is 20), so a list dropped open never finds the bar sitting over it.
+   my-clock.js places it against the replay button and the board;
    [hidden] takes it off the screen when no game is running, and, while one
    is, it fades with the toolbar's own row when that is tucked away or
    brought back (it is not itself a member of that row, so the CSS keys
@@ -624,11 +632,7 @@ body {
     z-index: 15;
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 8px;
-    border-radius: 8px;
-    background: rgb(0 0 0 / 0.55);
-    box-shadow: 0 3px 14px rgb(0 0 0 / 0.32);
+    gap: 6px;
     color: white;
     transition: opacity 200ms ease, visibility 0s;
 }
@@ -645,6 +649,9 @@ body {
     align-self: stretch;
     min-width: 42px;
     min-height: 42px;
+    border-radius: 6px;
+    background: rgb(0 0 0 / 0.7);
+    box-shadow: 0 3px 14px rgb(0 0 0 / 0.32);
     cursor: pointer;
     touch-action: none;
 }
@@ -662,8 +669,7 @@ body {
     left: 8px;
     height: 3px;
     border-radius: 2px;
-    background: rgb(0 0 0 / 0.7);
-    box-shadow: 0 1px 4px rgb(0 0 0 / 0.32);
+    background: rgb(255 255 255 / 0.45);
     transform: translateY(-50%);
 }
 
@@ -671,9 +677,9 @@ body {
     position: absolute;
     top: 50%;
     left: calc(8px + (100% - 16px)*var(--progress, 0));
-    width: 18px;
-    height: 18px;
-    border: 3px solid rgb(0 0 0 / 0.85);
+    width: 16px;
+    height: 16px;
+    border: 0;
     border-radius: 50%;
     background: white;
     box-shadow: 0 2px 8px rgb(0 0 0 / 0.4);
@@ -691,8 +697,17 @@ body {
         gap: 4px;
     }
 
+    .replay-bar {
+        gap: 4px;
+    }
+
+    .replay-track {
+        min-height: 38px;
+    }
+
     .menu-toggle,
-    .toolbar .setting-summary {
+    .toolbar .setting-summary,
+    .replay-bar .setting-summary {
         width: 38px;
         min-height: 38px;
     }
