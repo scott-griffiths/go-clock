@@ -569,8 +569,7 @@ window.addEventListener('load', () => {
     }
 
     // Centred on the board's top edge, but kept on the screen (in
-    // landscape the board reaches nearly to the top of it) and clear of
-    // the replay's bar where that sits just above the board (portrait).
+    // landscape the board reaches nearly to the top of it).
     function placeInfo() {
         const board = $('#goban-image')?.getBoundingClientRect();
         if (!board) {
@@ -580,12 +579,7 @@ window.addEventListener('load', () => {
         const height = info.offsetHeight;
         const margin = 10;
         const inset = safeInsets();
-        let top = board.top - height/2;
-        const bar = $('#replay-bar');
-        if (!bar.hidden && !isLandscape()) {
-            top = Math.max(top, bar.getBoundingClientRect().bottom + 4);
-        }
-        top = Math.max(top, 4 + inset.top);
+        const top = Math.max(board.top - height/2, 4 + inset.top);
         const centre = board.left + board.width/2;
         const left = Math.max(margin + inset.left + width/2, Math.min(window.innerWidth - margin - inset.right - width/2, centre));
         info.style.top = `${Math.round(top)}px`;
@@ -596,7 +590,7 @@ window.addEventListener('load', () => {
     // information until it is let go: what an icon means, before (or
     // without) choosing it.
     function holdInfo(event) {
-        const held = event.isPrimary && event.target.closest?.('#toolbar [data-info], #replay-bar [data-info]');
+        const held = event.isPrimary && event.target.closest?.('#toolbar [data-info], #replay-bar [data-info], #visual-controls [data-info]');
         if (held) {
             infoHeld = true;
             showInfo(held.dataset.info);
@@ -796,7 +790,7 @@ window.addEventListener('load', () => {
 
     // The replay's bar (index.html): play, pause and the speed to play at,
     // next to the game's line, with a marker at the move the board shows,
-    // which can be dragged to any move. It sits above the board, or down
+    // which can be dragged to any move. It sits below the board, or down
     // its left side in landscape, while a game is running, and comes and
     // goes with the toolbar's own row when that is tucked away or brought
     // back (the CSS, keyed off the toolbar's data-collapsed).
@@ -826,7 +820,27 @@ window.addEventListener('load', () => {
                 width: `${Math.round(board.width)}px`,
                 height: ''
             });
-            replayBar.style.top = `${Math.round(board.top - gap - replayBar.offsetHeight)}px`;
+            replayBar.style.top = `${Math.round(board.bottom + gap)}px`;
+        }
+    }
+
+    // The hand's speed, the table and the wood (index.html): their row's
+    // right end over the board's right edge, just clear of its top; in
+    // landscape, their column down from the board's top, just clear of its
+    // right edge.
+    const visualControls = $('#visual-controls');
+    function placeVisualControls() {
+        const board = $('#goban-image')?.getBoundingClientRect();
+        if (!board) {
+            return;
+        }
+        const gap = 10;
+        if (isLandscape()) {
+            visualControls.style.left = `${Math.round(board.right + gap)}px`;
+            visualControls.style.top = `${Math.round(board.top)}px`;
+        } else {
+            visualControls.style.left = `${Math.round(board.right - visualControls.offsetWidth)}px`;
+            visualControls.style.top = `${Math.round(board.top - gap - visualControls.offsetHeight)}px`;
         }
     }
 
@@ -1002,6 +1016,7 @@ window.addEventListener('load', () => {
         setWood(wood);
         sizeBackground();
         placeReplayBar();
+        placeVisualControls();
         if (!info.hidden) {
             placeInfo();
         }

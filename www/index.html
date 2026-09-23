@@ -30,12 +30,13 @@
         <div id="sb-site">
             <div id="toolbar" class="toolbar" role="toolbar" aria-label="Clock controls" data-collapsed="false">
                 <!-- A row: first the button that tucks the rest away and
-                     brings them back, then a button per visual setting, an
-                     icon each, dropping its choices out (created by
-                     my-clock.js, which also places them where they fit on
-                     the screen); only one is open at a time. A button's
-                     accessible name is its setting and current value
-                     ("Board: Oak"). The icons (icons.js) are filled in by
+                     brings them back, then the clock's face (the rest of
+                     the visual settings are pinned by the board, below:
+                     #visual-controls), an icon dropping its choices out
+                     (created by my-clock.js, which also places them where
+                     they fit on the screen); only one is open at a time. A
+                     button's accessible name is its setting and current
+                     value ("Board: Oak"). The icons (icons.js) are filled in by
                      my-clock.js: a setting's is that of its choice.
                      Choosing a face, a speed, a background or a board
                      leaves the list open, rather than closing it as most
@@ -55,24 +56,6 @@
                             <span class="setting-icon" aria-hidden="true"></span>
                         </button>
                         <div id="face-options" class="setting-options" role="group" aria-label="Clock face"></div>
-                    </div>
-                    <div id="speed-control" class="setting-control" data-open="false">
-                        <button class="setting-summary" type="button" title="Speed" aria-label="Speed" aria-expanded="false" aria-controls="speed-options">
-                            <span class="setting-icon" aria-hidden="true"></span>
-                        </button>
-                        <div id="speed-options" class="setting-options" role="group" aria-label="Speed"></div>
-                    </div>
-                    <div id="background-control" class="setting-control" data-open="false">
-                        <button class="setting-summary" type="button" title="Background" aria-label="Background" aria-expanded="false" aria-controls="background-options">
-                            <span class="setting-icon" aria-hidden="true"></span>
-                        </button>
-                        <div id="background-options" class="setting-options" role="group" aria-label="Background"></div>
-                    </div>
-                    <div id="wood-control" class="setting-control" data-open="false">
-                        <button class="setting-summary" type="button" title="Board" aria-label="Board" aria-expanded="false" aria-controls="wood-options">
-                            <span class="setting-icon" aria-hidden="true"></span>
-                        </button>
-                        <div id="wood-options" class="setting-options" role="group" aria-label="Board"></div>
                     </div>
                     <!-- Not a visual setting, any of these: a game
                          replayed, the clock's hours and sound, and what the
@@ -128,6 +111,33 @@
                             </button>
                         </div>
                     </div>
+                </div>
+            </div>
+            <!-- The hand's speed, the table and the board's wood: visual
+                 settings like the face, but of the board rather than the
+                 clock, so pinned just outside the board's top right corner
+                 (or, in landscape, down its right side from the top), where
+                 my-clock.js places them. They come and go with the
+                 toolbar's own row when that is tucked away or brought
+                 back. -->
+            <div id="visual-controls" class="visual-controls" role="group" aria-label="The board">
+                <div id="speed-control" class="setting-control" data-open="false">
+                    <button class="setting-summary" type="button" title="Speed" aria-label="Speed" aria-expanded="false" aria-controls="speed-options">
+                        <span class="setting-icon" aria-hidden="true"></span>
+                    </button>
+                    <div id="speed-options" class="setting-options" role="group" aria-label="Speed"></div>
+                </div>
+                <div id="background-control" class="setting-control" data-open="false">
+                    <button class="setting-summary" type="button" title="Background" aria-label="Background" aria-expanded="false" aria-controls="background-options">
+                        <span class="setting-icon" aria-hidden="true"></span>
+                    </button>
+                    <div id="background-options" class="setting-options" role="group" aria-label="Background"></div>
+                </div>
+                <div id="wood-control" class="setting-control" data-open="false">
+                    <button class="setting-summary" type="button" title="Board" aria-label="Board" aria-expanded="false" aria-controls="wood-options">
+                        <span class="setting-icon" aria-hidden="true"></span>
+                    </button>
+                    <div id="wood-options" class="setting-options" role="group" aria-label="Board"></div>
                 </div>
             </div>
             <!-- The one place a line of information shows, on the board's

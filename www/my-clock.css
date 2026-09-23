@@ -247,6 +247,33 @@ body {
     }
 }
 
+/* The hand's speed, the table and the wood: pinned by the board's top
+   right corner (my-clock.js places them), a row like the toolbar's, or a
+   column in landscape; fading with the toolbar's own row when that is
+   tucked away or brought back, as the replay's bar does. Under the
+   toolbar's own lists (20), over the replay's bar (15). */
+.visual-controls {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 19;
+    display: flex;
+    gap: 6px;
+    transition: opacity 200ms ease, visibility 0s;
+}
+
+.toolbar[data-collapsed="true"] ~ .visual-controls {
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 200ms ease, visibility 0s 200ms;
+}
+
+@media (orientation: landscape) {
+    .visual-controls {
+        flex-direction: column;
+    }
+}
+
 /* Out from under the toggle, showing as they go; and back the same way
    in reverse, fading as they arrive. */
 .toolbar-actions > * {
@@ -583,7 +610,7 @@ body {
 }
 
 /* The replay's bar: play or pause, and the speed to play at, next to the
-   line of the game with a marker on it, above the board, or down its left
+   line of the game with a marker on it, below the board, or down its left
    side in landscape (see the media query below), on a panel of its own so
    it shows up against whatever table is under it. Below the toolbar and
    its open lists (z-index there is 20), so a list dropped open never finds
