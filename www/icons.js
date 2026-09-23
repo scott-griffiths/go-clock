@@ -50,15 +50,15 @@ export const faceIcons = [
         + dots(12, 16, 6.25, {filled: [0]}) + '<path d="M12 16v-3.6"/>')
 ];
 
-// The speeds, slow to magic: a chevron, held back by a bar for slow, on
-// its own for normal, doubled for fast, doubled and pointed with a bang
-// for insane, and a bang and a query for magic.
+// The hand's speeds, normal to magic: a chevron held back by a bar for
+// normal, on its own for fast, doubled for insane, and doubled and
+// pointed with a bang for magic. Playback, which has its own pause, goes
+// without the bar.
 export const speedIcons = [
     svg('<path d="M6.5 5v14M10 5l7 7 -7 7"/>'),
     svg('<path d="M8 5l7 7 -7 7"/>'),
     svg('<path d="M4.5 5l7 7 -7 7M12.5 5l7 7 -7 7"/>'),
-    svg('<path d="M2.5 5l7 7 -7 7M9.5 5l7 7 -7 7M21 5v9M21 18.5v0.01"/>'),
-    svg('<path d="M6.5 5v9M6.5 18.5v0.01M11.5 8.25a3.5 3.5 0 1 1 5 3.15c-1 0.5 -1.5 1.2 -1.5 2.35v0.3M15 18.5v0.01"/>')
+    svg('<path d="M2.5 5l7 7 -7 7M9.5 5l7 7 -7 7M21 5v9M21 18.5v0.01"/>')
 ];
 
 // The precisions: a circle with cross hairs through its middle. Exact is
@@ -81,11 +81,13 @@ const crossHairs = (dx, dy, tilt, wobble = 0) => {
     return circle + hairs;
 };
 
-// The backgrounds: a tree for wood, a tuft of grass, a snowflake for
-// ice, a couple of waves for water, and a pair of sparkles for space.
+// The backgrounds: a tall pine and a short one for wood, a tuft of long
+// grass bent over at the tips, a snowflake for ice, a couple of waves for
+// water, and a pair of sparkles for space.
 export const backgroundIcons = [
-    svg('<circle cx="12" cy="10.5" r="6.5"/><path d="M12 17v4"/>'),
-    svg('<path d="M12 20v-4"/><path d="M12 16c0-6 -3.2-7 -3.2-13"/><path d="M12 16c0-6.5 3.2-7.5 3.2-13.5"/>'),
+    svg('<path d="M8.25 2.5L13 15.5H3.5ZM8.25 15.5v5M17 8.5l3.5 8h-7ZM17 16.5v4"/>'),
+    svg('<path d="M4 20.5h16"/><path d="M12 20.5C11.5 13 12.5 6.5 16 4.5M10.5 20.5C10 13 7 8 3.5 10'
+        + 'M13.5 20.5C14 14 17.5 9.5 20.5 11.5M11 20.5C10.5 14 9.5 8.5 7 5.5"/>'),
     svg('<path d="M12 3v18M4.8 7.5l14.4 9M19.2 7.5l-14.4 9"/>'
         + '<path d="M9.8 4.6l2.2 1.3 2.2-1.3M9.8 19.4l2.2-1.3 2.2 1.3"/>'
         + '<path d="M5.6 9.7l.3-2.5 2.3-1M5.6 14.3l.3 2.5 2.3 1M18.4 9.7l-.3-2.5-2.3-1M18.4 14.3l-.3 2.5-2.3 1"/>'),
@@ -95,15 +97,36 @@ export const backgroundIcons = [
         + '<path d="M17 12.5l.9 2.6 2.6.9-2.6.9-.9 2.6-.9-2.6-2.6-.9 2.6-.9Z" fill="currentColor" stroke="none"/>')
 ];
 
-// The board's wood: a broad, cloud-shaped canopy for oak, a tiered
+// The board's wood, each stood in front of the board it makes: the board
+// just its edges, up and to the right, broken off with a gap where they
+// would pass behind. The wood is drawn full size and shrunk into the
+// corner, its lines kept as thick as the other icons'.
+const behind = {left: 6, top: 1.5, right: 22.5, bottom: 18};
+const inFront = {scale: 0.85, x: -1.5, y: 4.2, gapTop: 3, gapRight: 1.5};
+
+function onBoard(body) {
+    const {left, top, right, bottom} = behind;
+    const {scale, x, y, gapTop, gapRight} = inFront;
+    // Where the wood's 24 box (less its usual 3 margin) lands, and so where
+    // the left and bottom edges stop short of it.
+    const stopY = y + 3*scale - gapTop;
+    const startX = x + 21*scale + gapRight;
+    return svg(`<path d="M${left} ${stopY}V${top}H${right}V${bottom}H${startX}" stroke-width="1.1"/>`
+        + `<g transform="translate(${x} ${y}) scale(${scale})" stroke-width="${(1.5/scale).toFixed(2)}">${body}</g>`);
+}
+
+// A broad, cloud-shaped canopy on a forked trunk for oak, a tiered
 // conifer for kaya (a real tree, the one Go boards are prized for), and
-// a robot's head for the computer's own plain board.
+// a robot's head on its neck and shoulders for the computer's own plain
+// board.
 export const woodIcons = [
-    svg('<path d="M7 12a3.3 3.3 0 0 1 1.3-6.2 4 4 0 0 1 7.4 0A3.3 3.3 0 0 1 17 12a3 3 0 0 1-2.4 4.8H9.4A3 3 0 0 1 7 12Z"/><path d="M12 16.8V21"/>'),
-    svg('<path d="M12 3l4 6h-2.6L17 14h-2.8L18 20H6l3.8-6H7l3.6-5H8Z"/><path d="M12 20v2"/>'),
-    svg('<rect x="5.5" y="8" width="13" height="10" rx="2.5"/><path d="M12 8V5M9.5 5h5"/>'
-        + '<circle cx="9.3" cy="13" r="1.1" fill="currentColor" stroke="none"/><circle cx="14.7" cy="13" r="1.1" fill="currentColor" stroke="none"/>'
-        + '<path d="M9 16.3h6"/>')
+    onBoard('<path d="M7 12a3.3 3.3 0 0 1 1.3-6.2 4 4 0 0 1 7.4 0A3.3 3.3 0 0 1 17 12a3 3 0 0 1-2.4 4.8H9.4A3 3 0 0 1 7 12Z"/>'
+        + '<path d="M12 21V13M12 16.8l-2.2-2.2M12 15.4l2-1.8"/>'),
+    onBoard('<path d="M12 3l4 5.3h-2.6L17 12.7h-2.8L18 18H6l3.8-5.3H7l3.6-4.4H8Z"/><path d="M10.8 18v3.5h2.4V18"/>'),
+    onBoard('<rect x="5" y="5.5" width="14" height="10" rx="2.5"/><path d="M12 5.5V3.5"/>'
+        + '<circle cx="12" cy="3" r="1" fill="currentColor" stroke="none"/>'
+        + '<circle cx="9.3" cy="9.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="14.7" cy="9.5" r="1.2" fill="currentColor" stroke="none"/>'
+        + '<path d="M10.5 12.5h3M12 15.5v2.5M5.5 22c0-2.5 2.8-4 6.5-4s6.5 1.5 6.5 4"/>')
 ];
 
 export const precisionIcons = [
@@ -125,21 +148,6 @@ export const gameIcons = {
         + '<path d="M10 7V3.75M14 7V3.75M10 20.25V17M14 20.25V17M7 10H3.75M7 14H3.75M20.25 10H17M20.25 14H17"/>')
 };
 
-// A cog: `teeth` of them round a ring, and the hole.
-function cog(teeth, outer, inner) {
-    let d = '';
-    for (let i = 0; i < teeth; ++i) {
-        const a = 2*Math.PI*i/teeth;
-        const step = Math.PI/teeth;
-        // Out along the tooth's leading flank, across its top, and back down.
-        const points = [[inner, a - step*0.5], [outer, a - step*0.28], [outer, a + step*0.28], [inner, a + step*0.5]];
-        for (const [r, theta] of points) {
-            d += `${d ? 'L' : 'M'}${(12 + r*Math.sin(theta)).toFixed(2)} ${(12 - r*Math.cos(theta)).toFixed(2)}`;
-        }
-    }
-    return `<path d="${d}Z"/><circle cx="12" cy="12" r="3"/>`;
-}
-
 // The board the games are played on, empty and cut down to five lines a
 // side, drawn finer than the rest.
 function miniGoban() {
@@ -153,7 +161,9 @@ function miniGoban() {
 }
 
 export const icons = {
-    settings: svg(cog(8, 10.5, 7.75)),
+    // The tools icon: a wrench, for what is done with the clock rather
+    // than how it looks, in outline like the rest.
+    tools: svg('<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94Z"/>'),
     // A game replayed: the goban, with a play button over it.
     replay: svg(miniGoban() + '<path d="M8.75 7v10l8.25 -5Z" fill="currentColor" stroke="none"/>'),
     // The replay held where it is: two bars, one of the playback's own
@@ -167,5 +177,7 @@ export const icons = {
     // The toggle for the rest of the row: a cross while they show, a
     // menu's three bars while they are tucked away.
     close: svg('<path d="M6 6l12 12M18 6L6 18"/>'),
-    menu: svg('<path d="M4 7h16M4 12h16M4 17h16"/>')
+    menu: svg('<path d="M4 7h16M4 12h16M4 17h16"/>'),
+    // About: an "i" in a ring.
+    about: svg('<circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7.5v.01"/>')
 };

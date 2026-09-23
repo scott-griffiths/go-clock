@@ -30,15 +30,20 @@
         <div id="sb-site">
             <div id="toolbar" class="toolbar" role="toolbar" aria-label="Clock controls" data-collapsed="false">
                 <!-- A row: first the button that tucks the rest away and
-                     brings them back, then a button per setting, an icon each,
-                     dropping its choices out (created by my-clock.js, which
-                     also places them where they fit on the screen); only one
-                     is open at a time. A button's accessible name is its setting
-                     and current value ("Board: Oak"). The icons (icons.js) are
-                     filled in by my-clock.js: a setting's is that of its
-                     choice. Choosing a face, a speed, a background or a
-                     board leaves the list open, rather than closing it as
-                     most choices do, so several can be tried in a row.
+                     brings them back, then a button per visual setting, an
+                     icon each, dropping its choices out (created by
+                     my-clock.js, which also places them where they fit on
+                     the screen); only one is open at a time. A button's
+                     accessible name is its setting and current value
+                     ("Board: Oak"). The icons (icons.js) are filled in by
+                     my-clock.js: a setting's is that of its choice.
+                     Choosing a face, a speed, a background or a board
+                     leaves the list open, rather than closing it as most
+                     choices do, so several can be tried in a row. Set apart
+                     by a gap at the row's end, the tools button, not a
+                     visual setting itself but a flat list of its own kind
+                     (a game replayed, the clock's hours and sound, its
+                     precision, and about).
                      Along the top of the screen in portrait; down the left in
                      landscape, where the board leaves the sides free. -->
                 <button id="menu-toggle" class="button menu-toggle" type="button" title="Hide the controls" aria-label="Hide the controls" aria-expanded="true" aria-controls="toolbar-actions">
@@ -69,36 +74,44 @@
                         </button>
                         <div id="wood-options" class="setting-options" role="group" aria-label="Board"></div>
                     </div>
-                    <!-- Not a setting: a game replayed on the board (replay.js).
-                         The button drops down the shelves of games to pick
-                         one from; while a game runs it is pressed instead,
-                         and stops it. Play, pause and the speed to play at
-                         sit next to the replay bar's own line, below, not
-                         here. -->
-                    <div id="replay-control" class="setting-control" data-open="false">
-                        <button id="replay" class="setting-summary" type="button" title="Replay a game" aria-label="Replay a game" aria-expanded="false" aria-controls="replay-options" aria-pressed="false">
+                    <!-- Not a visual setting, any of these: a game
+                         replayed, the clock's hours and sound, and what the
+                         clock is. Tucked under one "Tools" button, apart
+                         from the visual choices above (a gap sets it apart
+                         in the row), and flat as one list rather than a
+                         setting buried in a setting, so each is a tap away
+                         once the list is open, not two. -->
+                    <div id="tools-control" class="setting-control" data-open="false">
+                        <button class="setting-summary" type="button" title="Tools" aria-label="Tools" aria-expanded="false" aria-controls="tools-options">
                             <span class="setting-icon" aria-hidden="true"></span>
                         </button>
-                        <div id="replay-options" class="setting-options" role="group" aria-label="Replay a game"></div>
-                    </div>
-                    <!-- Under one button: the clock's hours, whether it
-                         shows seconds, and the sound, which unlike a choice
-                         leave the list open, each showing where it stands
-                         (in words, but for the sound, whose icon alone
-                         does) and swapping over when clicked; the
-                         precision, a submenu of choices opening out beside
-                         the list; and the about box. -->
-                    <div id="settings-control" class="setting-control" data-open="false">
-                        <button class="setting-summary" type="button" title="Settings" aria-label="Settings" aria-expanded="false" aria-controls="settings-options">
-                            <span class="setting-icon" aria-hidden="true"></span>
-                        </button>
-                        <div id="settings-options" class="setting-options" role="group" aria-label="Settings">
+                        <div id="tools-options" class="setting-options" role="group" aria-label="Tools">
+                            <!-- A game replayed on the board (replay.js).
+                                 The button drops down the shelves of games
+                                 to pick one from; while a game runs it is
+                                 pressed instead, and stops it. Play, pause
+                                 and the speed to play at sit next to the
+                                 replay bar's own line, below, not here. -->
+                            <div id="replay-control" class="setting-control" data-open="false">
+                                <button id="replay" class="choice-button submenu-button submenu-with-icon" type="button" title="Replay a game" aria-label="Replay a game" aria-expanded="false" aria-controls="replay-options" aria-pressed="false">
+                                    <span class="setting-icon" aria-hidden="true"></span>
+                                    <span aria-hidden="true">Replay</span>
+                                </button>
+                                <div id="replay-options" class="setting-options" role="group" aria-label="Replay a game"></div>
+                            </div>
+                            <!-- The clock's hours, whether it shows seconds,
+                                 and the sound, which unlike a choice leave
+                                 the list open, each showing where it stands
+                                 (in words, but for the sound, whose icon
+                                 alone does) and swapping over when clicked. -->
                             <button id="mode" class="choice-button" type="button"></button>
                             <button id="seconds-toggle" class="choice-button" type="button"></button>
                             <button id="mute" class="choice-button choice-with-trailing-icon" type="button">
                                 <span aria-hidden="true">Sound</span>
                                 <span class="setting-icon" aria-hidden="true"></span>
                             </button>
+                            <!-- The precision: a submenu of choices opening
+                                 out beside the list. -->
                             <div id="placement-control" class="setting-control" data-open="false">
                                 <button class="choice-button submenu-button submenu-with-icon" type="button" title="Precision" aria-label="Precision" aria-expanded="false" aria-controls="placement-options">
                                     <span class="setting-icon" aria-hidden="true"></span>
@@ -107,7 +120,12 @@
                                 </button>
                                 <div id="placement-options" class="setting-options" role="group" aria-label="Precision"></div>
                             </div>
-                            <button id="about" class="choice-button" type="button" aria-expanded="false" aria-controls="about_box">About</button>
+                            <!-- What the clock is: opens the about box
+                                 instead of a list. -->
+                            <button id="about" class="choice-button choice-with-icon" type="button" aria-expanded="false" aria-controls="about_box">
+                                <span class="setting-icon" aria-hidden="true"></span>
+                                <span>About</span>
+                            </button>
                         </div>
                     </div>
                 </div>

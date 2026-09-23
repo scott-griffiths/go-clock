@@ -219,7 +219,7 @@ body {
     pointer-events: auto;
 }
 
-/* The about button and the setting buttons: a row, wrapping if it must. */
+/* The setting buttons, and the tools button: a row, wrapping if it must. */
 .toolbar-actions {
     display: flex;
     flex-wrap: wrap;
@@ -227,6 +227,20 @@ body {
     align-items: center;
     gap: 6px;
     min-width: 0;
+}
+
+/* Tools (replay, settings, about) are not visual choices, so a wider gap
+   sets the tools button apart from the row of them, down the left in
+   landscape instead. */
+#tools-control {
+    margin-left: 14px;
+}
+
+@media (orientation: landscape) {
+    #tools-control {
+        margin-left: 0;
+        margin-top: 14px;
+    }
 }
 
 /* Out from under the toggle, showing as they go; and back the same way
@@ -414,6 +428,13 @@ body {
 .setting-control[data-open="false"] > .setting-options > *:nth-child(4) { transform: translateY(-144px); }
 .setting-control[data-open="false"] > .setting-options > *:nth-child(5) { transform: translateY(-180px); }
 .setting-control[data-open="false"] > .setting-options > *:nth-child(6) { transform: translateY(-216px); }
+
+/* A row's own choices can be dragged across (my-clock.js enableRowScrub)
+   rather than tapped one at a time, so the row itself must not scroll or
+   swipe-navigate as a finger crosses it. */
+.setting-options-row {
+    touch-action: none;
+}
 
 /* A row's choices (face, speed) wear an icon alone: square, like the
    toolbar's own buttons, rather than a name padded out to fit. */

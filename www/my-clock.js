@@ -302,6 +302,9 @@ window.addEventListener('load', () => {
         const valueLabel = $('.setting-value', summary);
         const summaryIcon = $('.setting-icon', summary);
         options.classList.toggle('setting-options-row', row);
+        if (row) {
+            enableRowScrub(options);
+        }
 
         labels.forEach((label, index) => {
             const button = addChoice(options, summary, {
@@ -365,6 +368,51 @@ window.addEventListener('load', () => {
         });
         options.append(button);
         return button;
+    }
+
+    // A row's choices (face, speed, background, board): pressing one and
+    // dragging across the rest picks up each in turn as the finger (or
+    // pointer) reaches it, so trying several is one held gesture rather
+    // than a tap, a lift, a tap, a lift. Release wherever; whatever was
+    // last under the finger stays chosen, exactly as tapping it would
+    // have left it.
+    function enableRowScrub(options) {
+        let dragging = false;
+        let current = null;
+        function choiceUnder(x, y) {
+            return $$('.choice-button', options).find((button) => {
+                const rect = button.getBoundingClientRect();
+                return x >= rect.left && x < rect.right && y >= rect.top && y < rect.bottom;
+            });
+        }
+        options.addEventListener('pointerdown', (event) => {
+            const button = event.target.closest('.choice-button');
+            if (!event.isPrimary || !button) {
+                return;
+            }
+            dragging = true;
+            current = button;
+            options.setPointerCapture?.(event.pointerId);
+        });
+        options.addEventListener('pointermove', (event) => {
+            if (!dragging || !event.isPrimary) {
+                return;
+            }
+            const button = choiceUnder(event.clientX, event.clientY);
+            if (button && button !== current) {
+                current = button;
+                button.click();
+            }
+        });
+        function endDrag(event) {
+            if (dragging) {
+                options.releasePointerCapture?.(event.pointerId);
+                dragging = false;
+                current = null;
+            }
+        }
+        options.addEventListener('pointerup', endDrag);
+        options.addEventListener('pointercancel', endDrag);
     }
 
     function summaryOf(control) {
@@ -489,7 +537,7 @@ window.addEventListener('load', () => {
         cancelReplay(goClock);
         goClock.transform();
     }, faceIcons, true, true);
-    const showSpeed = createSettingControl('speed', stoneSpeeds.map(([name]) => name), stoneSpeeds.map(([name]) => name), setClockSpeed, speedIcons.slice(1), true, true);
+    const showSpeed = createSettingControl('speed', stoneSpeeds.map(([name]) => name), stoneSpeeds.map(([name]) => name), setClockSpeed, speedIcons, true, true);
     const showWood = createSettingControl('wood', woods.map(([name]) => name), woods.map(([name]) => name), setWood, woodIcons, true, true);
     const showPlacement = createSettingControl('placement', placements, placements, setPlacement, precisionIcons);
     const showBackground = createSettingControl('background', backgrounds.map((table) => table.name), backgrounds.map((table) => table.name), setBackground, backgroundIcons, true, true);
@@ -712,7 +760,7 @@ window.addEventListener('load', () => {
     // replay bar.
     const showReplaySpeed = createSettingControl('replay-speed',
         playbackRates.map(([name]) => name), playbackRates.map(([name]) => name), setReplayRateIndex,
-        [icons.pause, ...speedIcons.slice(1, playbackRates.length)]);
+        [icons.pause, ...speedIcons.slice(1)]);
     let replayRateIndex = defaultRate;
 
     function setReplayRateIndex(index) {
@@ -909,7 +957,8 @@ window.addEventListener('load', () => {
             onChoose: () => startGame(category)
         });
     });
-    $('#settings-control .setting-icon').innerHTML = icons.settings;
+    $('#tools-control .setting-icon').innerHTML = icons.tools;
+    $('#about .setting-icon').innerHTML = icons.about;
     setClockSpeed(stoneSpeed);
     setView(view);
     setBackground(background);
@@ -993,7 +1042,7 @@ window.addEventListener('load', () => {
     document.addEventListener('pointerdown', wakeToggle);
     document.addEventListener('touchstart', wakeToggle, {passive: true});
 
-    openOnClick($('#settings-control'));
+    openOnClick($('#tools-control'));
     muteButton.addEventListener('click', () => setSound(sound === 1 ? 0 : 1));
     // The replay button opens its shelves, unless a game is running, in
     // which case it stops it.
