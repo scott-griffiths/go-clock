@@ -123,12 +123,64 @@ export function magicTransform(clock) {
         clock.sound?.slide(slideTime);
     }
     let landed = false;
-    // Staggered by the order the flights were decided above, so a whole
-    // group lifted at once does not rise as one indistinguishable block:
-    // each stone starts a little after the last, roughly a twentieth of a
-    // full lifted move apart. A replay jumping straight to a position
-    // (magic_once) can mean hundreds of flights at once, so there the
-    // stagger is a tenth as long again, or the jump would take forever.
+    // Staggered in the order a single hand would come to them — nearest
+    // the hand's own last point first, then on from each to whichever is
+    // nearest next, the same trip planMove works out one move at a time
+    // — so a whole group lifted at once does not rise as one
+    // indistinguishable block, and starts off where the hand actually is
+    // rather than jumping to the top-left corner regardless. A stone is
+    // met where it is picked up (`from`, for a slide or one going away)
+    // or, coming from the table or the bowl, where it is put down (`to`).
+    const flightPoint = (flight) => flight.from !== undefined ? flight.from : flight.to;
+    const remaining = flights.map((_, i) => i);
+    const baseOrder = new Array(flights.length);
+    let at = clock.hand.position;
+    for (let rank = 0; remaining.length > 0; ++rank) {
+        let nearest = 0;
+        remaining.forEach((idx, ri) => {
+            if (dist(at, flightPoint(flights[idx])) < dist(at, flightPoint(flights[remaining[nearest]]))) {
+                nearest = ri;
+            }
+        });
+        const chosen = remaining.splice(nearest, 1)[0];
+        baseOrder[chosen] = rank;
+        at = flights[chosen].to !== undefined ? flights[chosen].to : flightPoint(flights[chosen]);
+    }
+    // A replay jumping straight to a position (magic_once) can mean
+    // hundreds of flights at once, so there the stagger is a tenth as
+    // long again, or the jump would take forever.
+    //
+    // But a stone leaving a point only lets go of it — and reads off its
+    // own colour — once its own flight starts (just above); a stone
+    // landing there must not start before that, or it draws its new
+    // colour on the point first and the leaving stone picks that up
+    // instead of its own. So a flight can never be scheduled after one
+    // landing on the point it leaves from: pulled forward to match if it
+    // would be, and anything leaving from where that pulled the flight
+    // in turn arrives, and so on down the chain.
+    const order = baseOrder;
+    const departureFrom = new Map();
+    flights.forEach((flight, i) => {
+        if (flight.from !== undefined) {
+            departureFrom.set(flight.from, i);
+        }
+    });
+    for (let pass = 0; pass < flights.length; ++pass) {
+        let changed = false;
+        flights.forEach((flight, i) => {
+            if (flight.to === undefined) {
+                return;
+            }
+            const departing = departureFrom.get(flight.to);
+            if (departing !== undefined && order[departing] > order[i]) {
+                order[i] = order[departing];
+                changed = true;
+            }
+        });
+        if (!changed) {
+            break;
+        }
+    }
     const stagger = (liftTime + slideTime + landTime) / (clock.magic_once ? 200 : 20);
     flights.forEach((flight, i) => {
         clock.magic_flights.push(flight);
@@ -155,7 +207,7 @@ export function magicTransform(clock) {
                     clock.idle_timer = window.setTimeout(() => clock.transform(), clock.pause);
                 }
             });
-        }, i*stagger*1000);
+        }, order[i]*stagger*1000);
     });
     return true;
 }
