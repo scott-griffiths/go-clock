@@ -96,12 +96,9 @@ export function magicTransform(clock) {
     if (flights.length == 0) {
         return false;
     }
-    // The stones leaving their points are off them before any lands.
     flights.forEach((flight) => {
         if (flight.kind == 'slide' || flight.kind == 'away') {
-            flight.src = clock.getDrawnStoneSrc(clock.get_coords(flight.from));
             flight.fromCoords = clock.get_coords(flight.from);
-            clock.eraseStone(flight.fromCoords);
         }
     });
     // A stone going from one point to another is slid rather than lifted
@@ -126,23 +123,37 @@ export function magicTransform(clock) {
         clock.sound?.slide(slideTime);
     }
     let landed = false;
-    flights.forEach((flight) => {
-        fly(clock, flight, () => {
-            clock.magic_flights.splice(clock.magic_flights.indexOf(flight), 1);
-            if (flight.to !== undefined) {
-                clock.stones_shown[flight.to] = flight.colour;
-                clock.drawStone(clock.get_coords(flight.to), flight.colour, 0, flight.src);
-                if (!landed) {
-                    landed = true;
-                    clock.sound?.place(flight.colour == white ? 'white' : 'black');
-                }
-            }
-            if (clock.magic_flights.length == 0) {
-                // A moment with the board as it is, then the next look.
-                clock.idle_timer = window.setTimeout(() => clock.transform(), clock.pause);
-            }
-        });
+    // Staggered by the order the flights were decided above, so a whole
+    // group lifted at once does not rise as one indistinguishable block:
+    // each stone starts a little after the last, roughly a twentieth of a
+    // full lifted move apart.
+    const stagger = (liftTime + slideTime + landTime) / 20;
+    flights.forEach((flight, i) => {
         clock.magic_flights.push(flight);
+        flight.timeoutId = window.setTimeout(() => {
+            flight.timeoutId = null;
+            // The stone is off its point only once its own flight starts,
+            // not before, so it sits there undisturbed through its wait.
+            if (flight.kind == 'slide' || flight.kind == 'away') {
+                flight.src = clock.getDrawnStoneSrc(flight.fromCoords);
+                clock.eraseStone(flight.fromCoords);
+            }
+            fly(clock, flight, () => {
+                clock.magic_flights.splice(clock.magic_flights.indexOf(flight), 1);
+                if (flight.to !== undefined) {
+                    clock.stones_shown[flight.to] = flight.colour;
+                    clock.drawStone(clock.get_coords(flight.to), flight.colour, 0, flight.src);
+                    if (!landed) {
+                        landed = true;
+                        clock.sound?.place(flight.colour == white ? 'white' : 'black');
+                    }
+                }
+                if (clock.magic_flights.length == 0) {
+                    // A moment with the board as it is, then the next look.
+                    clock.idle_timer = window.setTimeout(() => clock.transform(), clock.pause);
+                }
+            });
+        }, i*stagger*1000);
     });
     return true;
 }
@@ -247,6 +258,13 @@ export function dropMagicStones(clock) {
     const stones = [];
     const gobanRect = $('#goban').getBoundingClientRect();
     clock.magic_flights.forEach((flight) => {
+        // Still waiting its turn to start, staggered behind others in the
+        // same group: nothing on screen has moved for it yet, so there is
+        // only the wait to cancel.
+        if (flight.timeoutId != null) {
+            window.clearTimeout(flight.timeoutId);
+            return;
+        }
         const element = flight.element;
         const opacity = parseFloat(getComputedStyle(element).opacity);
         const at = elementCentre(element, clock.goban_width/20, gobanRect);
