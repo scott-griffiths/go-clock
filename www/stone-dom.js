@@ -199,8 +199,19 @@ export function animateElement(target, duration, vars) {
 }
 
 // Where an element's stone is now, mid-animation or not: its centre, in
-// px within the goban element.
-export function elementCentre(element, fallbackSize) {
+// px within the goban element (gobanRect: goban.getBoundingClientRect()).
+// Read from the element's actual painted box, not a computed style: a
+// left/top Web Animation is not reliably reflected in computed style
+// mid-flight in every engine, and a stale read here is a stone that
+// visibly jumps back to where it started the moment a finger picks it up
+// out from under a move already under way. Falls back to the old,
+// computed-style reading for a hidden element, whose box is empty.
+export function elementCentre(element, fallbackSize, gobanRect) {
+    const rect = element.getBoundingClientRect();
+    if (gobanRect && (rect.width || rect.height)) {
+        const size = rect.width || fallbackSize;
+        return [rect.left - gobanRect.left + size/2, rect.top - gobanRect.top + size/2];
+    }
     const style = getComputedStyle(element);
     const size = parseFloat(style.width) || fallbackSize;
     return [parseFloat(style.left) + size/2, parseFloat(style.top) + size/2];

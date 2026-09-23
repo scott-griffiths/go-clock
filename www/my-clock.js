@@ -258,8 +258,8 @@ window.addEventListener('load', () => {
     // The sloppiest placement (the old fourth choice) has gone: a stored
     // index beyond the end is the sloppiest that is left.
     let placement = Math.min(readIndex('placement', 1, placements.length + 1), placements.length - 1);
-    // Sound is on unless it has been muted.
-    let sound = readIndex('sound', 1, 2);
+    // Sound is off unless it has been turned on.
+    let sound = readIndex('sound', 0, 2);
     // Seconds show unless they have been turned off.
     let showSeconds = readIndex('seconds', 1, 2);
     const sounds = new Sounds();

@@ -243,11 +243,20 @@ export function GoClock(){
         ];
     };
 
-    // As stonePosition, for a stone by its pixel centre, anywhere.
+    // As stonePosition, for a stone by its pixel centre, anywhere. A lifted
+    // stone moves outward from the centre of the goban, not just upward:
+    // one lifted right over that centre point stays where it is (and only
+    // grows), while one lifted off to a side is pushed further that way,
+    // in proportion to how far off centre it already was - as perspective
+    // would push it, looking straight down.
     this.pixelStonePosition = function(x, y, height) {
         var lift = Math.min(height, maxLift);
-        var diameter = (this.goban_width/20)*(1 + lift/20) | 0;
-        return [x - diameter/2 | 0, y - lift*this.goban_height/600 - diameter/2 | 0, diameter, diameter];
+        var scale = 1 + lift/20;
+        var diameter = (this.goban_width/20)*scale | 0;
+        var cx = this.goban_width/2, cy = this.goban_height/2;
+        x = cx + (x - cx)*scale;
+        y = cy + (y - cy)*scale;
+        return [Math.round(x - diameter/2), Math.round(y - diameter/2), diameter, diameter];
     };
 
     // The board, and the screen, as the physics sees them: rectangles in
@@ -332,6 +341,7 @@ export function GoClock(){
     this.dropHeldStones = function() {
         var stones = [];
         var pushedStone = $('#pushed_stone');
+        var gobanRect = $('#goban').getBoundingClientRect();
         this.hands.forEach((hand) => {
             window.clearTimeout(hand.reaching);
             hand.reaching = null;
@@ -342,12 +352,12 @@ export function GoClock(){
             var movingStone = hand.element();
             var swap = hand.pending_swap;
             if (!movingStone.hidden) {
-                var at = elementCentre(movingStone, this.goban_width/20);
+                var at = elementCentre(movingStone, this.goban_width/20, gobanRect);
                 var colour = swap && swap.phase == 'return' ? swap.displaced_colour : hand.colour;
                 stones.push(this.looseStone(movingStone.querySelector('img').src, colour, at[0], at[1]));
             }
             if (swap && swap.phase == 'push' && !pushedStone.hidden) {
-                var at = elementCentre(pushedStone, this.goban_width/20);
+                var at = elementCentre(pushedStone, this.goban_width/20, gobanRect);
                 stones.push(this.looseStone(swap.displaced_src, swap.displaced_colour, at[0], at[1]));
                 // The board still records that stone at the point it is leaving.
                 this.stones_shown[swap.target] = 0;
@@ -519,7 +529,11 @@ export function GoClock(){
         }, this.twenty_four_hour, this.show_seconds);
     };
 
-    // Given board coordinates and a height, return the stone's pixel x, y, w, h
+    // Given board coordinates and a height, return the stone's pixel x, y, w, h.
+    // A lifted stone moves outward from the centre of the goban as it rises
+    // (see pixelStonePosition): only one lifted right over that centre point
+    // keeps its centre, so two stones lifted together off different points
+    // spread apart rather than growing into each other.
     this.stonePosition = function(x, y, height) {
         if (x <= -0.5 || x >= gridsize - 0.5 || y <= -0.5 || y >= gridsize - 0.5) {
             return;
@@ -527,10 +541,19 @@ export function GoClock(){
         if (height > maxLift) {
             height = maxLift;
         }
+        var scale = 1 + height/20;
         var xpos = minx*this.goban_width + x*(maxx-minx)*this.goban_width/(gridsize - 1);
-        var ypos = miny*this.goban_height - (height*this.goban_height/600) + y*(maxy-miny)*this.goban_height/(gridsize - 1);
-        var diameter = (this.goban_width/20) * (1 + height/20) | 0;
-        return [xpos - diameter/2 + this.x_offset | 0, ypos - diameter/2 + this.y_offset | 0, diameter, diameter];
+        var ypos = miny*this.goban_height + y*(maxy-miny)*this.goban_height/(gridsize - 1);
+        var cx = this.goban_width/2, cy = this.goban_height/2;
+        xpos = cx + (xpos - cx)*scale;
+        ypos = cy + (ypos - cy)*scale;
+        var diameter = (this.goban_width/20) * scale | 0;
+        // Rounded to the nearest pixel, not truncated: a stone at rest on
+        // a point sits at a coordinate that is itself very nearly a whole
+        // number, right on a truncation boundary, so `| 0` there would
+        // flip it a pixel low on the least float wobble - felt as a jump
+        // when the hand puts a stone back where it found it (hand.js).
+        return [Math.round(xpos - diameter/2 + this.x_offset), Math.round(ypos - diameter/2 + this.y_offset), diameter, diameter];
     };
     
     // A move towards the board the face wants for each hand that is free,

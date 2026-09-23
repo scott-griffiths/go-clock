@@ -245,11 +245,12 @@ function fly(clock, flight, onLand) {
 // finger or a sweep to take on (see dropHeldStones in go-clock.js).
 export function dropMagicStones(clock) {
     const stones = [];
+    const gobanRect = $('#goban').getBoundingClientRect();
     clock.magic_flights.forEach((flight) => {
         const element = flight.element;
-        cancelElementAnimations(element);
         const opacity = parseFloat(getComputedStyle(element).opacity);
-        const at = elementCentre(element, clock.goban_width/20);
+        const at = elementCentre(element, clock.goban_width/20, gobanRect);
+        cancelElementAnimations(element);
         element.remove();
         // One fading into the bowl, or not yet out of it, has gone.
         if (opacity > 0.5) {

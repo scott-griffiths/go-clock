@@ -182,7 +182,7 @@ export function fingerDown(clock, id, clientX, clientY) {
             if (colour == 0) {
                 continue;
             }
-            var at = elementCentre(element, diameter);
+            var at = elementCentre(element, diameter, rect);
             cancelElementAnimations(element);
             world.add(clock.looseStone(image.src, colour, at[0], at[1]));
             setVisible(element.querySelector('.stone-shadow'), false);
