@@ -1,0 +1,11 @@
+// Cloudflare Workers static-assets config. The site is `www/` as-is — no
+// build step, no package.json — so the Cloudflare project's build command
+// should be left blank. Deployed at goclock.brokensymmetry.co.uk.
+{
+  "name": "go-clock",
+  "compatibility_date": "2026-09-23",
+  "assets": {
+    "directory": "./www",
+    "not_found_handling": "single-page-application"
+  }
+}
