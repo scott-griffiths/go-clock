@@ -38,8 +38,10 @@ const nine = (x, top, h, w) => {
 };
 
 export const faceIcons = [
-    // Analogue: the hour hand towards ten, the minute hand nine past.
-    svg('<circle cx="12" cy="12" r="10"/><path d="M12 12l-4.1 -2.8M12 12l6.5 -4.7"/>'),
+    // Analogue: the hour hand towards ten, the minute hand nine past, in a
+    // ring of dots for the hours, as the jumping hour's (the solid ring is
+    // the clock's own icon, below).
+    svg(dots(12, 12, 9.75) + '<path d="M12 12l-4.1 -2.8M12 12l6 -4.3"/>'),
     // Jumping hour: ten lit on the ring, 09 within.
     svg(dots(12, 12, 9.75, {hollow: [10]}) + zero(7.7, 9, 6, 3.4) + nine(13, 9, 6, 3.4)),
     // Digital: 10 above, in the bigger figures, 09 below.
@@ -151,6 +153,11 @@ export const icons = {
     // The tools icon: a wrench, for what is done with the clock rather
     // than how it looks, in outline like the rest.
     tools: svg('<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94Z"/>'),
+    // The clock, as a tool beside the replay: a clock face, its hands at
+    // ten past ten, whichever face is showing.
+    clock: svg('<circle cx="12" cy="12" r="10"/><path d="M12 12l-4.1 -2.8M12 12l6.5 -4.7"/>'),
+    // The board's own settings: the goban, bare.
+    board: svg(miniGoban()),
     // A game replayed: the goban, with a play button over it.
     replay: svg(miniGoban() + '<path d="M8.75 7v10l8.25 -5Z" fill="currentColor" stroke="none"/>'),
     // The replay held, or playing: a play triangle, for the button that
@@ -162,10 +169,9 @@ export const icons = {
         svg('<path d="M4 9.25h3.4L12 5.25v13.5L7.4 14.75H4Z"/><path d="M15.5 9l5.5 5.5M21 9l-5.5 5.5"/>'),
         svg('<path d="M4 9.25h3.4L12 5.25v13.5L7.4 14.75H4Z"/><path d="M15.25 9.25a4.5 4.5 0 0 1 0 5.5M18 6.75a8 8 0 0 1 0 10.5"/>')
     ],
-    // The toggle for the rest of the row: a cross while they show, a
-    // menu's three bars while they are tucked away.
+    // The toggle for the rest of the row, while they show (tucked away, it
+    // wears the tool in use instead): a cross.
     close: svg('<path d="M6 6l12 12M18 6L6 18"/>'),
-    menu: svg('<path d="M4 7h16M4 12h16M4 17h16"/>'),
     // About: an "i" in a ring.
     about: svg('<circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7.5v.01"/>'),
     // The clock's hours, 12 or 24, in figures.

@@ -233,59 +233,85 @@ body {
     min-width: 0;
 }
 
-/* Tools (replay, settings, about) are not visual choices, so a wider gap
-   sets the tools button apart from the row of them, down the left in
-   landscape instead. */
+/* The tools (the hours, seconds, sound, and about) are not visual
+   settings, so in the board's menu a wider gap sets their button apart,
+   at the far left, from the board's own. */
 #tools-control {
-    margin-left: 14px;
+    margin-right: 8px;
 }
 
-@media (orientation: landscape) {
-    #tools-control {
-        margin-left: 0;
-        margin-top: 14px;
-    }
-}
-
-/* The hand's speed, the table and the wood: pinned by the board's top
-   right corner (my-clock.js places them), a row like the toolbar's, or a
-   column in landscape; fading with the toolbar's own row when that is
-   tucked away or brought back, as the replay's bar does. Under the
-   toolbar's own lists (20), over the replay's bar (15). */
-.visual-controls {
+/* The board's own menu, at the top right: its button, and the board's
+   settings coming out from under it leftwards along the row, as the
+   toolbar's own do rightwards, each dropping its choices beneath
+   (my-clock.js places them). Open one at a time with the toolbar's; it
+   stays when that is tucked away, dimming and waking with its toggle
+   (below), and full strength while open. */
+.board-control {
     position: fixed;
+    top: max(10px, env(safe-area-inset-top));
+    right: max(10px, env(safe-area-inset-right));
+    flex-direction: row-reverse;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.board-actions {
+    display: flex;
+    flex-direction: row-reverse;
+    align-items: center;
+    gap: 6px;
+}
+
+.board-actions > * {
+    position: relative;
     top: 0;
     left: 0;
-    z-index: 19;
-    display: flex;
-    gap: 6px;
-    transition: opacity 200ms ease, visibility 0s;
+    transition: left 280ms ease-in-out, top 280ms ease-in-out, opacity 200ms ease, visibility 0s;
 }
 
-.toolbar[data-collapsed="true"] ~ .visual-controls {
+.board-control[data-open="false"] .board-actions > * {
     visibility: hidden;
     opacity: 0;
-    transition: opacity 200ms ease, visibility 0s 200ms;
+    /* Back under the button: each its own distance to the right. */
+    left: calc((var(--i) + 1) * 48px);
+    transition: left 280ms ease-in-out, top 280ms ease-in-out, opacity 200ms ease 80ms, visibility 0s 280ms;
 }
 
+/* In landscape the board's menu runs down the right-hand side instead,
+   its settings coming out downwards from under its button (and their
+   choices opening out to the left, beside them: my-clock.js). */
 @media (orientation: landscape) {
-    .visual-controls {
+    .board-control,
+    .board-actions {
         flex-direction: column;
+    }
+
+    .board-control[data-open="false"] .board-actions > * {
+        top: calc((var(--i) + 1) * -48px);
+        left: 0;
     }
 }
 
 /* Out from under the toggle, showing as they go; and back the same way
-   in reverse, fading as they arrive. */
+   in reverse, fading as they arrive. Slid by a relative offset rather than
+   a transform: a transform would make each button the frame its fixed
+   list of choices is placed in (the faces), which would ride along with
+   the slide and then jump. */
 .toolbar-actions > * {
-    transition: transform 280ms ease-in-out, opacity 200ms ease, visibility 0s;
+    position: relative;
+    top: 0;
+    left: 0;
+    transition: left 280ms ease-in-out, top 280ms ease-in-out, opacity 200ms ease, visibility 0s;
 }
 
 .toolbar[data-collapsed="true"] .toolbar-actions > * {
     visibility: hidden;
     opacity: 0;
     /* Back under the toggle: each button its own distance to the left. */
-    transform: translateX(calc((var(--i) + 1) * -48px));
-    transition: transform 280ms ease-in-out, opacity 200ms ease 80ms, visibility 0s 280ms;
+    left: calc((var(--i) + 1) * -48px);
+    transition: left 280ms ease-in-out, top 280ms ease-in-out, opacity 200ms ease 80ms, visibility 0s 280ms;
 }
 
 .button {
@@ -320,8 +346,9 @@ body {
 }
 
 /* Tucked away, the toggle dims well down after a moment, so it is not
-   the first thing seen; a touch anywhere (my-clock.js sets `awake` for a
-   while) or a keyboard's focus brings it straight back. */
+   the first thing seen, and the board's own menu with it (unless that is
+   open); a touch anywhere (my-clock.js sets `awake` for a while) or a
+   keyboard's focus brings them straight back. */
 .toolbar[data-collapsed="true"] .menu-toggle {
     opacity: 0.2;
     transition: opacity 600ms ease 2s;
@@ -332,8 +359,16 @@ body {
     height: 22px;
 }
 
+.toolbar[data-collapsed="true"] ~ .board-control {
+    opacity: 0.2;
+    transition: opacity 600ms ease 2s;
+}
+
 .toolbar[data-collapsed="true"][data-awake="true"] .menu-toggle,
-.toolbar[data-collapsed="true"] .menu-toggle:focus-visible {
+.toolbar[data-collapsed="true"] .menu-toggle:focus-visible,
+.toolbar[data-collapsed="true"][data-awake="true"] ~ .board-control,
+.toolbar[data-collapsed="true"] ~ .board-control[data-open="true"],
+.toolbar[data-collapsed="true"] ~ .board-control:focus-within {
     opacity: 1;
     transition: opacity 150ms ease;
 }
@@ -382,7 +417,7 @@ body {
     outline-offset: -2px;
 }
 
-.setting-control[data-open="true"] .setting-summary {
+.setting-control[data-open="true"] > .setting-summary {
     background: rgb(255 255 255 / 0.93);
     color: #261917;
 }
@@ -697,7 +732,9 @@ body {
         gap: 4px;
     }
 
-    .replay-bar {
+    .replay-bar,
+    .board-control,
+    .board-actions {
         gap: 4px;
     }
 
@@ -707,6 +744,7 @@ body {
 
     .menu-toggle,
     .toolbar .setting-summary,
+    .board-control .setting-summary,
     .replay-bar .setting-summary {
         width: 38px;
         min-height: 38px;
@@ -747,7 +785,8 @@ body {
     }
 
     .toolbar[data-collapsed="true"] .toolbar-actions > * {
-        transform: translateY(calc((var(--i) + 1) * -48px));
+        top: calc((var(--i) + 1) * -48px);
+        left: 0;
     }
 
     .replay-bar {
@@ -779,7 +818,7 @@ body {
         outline-offset: -2px;
     }
 
-    .setting-control[data-open="true"] .setting-summary:hover {
+    .setting-control[data-open="true"] > .setting-summary:hover {
         background: white;
     }
 

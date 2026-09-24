@@ -33,7 +33,7 @@ const backgrounds = [
     {file: 'walnut.jpg', name: 'Wood', grip: 1, tile: 1.5},
     {file: 'turf.jpg', name: 'Grass', grip: 4, tile: 1.4},
     {file: 'ice.jpg', name: 'Ice', grip: 0.15, tile: 1.1, veil: 'rgb(178 196 200 / 0.55)'},
-    {file: 'water.jpg', name: 'Water', grip: 1, tile: 1.3, tint: '#123c5e', shimmer: 0.62, isWater: true},
+    {file: 'water.jpg', name: 'Water', grip: 1, tile: 1.3, tint: '#6fb4e6', shimmer: 0.62, isWater: true},
     {file: 'space.jpg', name: 'Space', grip: 1, isVoid: true}
 ];
 
@@ -470,7 +470,10 @@ window.addEventListener('load', () => {
         const maxX = window.innerWidth - margin - inset.right - width;
         const minY = margin + inset.top;
         const maxY = window.innerHeight - margin - inset.bottom - height;
-        const beside = control.parentElement.closest('.setting-options') || isLandscape();
+        // A list's submenu opens out beside it; a setting in a row (the
+        // board's) drops its choices beneath, as the row's own do.
+        const list = control.parentElement.closest('.setting-options');
+        const beside = isLandscape() || (list && !list.classList.contains('setting-options-row'));
         let left;
         let top;
         if (beside) {
@@ -484,7 +487,9 @@ window.addEventListener('load', () => {
             if (top > maxY) {
                 top = anchor.top - gap - height;
             }
-            left = anchor.left;
+            // The toolbar's second row starts under its first button, the
+            // toggle, whichever button opened it.
+            left = control.closest('#toolbar') ? menuToggle.getBoundingClientRect().left : anchor.left;
         }
         panel.style.left = `${Math.round(Math.max(minX, Math.min(maxX, left)))}px`;
         panel.style.top = `${Math.round(Math.max(minY, Math.min(maxY, top)))}px`;
@@ -521,16 +526,55 @@ window.addEventListener('load', () => {
         openControls = wanted;
     }
 
+    // The board's menu (index.html), a second toolbar at the bottom left:
+    // its button brings the board's settings out along the row, turning to
+    // a cross, and puts them back, as the toolbar's toggle does; a touch
+    // elsewhere puts them back too (closeOutside), but the toolbar's row
+    // being tucked away leaves them be.
+    const boardControl = $('#board-control');
+    const boardToggle = $('#board-toggle');
+    function setBoardOpen(open) {
+        if (!open && openControls[0]?.closest('#board-control')) {
+            setOpenControl(null);
+        }
+        // The board's menu and the toolbar's are one at a time.
+        if (open && toolbar.dataset.collapsed !== 'true') {
+            setCollapsed(true);
+        }
+        boardControl.dataset.open = String(open);
+        boardToggle.setAttribute('aria-expanded', String(open));
+        $('span', boardToggle).innerHTML = open ? icons.close : icons.board;
+    }
+
     // The controls tucked away behind their first button, or brought back;
     // remembered, like a setting.
-    function setCollapsed(collapsed) {
+    // Tucked away, the toggle wears the tool in use (the clock's face, or
+    // the replay while a game is on); brought back, a cross. Brought back
+    // by a tap, the tool's own row comes out with it: the faces, or the
+    // replay's play and line (which come and go with the row anyway).
+    function setCollapsed(collapsed, openTool = false) {
         setOpenControl(null);
+        // The toolbar's menu and the board's are one at a time.
+        if (!collapsed) {
+            setBoardOpen(false);
+        }
         toolbar.dataset.collapsed = collapsed ? 'true' : 'false';
         menuToggle.setAttribute('aria-expanded', String(!collapsed));
         menuToggle.title = collapsed ? 'Show the controls' : 'Hide the controls';
         menuToggle.setAttribute('aria-label', menuToggle.title);
-        $('span', menuToggle).innerHTML = collapsed ? icons.menu : icons.close;
+        showToggleIcon();
         writeSetting('menu', collapsed ? 0 : 1);
+        if (!collapsed && openTool && replayButton.getAttribute('aria-pressed') !== 'true') {
+            // With the row, not after it: its second row starts under the
+            // toggle, which does not move.
+            setOpenControl($('#face-control'));
+        }
+    }
+
+    function showToggleIcon() {
+        const collapsed = toolbar.dataset.collapsed === 'true';
+        const replaying = replayButton.getAttribute('aria-pressed') === 'true';
+        $('span', menuToggle).innerHTML = !collapsed ? icons.close : replaying ? icons.replay : icons.clock;
     }
 
     // A touch anywhere brings the tucked-away toggle back to full strength
@@ -588,7 +632,7 @@ window.addEventListener('load', () => {
     // information until it is let go: what an icon means, before (or
     // without) choosing it.
     function holdInfo(event) {
-        const held = event.isPrimary && event.target.closest?.('#toolbar [data-info], #replay-bar [data-info], #visual-controls [data-info]');
+        const held = event.isPrimary && event.target.closest?.('#toolbar [data-info], #replay-bar [data-info], #board-control [data-info]');
         if (held) {
             infoHeld = true;
             showInfo(held.dataset.info);
@@ -698,7 +742,10 @@ window.addEventListener('load', () => {
         view = wrap(index, views.length);
         goClock.view = view;
         showFace(view);
+        // The clock's button wears the clock, whichever face is showing.
+        $('.setting-icon', summaryOf($('#face-control'))).innerHTML = icons.clock;
         writeSetting('view', view);
+        showToggleIcon();
     }
 
     function setBackground(index) {
@@ -777,19 +824,22 @@ window.addEventListener('load', () => {
     // The clock and a game replayed on the board (replay.js) are one or
     // the other, like radio buttons: the face's button is pressed while the
     // board is the clock's, and the replay's while a game is on it. The
-    // replay's starts a game, picked at random; the face's, while a game
-    // is on, stops it and gives the board back to the clock (and only
-    // once it has the board opens the faces). The game is named as it
-    // starts, and its result given as it ends.
+    // replay's starts a game, picked at random; the face's opens the faces,
+    // and while a game is on stops it and gives the board back to the
+    // clock. The game is named as it starts, and its result given as it
+    // ends.
     const faceSummary = summaryOf($('#face-control'));
     function setReplaying(on) {
         replayButton.setAttribute('aria-pressed', String(on));
         faceSummary.setAttribute('aria-pressed', String(!on));
+        showToggleIcon();
     }
-    // Ahead of the button's own opening of the faces.
+    // Instead of the button's own opening and closing of the faces: chosen,
+    // the clock always shows them.
     faceSummary.addEventListener('click', (event) => {
+        event.stopImmediatePropagation();
+        setOpenControl($('#face-control'));
         if (goClock.replay) {
-            event.stopImmediatePropagation();
             cancelReplay(goClock);
             // At once, though the clock may take the board back only once
             // the hands have landed what they carry.
@@ -800,8 +850,8 @@ window.addEventListener('load', () => {
 
     // The replay's bar (index.html): play or pause, next to the game's
     // line, with a marker at the move the board shows, which can be dragged
-    // to any move. It sits in the row beneath the toolbar's, from under the
-    // replay button to the board's right edge (in landscape, beside the
+    // to any move. It sits in the row beneath the toolbar's, from under its
+    // first button to the board's right edge (in landscape, beside the
     // button, running down to the board's foot), while a game is running, and comes and
     // goes with the toolbar's own row when that is tucked away or brought
     // back (the CSS, keyed off the toolbar's data-collapsed).
@@ -826,32 +876,14 @@ window.addEventListener('load', () => {
                 height: `${Math.round(board.bottom - button.top)}px`
             });
         } else {
+            // The toolbar's second row, from under its first button.
+            const left = menuToggle.getBoundingClientRect().left;
             Object.assign(replayBar.style, {
-                left: `${Math.round(button.left)}px`,
+                left: `${Math.round(left)}px`,
                 top: `${Math.round(button.bottom + gap)}px`,
-                width: `${Math.round(board.right - button.left)}px`,
+                width: `${Math.round(board.right - left)}px`,
                 height: ''
             });
-        }
-    }
-
-    // The hand's speed, the table and the wood (index.html): their row's
-    // right end over the board's right edge, just clear of its top; in
-    // landscape, their column down from the board's top, just clear of its
-    // right edge.
-    const visualControls = $('#visual-controls');
-    function placeVisualControls() {
-        const board = $('#goban-image')?.getBoundingClientRect();
-        if (!board) {
-            return;
-        }
-        const gap = 10;
-        if (isLandscape()) {
-            visualControls.style.left = `${Math.round(board.right + gap)}px`;
-            visualControls.style.top = `${Math.round(board.top)}px`;
-        } else {
-            visualControls.style.left = `${Math.round(board.right - visualControls.offsetWidth)}px`;
-            visualControls.style.top = `${Math.round(board.top - gap - visualControls.offsetHeight)}px`;
         }
     }
 
@@ -1034,7 +1066,6 @@ window.addEventListener('load', () => {
         setWood(wood);
         sizeBackground();
         placeReplayBar();
-        placeVisualControls();
         if (!info.hidden) {
             placeInfo();
         }
@@ -1069,6 +1100,8 @@ window.addEventListener('load', () => {
 
     $('#replay .setting-icon').innerHTML = icons.replay;
     $('#tools-control .setting-icon').innerHTML = icons.tools;
+    setBoardOpen(false);
+    boardToggle.addEventListener('click', () => setBoardOpen(boardControl.dataset.open !== 'true'));
     $('#about .setting-icon').innerHTML = icons.about;
     setClockSpeed(stoneSpeed);
     setView(view);
@@ -1151,8 +1184,20 @@ window.addEventListener('load', () => {
             return;
         }
         // The innermost open list that was touched stays, with its
-        // parents; a touch outside them all closes everything.
-        setOpenControl(openControls.findLast((c) => c.contains(event.target)) ?? null);
+        // parents; a touch outside them all closes everything. The
+        // toolbar's toggle opens and closes its own (setCollapsed).
+        if (!menuToggle.contains(event.target)) {
+            setOpenControl(openControls.findLast((c) => c.contains(event.target)) ?? null);
+        }
+        if (boardControl.dataset.open === 'true' && !boardControl.contains(event.target)) {
+            setBoardOpen(false);
+        }
+        // Likewise the toolbar's own row, and the replay's with it.
+        if (toolbar.dataset.collapsed !== 'true' && !toolbar.contains(event.target)
+            && !$('#replay-bar').contains(event.target) && !aboutBox.contains(event.target)
+            && !boardControl.contains(event.target)) {
+            setCollapsed(true);
+        }
         if (!aboutBox.hidden && !aboutBox.contains(event.target) && !aboutButton.contains(event.target)) {
             hideAbout();
         }
@@ -1195,7 +1240,7 @@ window.addEventListener('load', () => {
         showInfo(secondsButton.dataset.info);
         goClock.transform();
     });
-    menuToggle.addEventListener('click', () => setCollapsed(toolbar.dataset.collapsed !== 'true'));
+    menuToggle.addEventListener('click', () => setCollapsed(toolbar.dataset.collapsed !== 'true', true));
     aboutButton.addEventListener('click', () => {
         setOpenControl(null);
         if (aboutBox.hidden) {
@@ -1205,7 +1250,9 @@ window.addEventListener('load', () => {
         }
     });
     // Each button's place in the row, for the slide in and out.
-    $$('#toolbar-actions > *').forEach((child, index) => child.style.setProperty('--i', String(index)));
+    $$('#toolbar-actions > *, #board-actions > *').forEach((child) => {
+        child.style.setProperty('--i', String([...child.parentElement.children].indexOf(child)));
+    });
 
     resizeClock();
     // The controls as they were left: up, the first time.
