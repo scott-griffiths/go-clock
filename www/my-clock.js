@@ -276,7 +276,6 @@ window.addEventListener('load', () => {
     let infoTimer = null;
     // The button or choice a finger (or pointer) is holding down, whose
     // line of information stays until it lets go.
-    let infoHeld = false;
     let toggleWakeTimer = null;
     // The settings whose choices are showing, outermost first: a submenu
     // is open only while the list it is in is.
@@ -344,8 +343,7 @@ window.addEventListener('load', () => {
     // there is one, and what it does. `iconOnly` (a row's choices) wears
     // the icon alone, its name left to the accessible label. Choosing
     // closes the lists, unless `keepOpen`, and a keyboard lands back on
-    // the button that opened them. A setting's choice shows its `info`
-    // once chosen (and while held, see holdInfo).
+    // the button that opened them.
     function addChoice(options, summary, {label, value, icon, onChoose, keepOpen = false, iconOnly = false, info = null}) {
         const button = document.createElement('button');
         button.type = 'button';
@@ -365,9 +363,6 @@ window.addEventListener('load', () => {
         }
         button.addEventListener('click', (event) => {
             onChoose();
-            if (info) {
-                showInfo(info);
-            }
             if (keepOpen) {
                 return;
             }
@@ -631,8 +626,8 @@ window.addEventListener('load', () => {
 
     // The one line of information, on the board's top edge (see index.html):
     // `text`, under an `icon` (a replayed game's shelf) if there is one,
-    // for `stay` milliseconds, or for as long as a button or choice is
-    // held down and then that long.
+    // for `stay` milliseconds. For now, only a replayed game's own: its
+    // name, and its result.
     function showInfo(text, {icon = '', stay = 1600} = {}) {
         $('#info-icon').innerHTML = icon;
         $('#info-text').textContent = text;
@@ -641,19 +636,12 @@ window.addEventListener('load', () => {
         info.style.opacity = '1';
         info.hidden = false;
         placeInfo();
-        info.dataset.stay = String(stay);
-        if (!infoHeld) {
-            fadeInfoLater();
-        }
+        infoTimer = window.setTimeout(() => fadeTo(info, 0, 400), stay);
     }
 
-    function fadeInfoLater() {
-        window.clearTimeout(infoTimer);
-        infoTimer = window.setTimeout(() => fadeTo(info, 0, 400), Number(info.dataset.stay));
-    }
-
-    // Centred on the board's top edge, but kept on the screen (in
-    // landscape the board reaches nearly to the top of it).
+    // Centred over the board: in portrait just above its top edge, clear
+    // of the stones; in landscape, where the board reaches nearly to the
+    // top of the screen, on the edge, kept on the screen.
     function placeInfo() {
         const board = $('#goban-image')?.getBoundingClientRect();
         if (!board) {
@@ -663,31 +651,12 @@ window.addEventListener('load', () => {
         const height = info.offsetHeight;
         const margin = 10;
         const inset = safeInsets();
-        const top = Math.max(board.top - height/2, 4 + inset.top);
+        const portrait = window.innerHeight > window.innerWidth;
+        const top = Math.max(board.top - (portrait ? height + 8 : height/2), 4 + inset.top);
         const centre = board.left + board.width/2;
         const left = Math.max(margin + inset.left + width/2, Math.min(window.innerWidth - margin - inset.right - width/2, centre));
         info.style.top = `${Math.round(top)}px`;
         info.style.left = `${Math.round(left)}px`;
-    }
-
-    // A setting's button or choice held down shows its line of
-    // information until it is let go: what an icon means, before (or
-    // without) choosing it.
-    function holdInfo(event) {
-        const held = event.isPrimary && event.target.closest?.('#toolbar [data-info], #replay-bar [data-info], #board-control [data-info]');
-        if (held) {
-            infoHeld = true;
-            showInfo(held.dataset.info);
-        }
-    }
-
-    function releaseInfo() {
-        if (infoHeld) {
-            infoHeld = false;
-            if (!info.hidden) {
-                fadeInfoLater();
-            }
-        }
     }
 
     const showFace = createSettingControl('face', views, views, (index) => {
@@ -1005,10 +974,10 @@ window.addEventListener('load', () => {
 
     function startGame() {
         const icon = icons.replay;
-        const began = startReplay(goClock, loadGame(`games/${nextGameFile()}`), {
+        const loading = loadGame(`games/${nextGameFile()}`);
+        const began = startReplay(goClock, loading, {
             onStart: (game) => {
                 showReplayProgress(0, game.moves.length);
-                showInfo(gameTitle(game.info), {icon, stay: 8000});
             },
             onProgress: showReplayProgress,
             // Held at its last move rather than handed back to the clock:
@@ -1027,11 +996,18 @@ window.addEventListener('load', () => {
                 replayBar.hidden = true;
                 if (error) {
                     console.error('The game could not be replayed', error);
-                    showInfo('No game to replay', {icon});
                 }
             }
         });
         if (began) {
+            // Named as soon as the record is in, while the board is still
+            // being cleared for it.
+            const replay = goClock.replay;
+            loading.then((game) => {
+                if (goClock.replay === replay) {
+                    showInfo(gameTitle(game.info), {icon, stay: 10000});
+                }
+            }, () => {});
             setReplaying(true);
             replayPaused = false;
             playReplay();
@@ -1056,12 +1032,10 @@ window.addEventListener('load', () => {
         setView(view + step);
         cancelReplay(goClock);
         goClock.transform();
-        showInfo(summaryOf($('#face-control')).dataset.info);
     }
 
     function changeBackground(step) {
         setBackground(background + step);
-        showInfo(summaryOf($('#background-control')).dataset.info);
     }
 
     // What the board shows, for assistive tech: a grid of stones means
@@ -1198,7 +1172,6 @@ window.addEventListener('load', () => {
         ArrowUp: () => changeBackground(-1),
         m: () => {
             setSound(sound === 1 ? 0 : 1);
-            showInfo(muteButton.dataset.info);
         },
         r: toggleReplay,
         i: () => aboutButton.click()
@@ -1249,15 +1222,11 @@ window.addEventListener('load', () => {
     document.addEventListener('touchstart', closeOutside, {passive: true});
     document.addEventListener('click', closeOutside);
     document.addEventListener('pointerdown', wakeToggle);
-    document.addEventListener('pointerdown', holdInfo);
-    document.addEventListener('pointerup', releaseInfo);
-    document.addEventListener('pointercancel', releaseInfo);
     document.addEventListener('touchstart', wakeToggle, {passive: true});
 
     openOnClick($('#tools-control'));
     muteButton.addEventListener('click', () => {
         setSound(sound === 1 ? 0 : 1);
-        showInfo(muteButton.dataset.info);
     });
     replayButton.addEventListener('click', () => {
         if (!goClock.replay) {
@@ -1271,16 +1240,13 @@ window.addEventListener('load', () => {
         }
         replayPaused = !replayPaused;
         playReplay();
-        showInfo(playButton.dataset.info);
     });
     modeButton.addEventListener('click', () => {
         setMode(mode === 1 ? 0 : 1);
-        showInfo(modeButton.dataset.info);
         goClock.transform();
     });
     secondsButton.addEventListener('click', () => {
         setSeconds(showSeconds === 1 ? 0 : 1);
-        showInfo(secondsButton.dataset.info);
         goClock.transform();
     });
     menuToggle.addEventListener('click', () => setCollapsed(toolbar.dataset.collapsed !== 'true', true));

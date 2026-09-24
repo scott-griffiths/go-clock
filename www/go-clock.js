@@ -414,7 +414,9 @@ export function GoClock(){
         }
         this.window_width = width;
         this.window_height = height;
-        this.goban_width = width * 0.95 | 0; // Some padding to show background
+        // Some padding to show background: in portrait, where the board
+        // spans the width, twice as much down its sides.
+        this.goban_width = width * (height > width ? 0.9 : 0.95) | 0;
         this.goban_height = height * 0.95 | 0;
         var goban_ratio = 857/800; // Ratio of the goban image
 
