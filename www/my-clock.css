@@ -275,7 +275,7 @@ body {
     visibility: hidden;
     opacity: 0;
     /* Back under the button: each its own distance to the right. */
-    left: calc((var(--i) + 1) * 48px);
+    left: calc(var(--i) * 48px);
     transition: left 280ms ease-in-out, top 280ms ease-in-out, opacity 200ms ease 80ms, visibility 0s 280ms;
 }
 
@@ -289,7 +289,7 @@ body {
     }
 
     .board-control[data-open="false"] .board-actions > * {
-        top: calc((var(--i) + 1) * -48px);
+        top: calc(var(--i) * -48px);
         left: 0;
     }
 }
@@ -310,7 +310,7 @@ body {
     visibility: hidden;
     opacity: 0;
     /* Back under the toggle: each button its own distance to the left. */
-    left: calc((var(--i) + 1) * -48px);
+    left: calc(var(--i) * -48px);
     transition: left 280ms ease-in-out, top 280ms ease-in-out, opacity 200ms ease 80ms, visibility 0s 280ms;
 }
 
@@ -339,6 +339,30 @@ body {
     opacity: 0.85;
 }
 
+/* Each menu's button sits over the first of its row's places; open, it
+   goes, and the row's first button comes out in its place (my-clock.js
+   puts the tool the button wore first), the rest sliding out beyond. A
+   touch anywhere else puts the row back. */
+.toolbar .menu-toggle {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1;
+}
+
+#board-toggle {
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 1;
+}
+
+.toolbar[data-collapsed="false"] .menu-toggle,
+.board-control[data-open="true"] #board-toggle {
+    visibility: hidden;
+    pointer-events: none;
+}
+
 .menu-toggle svg {
     display: block;
     width: 18px;
@@ -348,9 +372,10 @@ body {
 /* Tucked away, the toggle dims well down after a moment, so it is not
    the first thing seen, and the board's own menu with it (unless that is
    open); a touch anywhere (my-clock.js sets `awake` for a while) or a
-   keyboard's focus brings them straight back. */
+   keyboard's focus brings them straight back. Whichever of the two menus
+   is open, the other's button dims at once, touch or no. */
 .toolbar[data-collapsed="true"] .menu-toggle {
-    opacity: 0.2;
+    opacity: 0.45;
     transition: opacity 600ms ease 2s;
 }
 
@@ -360,7 +385,7 @@ body {
 }
 
 .toolbar[data-collapsed="true"] ~ .board-control {
-    opacity: 0.2;
+    opacity: 0.45;
     transition: opacity 600ms ease 2s;
 }
 
@@ -370,6 +395,12 @@ body {
 .toolbar[data-collapsed="true"] ~ .board-control[data-open="true"],
 .toolbar[data-collapsed="true"] ~ .board-control:focus-within {
     opacity: 1;
+    transition: opacity 150ms ease;
+}
+
+.toolbar[data-board-open="true"] .menu-toggle:not(:focus-visible),
+.toolbar[data-collapsed="false"] ~ .board-control:not(:focus-within) {
+    opacity: 0.45;
     transition: opacity 150ms ease;
 }
 
@@ -785,7 +816,7 @@ body {
     }
 
     .toolbar[data-collapsed="true"] .toolbar-actions > * {
-        top: calc((var(--i) + 1) * -48px);
+        top: calc(var(--i) * -48px);
         left: 0;
     }
 

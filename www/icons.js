@@ -169,9 +169,6 @@ export const icons = {
         svg('<path d="M4 9.25h3.4L12 5.25v13.5L7.4 14.75H4Z"/><path d="M15.5 9l5.5 5.5M21 9l-5.5 5.5"/>'),
         svg('<path d="M4 9.25h3.4L12 5.25v13.5L7.4 14.75H4Z"/><path d="M15.25 9.25a4.5 4.5 0 0 1 0 5.5M18 6.75a8 8 0 0 1 0 10.5"/>')
     ],
-    // The toggle for the rest of the row, while they show (tucked away, it
-    // wears the tool in use instead): a cross.
-    close: svg('<path d="M6 6l12 12M18 6L6 18"/>'),
     // About: an "i" in a ring.
     about: svg('<circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7.5v.01"/>'),
     // The clock's hours, 12 or 24, in figures.

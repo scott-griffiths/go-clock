@@ -527,8 +527,8 @@ window.addEventListener('load', () => {
     }
 
     // The board's menu (index.html), a second toolbar at the bottom left:
-    // its button brings the board's settings out along the row, turning to
-    // a cross, and puts them back, as the toolbar's toggle does; a touch
+    // its button brings the board's settings out along the row,
+    // and puts them back, as the toolbar's toggle does; a touch
     // elsewhere puts them back too (closeOutside), but the toolbar's row
     // being tucked away leaves them be.
     const boardControl = $('#board-control');
@@ -543,13 +543,14 @@ window.addEventListener('load', () => {
         }
         boardControl.dataset.open = String(open);
         boardToggle.setAttribute('aria-expanded', String(open));
-        $('span', boardToggle).innerHTML = open ? icons.close : icons.board;
+        toolbar.dataset.boardOpen = String(open);
+        $('span', boardToggle).innerHTML = icons.board;
     }
 
     // The controls tucked away behind their first button, or brought back;
     // remembered, like a setting.
-    // Tucked away, the toggle wears the tool in use (the clock's face, or
-    // the replay while a game is on); brought back, a cross. Brought back
+    // The toggle wears the tool in use (the clock's face, or the replay
+    // while a game is on), open or tucked away. Brought back
     // by a tap, the tool's own row comes out with it: the faces, or the
     // replay's play and line (which come and go with the row anyway).
     function setCollapsed(collapsed, openTool = false) {
@@ -557,6 +558,9 @@ window.addEventListener('load', () => {
         // The toolbar's menu and the board's are one at a time.
         if (!collapsed) {
             setBoardOpen(false);
+        }
+        if (!collapsed) {
+            leadWithCurrentTool();
         }
         toolbar.dataset.collapsed = collapsed ? 'true' : 'false';
         menuToggle.setAttribute('aria-expanded', String(!collapsed));
@@ -571,10 +575,48 @@ window.addEventListener('load', () => {
         }
     }
 
+    // Brought back, the row's first button comes out in the toggle's place
+    // (the toggle itself goes), so the tool the toggle wore goes first and
+    // stays where it was: the replay while a game is on, else the face.
+    // Chosen while the row is out, the other tool moves up to the front,
+    // sliding across as the ones it passes slide along.
+    function leadWithCurrentTool() {
+        const replaying = replayButton.getAttribute('aria-pressed') === 'true';
+        const lead = replaying ? replayButton : $('#face-control');
+        const row = $('#toolbar-actions');
+        if (row.firstElementChild === lead) {
+            return;
+        }
+        const children = [...row.children];
+        const before = children.map((child) => child.getBoundingClientRect());
+        row.prepend(lead);
+        numberRow(row);
+        if (toolbar.dataset.collapsed === 'true') {
+            return;
+        }
+        children.forEach((child, i) => {
+            const after = child.getBoundingClientRect();
+            child.style.transition = 'none';
+            child.style.left = `${before[i].left - after.left}px`;
+            child.style.top = `${before[i].top - after.top}px`;
+        });
+        row.getBoundingClientRect();
+        children.forEach((child) => {
+            child.style.transition = '';
+            child.style.left = '';
+            child.style.top = '';
+        });
+    }
+
+    // Each button's place in its row, for the slide in and out.
+    function numberRow(row) {
+        [...row.children].forEach((child, i) => child.style.setProperty('--i', String(i)));
+    }
+
     function showToggleIcon() {
         const collapsed = toolbar.dataset.collapsed === 'true';
         const replaying = replayButton.getAttribute('aria-pressed') === 'true';
-        $('span', menuToggle).innerHTML = !collapsed ? icons.close : replaying ? icons.replay : icons.clock;
+        $('span', menuToggle).innerHTML = replaying ? icons.replay : icons.clock;
     }
 
     // A touch anywhere brings the tucked-away toggle back to full strength
@@ -833,6 +875,7 @@ window.addEventListener('load', () => {
         replayButton.setAttribute('aria-pressed', String(on));
         faceSummary.setAttribute('aria-pressed', String(!on));
         showToggleIcon();
+        leadWithCurrentTool();
     }
     // Instead of the button's own opening and closing of the faces: chosen,
     // the clock always shows them.
@@ -1249,10 +1292,8 @@ window.addEventListener('load', () => {
             hideAbout();
         }
     });
-    // Each button's place in the row, for the slide in and out.
-    $$('#toolbar-actions > *, #board-actions > *').forEach((child) => {
-        child.style.setProperty('--i', String([...child.parentElement.children].indexOf(child)));
-    });
+    numberRow($('#toolbar-actions'));
+    numberRow($('#board-actions'));
 
     resizeClock();
     // The controls as they were left: up, the first time.
