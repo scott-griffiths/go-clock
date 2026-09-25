@@ -164,6 +164,12 @@ export const icons = {
     // the button beside that, and the hand a third of the way round.
     stopwatch: svg('<circle cx="12" cy="13.5" r="8"/><path d="M12 5.5V3M9.5 2.5h5M17.7 7.8l1.4 -1.4"/>'
         + '<path d="M12 13.5l3.9 -2.25"/><circle cx="12" cy="13.5" r="1" fill="currentColor" stroke="none"/>'),
+    // The gallery: a picture in its frame, of a sun over the hills.
+    gallery: svg('<rect x="3" y="4.5" width="18" height="15" rx="1.5"/><circle cx="15.5" cy="9" r="1.6"/>'
+        + '<path d="M3.5 17l5 -5 4 4 2.5 -2.5 5.5 5"/>'),
+    // Back a picture, and on one: a bar and a triangle pointing at it.
+    back: svg('<path d="M6.5 6v12" stroke-width="2"/><path d="M18 5.5v13L8.5 12Z" fill="currentColor" stroke="none"/>'),
+    next: svg('<path d="M17.5 6v12" stroke-width="2"/><path d="M6 5.5v13L15.5 12Z" fill="currentColor" stroke="none"/>'),
     // The stopwatch put back to nothing: an arrow round anticlockwise.
     reset: svg('<path d="M5.2 15.5a7.5 7.5 0 1 0 1.1 -8.3L3.5 10"/><path d="M3.5 5v5h5"/>'),
     // The replay held, or playing: a play triangle, for the button that

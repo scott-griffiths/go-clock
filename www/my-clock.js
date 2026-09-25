@@ -3,6 +3,7 @@ import {Sounds} from './sounds.js';
 import {preloadTumbleSheets} from './flight.js';
 import {startReplay, cancelReplay, setReplayRate, seekReplay, loadGame, nextGameFile} from './replay.js';
 import {Stopwatch} from './stopwatch.js';
+import {pictureBoard, shuffledPictures} from './gallery.js';
 import {gameTitle, gameResult} from './sgf.js';
 import {faceIcons, speedIcons, precisionIcons, backgroundIcons, woodIcons, icons} from './icons.js';
 import {computerBoardSrc, gobanImageSrc, setFlatStones, stoneImageSrc, colourOfImage} from './stone-dom.js';
@@ -275,7 +276,8 @@ window.addEventListener('load', () => {
     // it is started, stopped or reset, so one left running is still
     // running after a reload, or the app being closed and opened again.
     const stopwatch = Stopwatch.fromJSON(readJSON('stopwatch'));
-    // The tool on the board: 'clock', 'stopwatch' or 'replay' (setTool).
+    // The tool on the board: 'clock', 'stopwatch', 'replay' or 'gallery'
+    // (setTool).
     let tool = 'clock';
     const sounds = new Sounds();
 
@@ -287,6 +289,7 @@ window.addEventListener('load', () => {
     const muteButton = $('#mute');
     const replayButton = $('#replay');
     const stopwatchButton = $('#stopwatch');
+    const galleryButton = $('#gallery');
     const info = $('#info');
     const aboutButton = $('#about');
     const aboutBox = $('#about_box');
@@ -593,10 +596,10 @@ window.addEventListener('load', () => {
     // Brought back, the row's first button comes out in the toggle's place
     // (the toggle itself goes), so the tool the toggle wore goes first and
     // stays where it was, the others after it in their usual order: the
-    // clock, the stopwatch, the replay. Chosen while the row is out, a
+    // clock, the stopwatch, the replay, the gallery. Chosen while the row is out, a
     // tool moves up to the front, sliding across as the ones it passes
     // slide along.
-    const toolsInRow = {clock: $('#face-control'), stopwatch: stopwatchButton, replay: replayButton};
+    const toolsInRow = {clock: $('#face-control'), stopwatch: stopwatchButton, replay: replayButton, gallery: galleryButton};
     function leadWithCurrentTool() {
         const lead = toolsInRow[tool];
         const order = [lead, ...Object.values(toolsInRow).filter((element) => element !== lead)];
@@ -646,8 +649,9 @@ window.addEventListener('load', () => {
 
     // The one line of information, on the board's top edge (see index.html):
     // `text`, under an `icon` (a replayed game's shelf) if there is one,
-    // for `stay` milliseconds. For now, only a replayed game's own: its
-    // name, and its result.
+    // for `stay` milliseconds, or until hideInfo if that is null. For now,
+    // only a replayed game's own (its name, and its result), and the name
+    // of the picture the gallery is showing.
     function showInfo(text, {icon = '', stay = 1600} = {}) {
         $('#info-icon').innerHTML = icon;
         $('#info-text').textContent = text;
@@ -656,7 +660,16 @@ window.addEventListener('load', () => {
         info.style.opacity = '1';
         info.hidden = false;
         placeInfo();
-        infoTimer = window.setTimeout(() => fadeTo(info, 0, 400), stay);
+        if (stay !== null) {
+            infoTimer = window.setTimeout(() => fadeTo(info, 0, 400), stay);
+        }
+    }
+
+    function hideInfo() {
+        window.clearTimeout(infoTimer);
+        if (!info.hidden) {
+            fadeTo(info, 0, 400);
+        }
     }
 
     // Centred over the board: in portrait just above its top edge, clear
@@ -853,8 +866,8 @@ window.addEventListener('load', () => {
         }
     }
 
-    // The clock, the stopwatch and a game replayed on the board
-    // (replay.js) are one at a time, like radio buttons: the face's button
+    // The clock, the stopwatch, a game replayed on the board (replay.js)
+    // and the gallery are one at a time, like radio buttons: the face's button
     // is pressed while the board is the clock's, the stopwatch's while it
     // shows the stopwatch, and the replay's while a game is on it. The
     // replay's starts a game, picked at random; the face's opens the
@@ -863,18 +876,30 @@ window.addEventListener('load', () => {
     // which runs on to be found where it has got to. The game is named as
     // it starts, and its result given as it ends.
     const faceSummary = summaryOf($('#face-control'));
-    const toolButtons = {clock: faceSummary, stopwatch: stopwatchButton, replay: replayButton};
+    const toolButtons = {clock: faceSummary, stopwatch: stopwatchButton, replay: replayButton, gallery: galleryButton};
     // The tool in use: its button pressed, worn by the toggle and first in
     // the row, and its own row beneath (the replay's bar, the stopwatch's
     // buttons) out with the toolbar's; the board shows the stopwatch while
     // that is the tool. Remembered, but a game is not taken up again: on
     // a reload that is the clock.
     function setTool(name) {
+        const previous = tool;
         tool = name;
         Object.entries(toolButtons).forEach(([key, button]) => button.setAttribute('aria-pressed', String(key === name)));
         goClock.stopwatch = name === 'stopwatch' ? stopwatch : null;
         replayBar.hidden = name !== 'replay';
         stopwatchBar.hidden = name !== 'stopwatch';
+        galleryBar.hidden = name !== 'gallery';
+        if (name === 'gallery') {
+            showPicture();
+        } else {
+            goClock.picture = null;
+            window.clearTimeout(galleryTimer);
+            galleryTimer = null;
+            if (previous === 'gallery') {
+                hideInfo();
+            }
+        }
         writeSetting('tool', name);
         showToggleIcon();
         leadWithCurrentTool();
@@ -938,6 +963,7 @@ window.addEventListener('load', () => {
     function placeToolBars() {
         placeToolBar(replayBar, true);
         placeToolBar(stopwatchBar, false);
+        placeToolBar(galleryBar, false);
     }
 
     // The stopwatch's buttons (index.html), as a stopwatch has them: start
@@ -980,6 +1006,54 @@ window.addEventListener('load', () => {
         }
         stopwatchChanged();
     }
+
+    // The gallery (gallery.js): its pictures in an order shuffled afresh
+    // each time the page opens, one on the board at a time and named on
+    // its top edge while it is. Playing, the hands make each picture, it
+    // stays for half a minute once made, and the next is begun; paused,
+    // the picture stays. Back and on move a picture either way, playing
+    // or not, and the hands start on it at once.
+    const galleryBar = $('#gallery-bar');
+    const galleryBack = $('#gallery-back');
+    const galleryPlay = $('#gallery-play');
+    const galleryNext = $('#gallery-next');
+    const galleryPictures = shuffledPictures();
+    const galleryWait = 30000;
+    let galleryIndex = 0;
+    let galleryPlaying = true;
+    let galleryTimer = null;
+
+    function showPicture() {
+        const picture = galleryPictures[galleryIndex];
+        goClock.picture = pictureBoard(picture);
+        window.clearTimeout(galleryTimer);
+        galleryTimer = null;
+        showInfo(picture.name, {icon: icons.gallery, stay: null});
+    }
+
+    function stepGallery(step) {
+        galleryIndex = wrap(galleryIndex + step, galleryPictures.length);
+        showPicture();
+        goClock.transform();
+    }
+
+    function showGalleryPlay() {
+        const label = galleryPlaying ? 'Pause' : 'Play';
+        galleryPlay.title = label;
+        galleryPlay.setAttribute('aria-label', label);
+        $('.setting-icon', galleryPlay).innerHTML = galleryPlaying ? icons.pause : icons.play;
+    }
+
+    // The hands have made the picture (go-clock.js): the wait before the
+    // next, if the gallery is playing and not already waiting.
+    goClock.onFinished = () => {
+        if (tool === 'gallery' && galleryPlaying && galleryTimer === null) {
+            galleryTimer = window.setTimeout(() => {
+                galleryTimer = null;
+                stepGallery(1);
+            }, galleryWait);
+        }
+    };
 
     // The replay's bar (index.html): play or pause, next to the game's
     // line, with a marker at the move the board shows, which can be dragged
@@ -1234,7 +1308,8 @@ window.addEventListener('load', () => {
     setSound(sound);
     // The clock, or the stopwatch if that was on the board when the page
     // was last shut.
-    setTool(readSetting('tool') === 'stopwatch' ? 'stopwatch' : 'clock');
+    const storedTool = readSetting('tool');
+    setTool(storedTool === 'stopwatch' || storedTool === 'gallery' ? storedTool : 'clock');
     goClock.haptic = haptic;
 
     // The hand: up to two fingers on the board or its surround are the
@@ -1328,6 +1403,7 @@ window.addEventListener('load', () => {
         // Likewise the toolbar's own row, and the tool's with it.
         if (toolbar.dataset.collapsed !== 'true' && !toolbar.contains(event.target)
             && !replayBar.contains(event.target) && !stopwatchBar.contains(event.target)
+            && !galleryBar.contains(event.target)
             && !aboutBox.contains(event.target) && !boardControl.contains(event.target)) {
             setCollapsed(true);
         }
@@ -1349,6 +1425,21 @@ window.addEventListener('load', () => {
         if (!goClock.replay) {
             startGame();
         }
+    });
+    $('#gallery .setting-icon').innerHTML = icons.gallery;
+    $('.setting-icon', galleryBack).innerHTML = icons.back;
+    $('.setting-icon', galleryNext).innerHTML = icons.next;
+    showGalleryPlay();
+    galleryButton.addEventListener('click', () => useTool('gallery'));
+    galleryBack.addEventListener('click', () => stepGallery(-1));
+    galleryNext.addEventListener('click', () => stepGallery(1));
+    galleryPlay.addEventListener('click', () => {
+        galleryPlaying = !galleryPlaying;
+        showGalleryPlay();
+        window.clearTimeout(galleryTimer);
+        galleryTimer = null;
+        // Played again with the picture made: the wait starts now.
+        goClock.transform();
     });
     stopwatchButton.addEventListener('click', (event) => {
         useTool('stopwatch');

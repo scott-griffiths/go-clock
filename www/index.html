@@ -41,8 +41,8 @@
                      Choosing a face, a speed, a precision, a background
                      or a board leaves the list open, rather than closing it
                      as most choices do, so several can be tried in a row.
-                     Next, the stopwatch, and a game replayed: the three
-                     tools, one on the board at a time.
+                     Next, the stopwatch, a game replayed, and the gallery:
+                     the four tools, one on the board at a time.
                      Along the top of the screen in portrait; down the left in
                      landscape, where the board leaves the sides free. -->
                 <button id="menu-toggle" class="button menu-toggle" type="button" title="Hide the controls" aria-label="Hide the controls" aria-expanded="true" aria-controls="toolbar-actions">
@@ -69,6 +69,13 @@
                          the game's line open in the row beneath it
                          (#replay-bar, below). -->
                     <button id="replay" class="setting-summary" type="button" title="Replay a game" aria-label="Replay a game" aria-pressed="false" data-info="Replay a game">
+                        <span class="setting-icon" aria-hidden="true"></span>
+                    </button>
+                    <!-- The gallery (gallery.js): pictures made of stones,
+                         in a shuffled order, each named on the board's top
+                         edge while it is showing. Its controls open in the
+                         row beneath it (#gallery-bar, below). -->
+                    <button id="gallery" class="setting-summary" type="button" title="Gallery" aria-label="Gallery" aria-pressed="false">
                         <span class="setting-icon" aria-hidden="true"></span>
                     </button>
                 </div>
@@ -175,6 +182,20 @@
                     <span class="setting-icon" aria-hidden="true"></span>
                 </button>
                 <button id="stopwatch-reset" class="setting-summary" type="button" title="Reset" aria-label="Reset">
+                    <span class="setting-icon" aria-hidden="true"></span>
+                </button>
+            </div>
+            <!-- The gallery's controls: back to the picture before, play
+                 or pause, and on to the next. Placed and shown as the
+                 replay's bar is, while the gallery is on the board. -->
+            <div id="gallery-bar" class="gallery-bar" role="group" aria-label="Gallery" hidden>
+                <button id="gallery-back" class="setting-summary" type="button" title="Previous picture" aria-label="Previous picture">
+                    <span class="setting-icon" aria-hidden="true"></span>
+                </button>
+                <button id="gallery-play" class="setting-summary" type="button">
+                    <span class="setting-icon" aria-hidden="true"></span>
+                </button>
+                <button id="gallery-next" class="setting-summary" type="button" title="Next picture" aria-label="Next picture">
                     <span class="setting-icon" aria-hidden="true"></span>
                 </button>
             </div>

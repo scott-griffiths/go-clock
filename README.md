@@ -39,6 +39,8 @@ The public GitHub Pages URL is expected to remain `https://scott-griffiths.githu
   - `www/stopwatch.js` — the stopwatch, a tool beside the clock and the replay: its time,
     started, stopped and reset, kept whatever the board is showing, and saved so it runs on
     through a reload.
+  - `www/gallery.js` — the gallery, another tool: seventeen pictures drawn in stones, each named,
+    shown in a shuffled order.
   - `www/planner.js` — the hand's next move, from the board as it is and as the face wants it.
   - `www/placement.js` — where a stone lies on its point: the scatter, the nudges, the shoves.
   - `www/moves.js` — a move animated: slid, lifted, dropped in, lifted out, and the push of a swap.
@@ -55,7 +57,7 @@ The public GitHub Pages URL is expected to remain `https://scott-griffiths.githu
     [Andries Brouwer's collection](https://homepages.cwi.nl/~aeb/go/games/), shelved in
     `replay.js` as historical (the Edo houses), modern (1926 onwards) and AI.
 
-  `board.js`, `faces.js`, `stopwatch.js`, `planner.js`, `physics.js` and `sgf.js` have no DOM in them and are tested under
+  `board.js`, `faces.js`, `stopwatch.js`, `gallery.js`, `planner.js`, `physics.js` and `sgf.js` have no DOM in them and are tested under
   node; `hand.js` keeps the finger's shove (`pushStones`) free of the DOM for the same reason, so its cost
   on a packed board can be measured there too.
 - `www/my-clock.css` owns all visual styling.
@@ -77,7 +79,7 @@ The public GitHub Pages URL is expected to remain `https://scott-griffiths.githu
 Useful checks:
 
 ```sh
-node --test tests/*.test.mjs   # the faces at the awkward times, the stopwatch, the planner's
+node --test tests/*.test.mjs   # the faces at the awkward times, the stopwatch, the gallery, the planner's
                                # choices, the stone physics, the hand sweeping a crowded board
 node --check www/my-clock.js
 node --check www/go-clock.js
