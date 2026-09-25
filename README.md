@@ -39,7 +39,7 @@ The public GitHub Pages URL is expected to remain `https://scott-griffiths.githu
   - `www/stopwatch.js` — the stopwatch, a tool beside the clock and the replay: its time,
     started, stopped and reset, kept whatever the board is showing, and saved so it runs on
     through a reload.
-  - `www/gallery.js` — the gallery, another tool: twenty pictures drawn in stones, each named,
+  - `www/gallery.js` — the gallery, another tool: twenty-two pictures drawn in stones, each named,
     shown in a shuffled order.
   - `www/planner.js` — the hand's next move, from the board as it is and as the face wants it.
   - `www/placement.js` — where a stone lies on its point: the scatter, the nudges, the shoves.

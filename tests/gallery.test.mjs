@@ -6,9 +6,9 @@ import assert from 'node:assert/strict';
 import {pictures, pictureBoard, shuffledPictures} from '../www/gallery.js';
 import {white, black} from '../www/board.js';
 
-test('there are twenty pictures, each named once', () => {
-    assert.equal(pictures.length, 20);
-    assert.equal(new Set(pictures.map((picture) => picture.name)).size, 20);
+test('there are twenty-two pictures, each named once', () => {
+    assert.equal(pictures.length, 22);
+    assert.equal(new Set(pictures.map((picture) => picture.name)).size, 22);
 });
 
 test('each picture is 19 rows of 19 points, of empty, black and white', () => {

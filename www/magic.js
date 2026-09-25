@@ -27,13 +27,31 @@ const slidePerPoint = 0.15;
 // Everything the board wants done, set going at once. Returns whether
 // anything is in flight (the last landing calls transform() again);
 // stones straightened do not count, being done in a moment.
+//
+// Asked again while stones are still in the air, for a board that wants
+// something else (a new picture, the next second, a replay taken to
+// another move), it does not wait for them all to land: the flights still
+// waiting their turn are called off (retarget, below), and a new lot set
+// going for the new board around the stones already on their way, each
+// of whose landing points counts as taken by the stone arriving there
+// until it has landed. Whatever those landings leave wrong, the look
+// after the last of them puts right, as ever.
 export function magicTransform(clock) {
-    const shown = clock.stones_shown;
     const wanted = clock.stones;
+    // The board as it will be once the stones in the air are down.
+    const shown = [...clock.stones_shown];
+    const arrivingNow = new Set();
+    clock.magic_flights.forEach((flight) => {
+        if (flight.to !== undefined) {
+            shown[flight.to] = flight.colour;
+            arrivingNow.add(flight.to);
+        }
+    });
+    clock.magic_target = [...wanted];
     const leaving = [];
     const arriving = [];
     for (let i = 0; i < gridsize*gridsize; ++i) {
-        if (shown[i] != wanted[i]) {
+        if (shown[i] != wanted[i] && !arrivingNow.has(i)) {
             if (shown[i] != 0) {
                 leaving.push(i);
             }
@@ -86,7 +104,7 @@ export function magicTransform(clock) {
     if (clock.placement != 2) {
         const trigger = alignmentTriggerRadius(clock);
         for (let i = 0; i < gridsize*gridsize; ++i) {
-            if (shown[i] != 0 && shown[i] == wanted[i] && offsetRadius(clock, i) > trigger) {
+            if (shown[i] != 0 && shown[i] == wanted[i] && !arrivingNow.has(i) && offsetRadius(clock, i) > trigger) {
                 setOffset(clock, i, alignedOffset(clock, i));
                 clock.updateBoardPosition(i, true);
             }
@@ -208,6 +226,28 @@ export function magicTransform(clock) {
                 }
             });
         }, order[i]*stagger*1000);
+    });
+    return true;
+}
+
+// Whether the board wanted has changed since the flights in the air were
+// set going for it: if so, those still waiting their turn are called off,
+// the stone from the table one was to fetch put back on it, so that
+// magicTransform can set the new board going at once.
+export function retarget(clock) {
+    const target = clock.magic_target;
+    if (target && target.every((stone, i) => stone == clock.stones[i])) {
+        return false;
+    }
+    clock.magic_flights = clock.magic_flights.filter((flight) => {
+        if (flight.timeoutId == null) {
+            return true;
+        }
+        window.clearTimeout(flight.timeoutId);
+        if (flight.kind == 'table') {
+            clock.table_stones.push(flight.entry);
+        }
+        return false;
     });
     return true;
 }

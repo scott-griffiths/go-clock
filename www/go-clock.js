@@ -13,7 +13,7 @@ import {replayWanted, replaySettled, replayWait} from './replay.js';
 import {fingerDown, fingerMove, fingerUp, endFinger} from './hand.js';
 import {setLandingOffset, alignIdleStone} from './placement.js';
 import {moveStone, moveDuration} from './moves.js';
-import {magicTransform, dropMagicStones} from './magic.js';
+import {magicTransform, retarget, dropMagicStones} from './magic.js';
 import {$, gobanImage, drawOnTable, maxLift, setStyles, setVisible, setStoneShadow, stoneImageSrc,
         cancelElementAnimations, animateElement, elementCentre, stoneElement, looseStone} from './stone-dom.js';
 
@@ -615,7 +615,17 @@ export function GoClock(){
             // again. Nothing left to do: a one-off change is done with,
             // and the hands take over again; otherwise the next second,
             // the next move of the game, or its end.
-            if (this.busy() || magicTransform(this)) {
+            // The hands, finishing what they carried before the speed
+            // was magic, land it first; stones the magic has in the air
+            // are left to land while the rest is set going for a board
+            // that has changed meanwhile (retarget, magic.js).
+            if (this.hands.some((hand) => hand.moving)) {
+                return;
+            }
+            if (this.magic_flights.length > 0 && !retarget(this)) {
+                return;
+            }
+            if (magicTransform(this) || this.magic_flights.length > 0) {
                 return;
             }
             if (this.magic_once) {
