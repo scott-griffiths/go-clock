@@ -3,7 +3,7 @@
  */
 
 import {gridsize, white, go_bowl, go_table, minx, maxx, miny, maxy, emptyBoard} from './board.js';
-import {faceFor} from './faces.js';
+import {faceFor, stopwatchFace} from './faces.js';
 import {planMove} from './planner.js';
 import {setTumbling, voidFlightTime, dropTime} from './physics.js';
 import {flyOn} from './flight.js';
@@ -130,6 +130,10 @@ export function GoClock(){
     // A game being replayed on the board (replay.js), or null: while there
     // is one, transform() works towards its positions instead of the time's.
     this.replay = null;
+    // A stopwatch (stopwatch.js) the board shows instead of the time, or
+    // null: set by my-clock.js while the stopwatch is the tool in use. It
+    // keeps its own time whether or not the board is showing it.
+    this.stopwatch = null;
 
     this.offsets = []; // The small offsets of each stone position to make it less regular-looking
 
@@ -519,8 +523,13 @@ export function GoClock(){
         return;
     };
 
-    // The board the face wants now (or at the given time, for the tests).
+    // The board the face wants now (or at the given time, for the tests):
+    // the stopwatch's, while it has the board, or the time's.
     this.update = function(seconds, minutes, hours, days) {
+        if (this.stopwatch) {
+            this.stones = stopwatchFace(this.stopwatch.elapsed(), this.stopwatch.running);
+            return;
+        }
         var now = new Date();
         this.view %= 4;
         this.stones = faceFor(this.view, {
@@ -607,7 +616,7 @@ export function GoClock(){
                 if (this.replay) {
                     this.waitForReplay();
                 } else {
-                    this.idle_timer = setTimeout(this.transform.bind(this), 1000 - Date.now() % 1000 + 5);
+                    this.idle_timer = setTimeout(this.transform.bind(this), this.nextTick());
                 }
                 return;
             }
@@ -689,8 +698,16 @@ export function GoClock(){
             }
             // Nothing to do: look again just after the next second turns,
             // which is the soonest any face can change.
-            this.idle_timer = setTimeout(this.transform.bind(this), 1000 - Date.now() % 1000 + 5);
+            this.idle_timer = setTimeout(this.transform.bind(this), this.nextTick());
         }
+    };
+
+    // How long until the next second turns, in ms, and a moment more: the
+    // time's, or a running stopwatch's, whose seconds turn when it says,
+    // not on the time's.
+    this.nextTick = function() {
+        var now = this.stopwatch?.running ? this.stopwatch.elapsed() : Date.now();
+        return 1000 - now % 1000 + 5;
     };
 
     // The hands have done what they can for the replay: a look again

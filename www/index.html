@@ -41,9 +41,8 @@
                      Choosing a face, a speed, a precision, a background
                      or a board leaves the list open, rather than closing it
                      as most choices do, so several can be tried in a row.
-                     Next, a game replayed; and, set apart by a gap at the
-                     row's end, the tools button (the clock's hours, its
-                     seconds, the sound, and about).
+                     Next, the stopwatch, and a game replayed: the three
+                     tools, one on the board at a time.
                      Along the top of the screen in portrait; down the left in
                      landscape, where the board leaves the sides free. -->
                 <button id="menu-toggle" class="button menu-toggle" type="button" title="Hide the controls" aria-label="Hide the controls" aria-expanded="true" aria-controls="toolbar-actions">
@@ -56,6 +55,14 @@
                         </button>
                         <div id="face-options" class="setting-options" role="group" aria-label="Clock face"></div>
                     </div>
+                    <!-- The stopwatch (stopwatch.js), on the board instead
+                         of the time: the button shows it, and is pressed
+                         while it is showing. Start or stop, and reset, open
+                         in the row beneath it (#stopwatch-bar, below). It
+                         keeps running while another tool has the board. -->
+                    <button id="stopwatch" class="setting-summary" type="button" title="Stopwatch" aria-label="Stopwatch" aria-pressed="false" data-info="Stopwatch">
+                        <span class="setting-icon" aria-hidden="true"></span>
+                    </button>
                     <!-- A game replayed on the board (replay.js), picked at
                          random: the button starts one, and while it runs is
                          pressed instead, and stops it. Play or pause and
@@ -159,8 +166,21 @@
                     <div id="replay-marker" class="replay-marker"></div>
                 </div>
             </div>
+            <!-- The stopwatch's controls, as a stopwatch has them: start
+                 or stop, and reset, which only a stopped stopwatch can be.
+                 Placed and shown as the replay's bar is, while the
+                 stopwatch is on the board. -->
+            <div id="stopwatch-bar" class="stopwatch-bar" role="group" aria-label="Stopwatch" hidden>
+                <button id="stopwatch-start" class="setting-summary" type="button">
+                    <span class="setting-icon" aria-hidden="true"></span>
+                </button>
+                <button id="stopwatch-reset" class="setting-summary" type="button" title="Reset" aria-label="Reset">
+                    <span class="setting-icon" aria-hidden="true"></span>
+                </button>
+            </div>
             <!-- role="img": the stones mean nothing to a screen reader, so the
-                 board is one picture, whose label my-clock.js keeps as the time. -->
+                 board is one picture, whose label my-clock.js keeps as the time,
+                 or the stopwatch's. -->
             <div id="goban" role="img" aria-label="Go board clock">
                 <img id="goban-image" alt="">
             </div>
