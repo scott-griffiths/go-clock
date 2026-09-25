@@ -388,10 +388,20 @@ export function GoClock(){
     // The hand: hand.js. Each finger down (my-clock.js allows up to two at
     // once) is tracked by its own pointer id.
     this.fingerDown = function(id, clientX, clientY) {
-        return fingerDown(this, id, clientX, clientY);
+        return fingerDown(this, id, ...this.unscaled(clientX, clientY));
     };
     this.fingerMove = function(id, clientX, clientY) {
-        fingerMove(this, id, clientX, clientY);
+        fingerMove(this, id, ...this.unscaled(clientX, clientY));
+    };
+
+    // A point on the screen as it would be without the stand-in for a
+    // rebuild (see draw): the hand works in the board's own pixels.
+    this.unscaled = function(clientX, clientY) {
+        if (!this.stand_in) {
+            return [clientX, clientY];
+        }
+        var rect = $('#goban').getBoundingClientRect();
+        return [rect.left + (clientX - rect.left)/this.stand_in, rect.top + (clientY - rect.top)/this.stand_in];
     };
     this.fingerUp = function(id) {
         fingerUp(this, id);
@@ -409,42 +419,43 @@ export function GoClock(){
     // showing on the new ones with the model sure they had gone.) Returns
     // whether it was done now. `onDraw`, if set, is called after each
     // rebuild: my-clock.js puts the wood back on the new image.
+    //
+    // Meanwhile, so a phone turned mid-move is not left showing the board
+    // for the screen it has left, everything on it (the board, its stones,
+    // those in flight or on the table) is scaled and shifted as one, by a
+    // transform on the goban element, to where the rebuild will put it:
+    // `stand_in` is that scale while it lasts, which the hand allows for.
     this.onDraw = null;
     this.pending_size = null;
+    this.stand_in = null;
     this.draw = function(width, height) {
         if (this.sweeping_board || this.busy() || this.finger) {
             this.pending_size = [width, height];
+            this.standIn(width, height);
             return false;
         }
         this.pending_size = null;
         if (width === this.window_width && height === this.window_height) {
             // The same window: nothing to do.
+            this.standIn(width, height);
             return true;
         }
         this.window_width = width;
         this.window_height = height;
-        // Some padding to show background: in portrait, where the board
-        // spans the width, twice as much down its sides.
-        this.goban_width = width * (height > width ? 0.9 : 0.95) | 0;
-        this.goban_height = height * 0.95 | 0;
-        var goban_ratio = 857/800; // Ratio of the goban image
-
-        if (this.goban_width*goban_ratio > this.goban_height) {
-            // clip to height
-            this.goban_width = this.goban_height/goban_ratio | 0;
-        } else {
-            this.goban_height = this.goban_width*goban_ratio | 0;
-        }
-        this.y_offset = (height - this.goban_height) / 2 | 0;
-        this.x_offset = (width - this.goban_width) / 2 | 0;
+        Object.assign(this, this.layout(width, height));
+        this.stand_in = null;
         gobanImage.id = 'goban-image';
         gobanImage.alt = '';
         var goban = $('#goban');
+        goban.style.transform = '';
+        goban.style.overflow = '';
         goban.replaceChildren(gobanImage);
         var gobanImg = goban.querySelector('img');
         setStyles(gobanImg, {width: this.goban_width, height: this.goban_height});
         var padding = ((height - this.goban_height) / 2) | 0;
-        setStyles(gobanImg, {marginTop: padding, marginBottom: padding});
+        // Its left edge set, not left to centre itself: the stones are
+        // placed by pixel, and a stand-in must move the board with them.
+        setStyles(gobanImg, {marginTop: padding, marginBottom: padding, marginLeft: this.x_offset});
         var s = this.goban_height / 50 | 0;
         gobanImg.style.boxShadow = `${s}px ${2*s}px ${2*s}px 0px rgba(0,0,0,0.6)`;
 
@@ -491,6 +502,53 @@ export function GoClock(){
         }
         this.onDraw?.();
         return true;
+    };
+
+    // Where the board goes in a window this size: its size in px, and its
+    // offsets from the top left.
+    this.layout = function(width, height) {
+        // Some padding to show background: in portrait, where the board
+        // spans the width, twice as much down its sides.
+        var goban_width = width * (height > width ? 0.9 : 0.95) | 0;
+        var goban_height = height * 0.95 | 0;
+        var goban_ratio = 857/800; // Ratio of the goban image
+
+        if (goban_width*goban_ratio > goban_height) {
+            // clip to height
+            goban_width = goban_height/goban_ratio | 0;
+        } else {
+            goban_height = goban_width*goban_ratio | 0;
+        }
+        return {
+            goban_width,
+            goban_height,
+            y_offset: (height - goban_height) / 2 | 0,
+            x_offset: (width - goban_width) / 2 | 0
+        };
+    };
+
+    // The board as drawn, scaled and shifted to where it will be drawn
+    // for a window this size (or put back, for the one it was drawn for).
+    this.standIn = function(width, height) {
+        var goban = typeof document !== 'undefined' && $('#goban');
+        if (!goban || !this.goban_width) {
+            return;
+        }
+        var to = this.layout(width, height);
+        var scale = to.goban_width/this.goban_width;
+        if (Math.abs(scale - 1) < 1e-3 && to.x_offset == this.x_offset && to.y_offset == this.y_offset) {
+            this.stand_in = null;
+            goban.style.transform = '';
+            goban.style.overflow = '';
+        } else {
+            this.stand_in = scale;
+            goban.style.transformOrigin = '0 0';
+            // Scaled, its own edges no longer the screen's: the page's
+            // clip the stones instead.
+            goban.style.overflow = 'visible';
+            goban.style.transform = `translate(${to.x_offset - scale*this.x_offset}px, ${to.y_offset - scale*this.y_offset}px) scale(${scale})`;
+        }
+        this.onDraw?.();
     };
 
     this.drawStone = function(coords, colour, height, src = null) {

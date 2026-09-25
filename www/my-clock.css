@@ -264,6 +264,21 @@ body {
     gap: 6px;
 }
 
+/* As the toolbar's own box is (above), the board menu's is see-through to
+   touches: closed, it still spans the width of its hidden settings, and on
+   a narrow phone that reaches over the toolbar's last buttons, which would
+   otherwise never hear a tap. Only its button and its settings (while
+   they show) take them. */
+.board-control,
+.board-actions {
+    pointer-events: none;
+}
+
+#board-toggle,
+.board-actions > * {
+    pointer-events: auto;
+}
+
 .board-actions > * {
     position: relative;
     top: 0;
