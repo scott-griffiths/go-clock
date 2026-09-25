@@ -693,7 +693,8 @@ body {
    is, it fades with the toolbar's own row when that is tucked away or
    brought back (it is not itself a member of that row, so the CSS keys
    off the toolbar's data-collapsed rather than the usual rule). */
-.replay-bar {
+.replay-bar,
+.stopwatch-bar {
     position: fixed;
     z-index: 15;
     display: flex;
@@ -703,7 +704,8 @@ body {
     transition: opacity 200ms ease, visibility 0s;
 }
 
-.toolbar[data-collapsed="true"] ~ #replay-bar {
+.toolbar[data-collapsed="true"] ~ #replay-bar,
+.toolbar[data-collapsed="true"] ~ #stopwatch-bar {
     visibility: hidden;
     opacity: 0;
     transition: opacity 200ms ease, visibility 0s 200ms;
@@ -753,6 +755,15 @@ body {
     pointer-events: none;
 }
 
+/* The stopwatch's own row (index.html): start or stop, and reset, placed
+   and shown as the replay's bar is (above), but only as long as its two
+   buttons. Reset is there while the stopwatch runs, as it is on one, but
+   greyed out: only a stopped stopwatch can be put back to nothing. */
+.setting-summary:disabled {
+    cursor: default;
+    opacity: 0.4;
+}
+
 /* A narrow phone: the row of buttons a little tighter, so it fits in one,
    and a row's own choices (above) shrink and close up the same way, to
    keep landing under the buttons that follow them. */
@@ -764,6 +775,7 @@ body {
     }
 
     .replay-bar,
+    .stopwatch-bar,
     .board-control,
     .board-actions {
         gap: 4px;
@@ -776,7 +788,8 @@ body {
     .menu-toggle,
     .toolbar .setting-summary,
     .board-control .setting-summary,
-    .replay-bar .setting-summary {
+    .replay-bar .setting-summary,
+    .stopwatch-bar .setting-summary {
         width: 38px;
         min-height: 38px;
     }
@@ -820,7 +833,8 @@ body {
         left: 0;
     }
 
-    .replay-bar {
+    .replay-bar,
+    .stopwatch-bar {
         flex-direction: column;
     }
 
@@ -851,6 +865,11 @@ body {
 
     .setting-control[data-open="true"] > .setting-summary:hover {
         background: white;
+    }
+
+    .setting-summary:disabled:hover {
+        background: rgb(0 0 0 / 0.7);
+        outline: none;
     }
 
     .choice-button:hover {

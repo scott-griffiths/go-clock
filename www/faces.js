@@ -217,3 +217,40 @@ export function faceFor(view, {hours, minutes, seconds = 0, days = 0}, twentyFou
     }
     return stones;
 }
+
+// The stopwatch (stopwatch.js), `ms` into its run: the minutes over the
+// seconds, the whole of it centred on the board, the minutes in black and
+// the seconds in white. The seconds are the tiny figures, as the jumping
+// hour face's are: the slow hands just about keep up with those, second
+// by second, and a small figure is twice the stones to move, which they
+// never would. The minutes change once a minute, so are the small ones, and
+// run on to three figures from a hundred rather than turning over into
+// hours. Stopped, and not at nothing, the hundredths come out after the
+// seconds, beyond a point: the seconds move over to make room, the line
+// running the board's width as the minutes' does once they reach three
+// figures.
+export function stopwatchFace(ms, running) {
+    var stones = emptyBoard();
+    var minutes = Math.floor(ms/60000)%1000;
+    var seconds = Math.floor(ms/1000)%60;
+    var hundredths = Math.floor(ms/10)%100;
+    if (minutes >= 100) {
+        drawNumber(stones, Math.floor(minutes/100), 1, 3, 2, black);
+        drawNumber(stones, Math.floor(minutes/10)%10, 7, 3, 2, black);
+        drawNumber(stones, minutes%10, 13, 3, 2, black);
+    } else {
+        drawNumber(stones, Math.floor(minutes/10), 4, 3, 2, black);
+        drawNumber(stones, minutes%10, 10, 3, 2, black);
+    }
+    if (running || ms == 0) {
+        drawNumber(stones, Math.floor(seconds/10), 6, 11, 1, white);
+        drawNumber(stones, seconds%10, 10, 11, 1, white);
+    } else {
+        drawNumber(stones, Math.floor(seconds/10), 1, 11, 1, white);
+        drawNumber(stones, seconds%10, 5, 11, 1, white);
+        addStone(stones, 9, 15, white);
+        drawNumber(stones, Math.floor(hundredths/10), 11, 11, 1, white);
+        drawNumber(stones, hundredths%10, 15, 11, 1, white);
+    }
+    return stones;
+}

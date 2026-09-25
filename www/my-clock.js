@@ -2,6 +2,7 @@ import {GoClock} from './go-clock.js';
 import {Sounds} from './sounds.js';
 import {preloadTumbleSheets} from './flight.js';
 import {startReplay, cancelReplay, setReplayRate, seekReplay, loadGame, nextGameFile} from './replay.js';
+import {Stopwatch} from './stopwatch.js';
 import {gameTitle, gameResult} from './sgf.js';
 import {faceIcons, speedIcons, precisionIcons, backgroundIcons, woodIcons, icons} from './icons.js';
 import {computerBoardSrc, gobanImageSrc, setFlatStones, stoneImageSrc, colourOfImage} from './stone-dom.js';
@@ -112,6 +113,15 @@ function wrap(index, length) {
 function readIndex(key, fallback, length) {
     const stored = readSetting(key);
     return isInt(stored) ? wrap(Number(stored), length) : fallback;
+}
+
+// A setting stored as JSON; null if there is none, or it will not parse.
+function readJSON(key) {
+    try {
+        return JSON.parse(readSetting(key));
+    } catch {
+        return null;
+    }
 }
 
 function animateStyles(element, keyframes, options) {
@@ -261,6 +271,12 @@ window.addEventListener('load', () => {
     let sound = readIndex('sound', 0, 2);
     // Seconds show unless they have been turned off.
     let showSeconds = readIndex('seconds', 1, 2);
+    // The one stopwatch, kept whatever the board shows and saved whenever
+    // it is started, stopped or reset, so one left running is still
+    // running after a reload, or the app being closed and opened again.
+    const stopwatch = Stopwatch.fromJSON(readJSON('stopwatch'));
+    // The tool on the board: 'clock', 'stopwatch' or 'replay' (setTool).
+    let tool = 'clock';
     const sounds = new Sounds();
 
     const goban = $('#goban');
@@ -270,6 +286,7 @@ window.addEventListener('load', () => {
     const secondsButton = $('#seconds-toggle');
     const muteButton = $('#mute');
     const replayButton = $('#replay');
+    const stopwatchButton = $('#stopwatch');
     const info = $('#info');
     const aboutButton = $('#about');
     const aboutBox = $('#about_box');
@@ -476,7 +493,9 @@ window.addEventListener('load', () => {
             if (left > maxX) {
                 left = anchor.left - gap - width;
             }
-            top = anchor.top;
+            // Beside the toolbar's first button, where the one that opened
+            // it is, or is still sliding to (leadWithCurrentTool).
+            top = control.closest('#toolbar') ? menuToggle.getBoundingClientRect().top : anchor.top;
         } else {
             top = anchor.bottom + gap;
             if (top > maxY) {
@@ -544,10 +563,11 @@ window.addEventListener('load', () => {
 
     // The controls tucked away behind their first button, or brought back;
     // remembered, like a setting.
-    // The toggle wears the tool in use (the clock's face, or the replay
-    // while a game is on), open or tucked away. Brought back
-    // by a tap, the tool's own row comes out with it: the faces, or the
-    // replay's play and line (which come and go with the row anyway).
+    // The toggle wears the tool in use (the clock, the stopwatch, or the
+    // replay while a game is on), open or tucked away. Brought back by a
+    // tap, the tool's own row comes out with it: the faces, the
+    // stopwatch's buttons, or the replay's play and line (those two come
+    // and go with the row anyway).
     function setCollapsed(collapsed, openTool = false) {
         setOpenControl(null);
         // The toolbar's menu and the board's are one at a time.
@@ -563,7 +583,7 @@ window.addEventListener('load', () => {
         menuToggle.setAttribute('aria-label', menuToggle.title);
         showToggleIcon();
         writeSetting('menu', collapsed ? 0 : 1);
-        if (!collapsed && openTool && replayButton.getAttribute('aria-pressed') !== 'true') {
+        if (!collapsed && openTool && tool === 'clock') {
             // With the row, not after it: its second row starts under the
             // toggle, which does not move.
             setOpenControl($('#face-control'));
@@ -572,19 +592,21 @@ window.addEventListener('load', () => {
 
     // Brought back, the row's first button comes out in the toggle's place
     // (the toggle itself goes), so the tool the toggle wore goes first and
-    // stays where it was: the replay while a game is on, else the face.
-    // Chosen while the row is out, the other tool moves up to the front,
-    // sliding across as the ones it passes slide along.
+    // stays where it was, the others after it in their usual order: the
+    // clock, the stopwatch, the replay. Chosen while the row is out, a
+    // tool moves up to the front, sliding across as the ones it passes
+    // slide along.
+    const toolsInRow = {clock: $('#face-control'), stopwatch: stopwatchButton, replay: replayButton};
     function leadWithCurrentTool() {
-        const replaying = replayButton.getAttribute('aria-pressed') === 'true';
-        const lead = replaying ? replayButton : $('#face-control');
+        const lead = toolsInRow[tool];
+        const order = [lead, ...Object.values(toolsInRow).filter((element) => element !== lead)];
         const row = $('#toolbar-actions');
-        if (row.firstElementChild === lead) {
+        if (order.every((element, i) => row.children[i] === element)) {
             return;
         }
         const children = [...row.children];
         const before = children.map((child) => child.getBoundingClientRect());
-        row.prepend(lead);
+        row.append(...order);
         numberRow(row);
         if (toolbar.dataset.collapsed === 'true') {
             return;
@@ -609,9 +631,7 @@ window.addEventListener('load', () => {
     }
 
     function showToggleIcon() {
-        const collapsed = toolbar.dataset.collapsed === 'true';
-        const replaying = replayButton.getAttribute('aria-pressed') === 'true';
-        $('span', menuToggle).innerHTML = replaying ? icons.replay : icons.clock;
+        $('span', menuToggle).innerHTML = icons[tool];
     }
 
     // A touch anywhere brings the tucked-away toggle back to full strength
@@ -661,6 +681,7 @@ window.addEventListener('load', () => {
 
     const showFace = createSettingControl('face', views, views, (index) => {
         setView(index);
+        setTool('clock');
         cancelReplay(goClock);
         goClock.transform();
     }, faceIcons, true, true);
@@ -832,72 +853,141 @@ window.addEventListener('load', () => {
         }
     }
 
-    // The clock and a game replayed on the board (replay.js) are one or
-    // the other, like radio buttons: the face's button is pressed while the
-    // board is the clock's, and the replay's while a game is on it. The
-    // replay's starts a game, picked at random; the face's opens the faces,
-    // and while a game is on stops it and gives the board back to the
-    // clock. The game is named as it starts, and its result given as it
-    // ends.
+    // The clock, the stopwatch and a game replayed on the board
+    // (replay.js) are one at a time, like radio buttons: the face's button
+    // is pressed while the board is the clock's, the stopwatch's while it
+    // shows the stopwatch, and the replay's while a game is on it. The
+    // replay's starts a game, picked at random; the face's opens the
+    // faces; either of the face's or the stopwatch's takes the board from
+    // whichever tool has it, stopping a game but never the stopwatch,
+    // which runs on to be found where it has got to. The game is named as
+    // it starts, and its result given as it ends.
     const faceSummary = summaryOf($('#face-control'));
-    function setReplaying(on) {
-        replayButton.setAttribute('aria-pressed', String(on));
-        faceSummary.setAttribute('aria-pressed', String(!on));
+    const toolButtons = {clock: faceSummary, stopwatch: stopwatchButton, replay: replayButton};
+    // The tool in use: its button pressed, worn by the toggle and first in
+    // the row, and its own row beneath (the replay's bar, the stopwatch's
+    // buttons) out with the toolbar's; the board shows the stopwatch while
+    // that is the tool. Remembered, but a game is not taken up again: on
+    // a reload that is the clock.
+    function setTool(name) {
+        tool = name;
+        Object.entries(toolButtons).forEach(([key, button]) => button.setAttribute('aria-pressed', String(key === name)));
+        goClock.stopwatch = name === 'stopwatch' ? stopwatch : null;
+        replayBar.hidden = name !== 'replay';
+        stopwatchBar.hidden = name !== 'stopwatch';
+        writeSetting('tool', name);
         showToggleIcon();
         leadWithCurrentTool();
+        placeToolBars();
+        describeBoard();
     }
+
+    // The board to the clock or the stopwatch, from whichever tool has it:
+    // at once, though the clock may take the board back from a game only
+    // once the hands have landed what they carry. The hands make the new
+    // face as they would a face chosen.
+    function useTool(name) {
+        if (tool !== name) {
+            setTool(name);
+            cancelReplay(goClock);
+            goClock.transform();
+        }
+    }
+
     // Instead of the button's own opening and closing of the faces: chosen,
     // the clock always shows them.
     faceSummary.addEventListener('click', (event) => {
         event.stopImmediatePropagation();
+        useTool('clock');
         setOpenControl($('#face-control'));
-        if (goClock.replay) {
-            cancelReplay(goClock);
-            // At once, though the clock may take the board back only once
-            // the hands have landed what they carry.
-            setReplaying(false);
-            replayBar.hidden = true;
-        }
     }, true);
 
-    // The replay's bar (index.html): play or pause, next to the game's
-    // line, with a marker at the move the board shows, which can be dragged
-    // to any move. It sits in the row beneath the toolbar's, from under its
-    // first button to the board's right edge (in landscape, beside the
-    // button, running down to the board's foot), while a game is running, and comes and
-    // goes with the toolbar's own row when that is tucked away or brought
-    // back (the CSS, keyed off the toolbar's data-collapsed).
-    const replayBar = $('#replay-bar');
-    const replayTrack = $('#replay-track');
-    const replayMarker = $('#replay-marker');
-    let replayMoves = 0;
-
-    function placeReplayBar() {
+    // A tool's own row (index.html), beneath the toolbar's and from under
+    // its first button, the tool in use, and, for the replay's line, on to
+    // the board's right edge; in landscape, beside that button, running
+    // down (the line to the board's foot). It comes and goes with the
+    // toolbar's own row when that is tucked away or brought back (the CSS,
+    // keyed off the toolbar's data-collapsed). The first button's place is
+    // measured by the toggle over it: the button may still be sliding
+    // there (leadWithCurrentTool).
+    function placeToolBar(bar, stretch) {
         const board = $('#goban-image')?.getBoundingClientRect();
-        if (!board) {
+        if (!board || bar.hidden) {
             return;
         }
-        const button = replayButton.getBoundingClientRect();
+        const first = menuToggle.getBoundingClientRect();
         // The row beneath the toolbar's, spaced as the toolbar's own are.
-        const gap = parseFloat(getComputedStyle(replayBar).columnGap) || 6;
+        const gap = parseFloat(getComputedStyle(bar).columnGap) || 6;
         if (isLandscape()) {
-            Object.assign(replayBar.style, {
-                left: `${Math.round(button.right + gap)}px`,
-                top: `${Math.round(button.top)}px`,
+            Object.assign(bar.style, {
+                left: `${Math.round(first.right + gap)}px`,
+                top: `${Math.round(first.top)}px`,
                 width: '',
-                height: `${Math.round(board.bottom - button.top)}px`
+                height: stretch ? `${Math.round(board.bottom - first.top)}px` : ''
             });
         } else {
-            // The toolbar's second row, from under its first button.
-            const left = menuToggle.getBoundingClientRect().left;
-            Object.assign(replayBar.style, {
-                left: `${Math.round(left)}px`,
-                top: `${Math.round(button.bottom + gap)}px`,
-                width: `${Math.round(board.right - left)}px`,
+            Object.assign(bar.style, {
+                left: `${Math.round(first.left)}px`,
+                top: `${Math.round(first.bottom + gap)}px`,
+                width: stretch ? `${Math.round(board.right - first.left)}px` : '',
                 height: ''
             });
         }
     }
+
+    function placeToolBars() {
+        placeToolBar(replayBar, true);
+        placeToolBar(stopwatchBar, false);
+    }
+
+    // The stopwatch's buttons (index.html), as a stopwatch has them: start
+    // or stop, one button that shows which it would do (a play triangle,
+    // or the pause bars), and reset, greyed out unless the stopwatch is
+    // stopped with a time on it.
+    const stopwatchBar = $('#stopwatch-bar');
+    const stopwatchStart = $('#stopwatch-start');
+    const stopwatchReset = $('#stopwatch-reset');
+
+    function showStopwatchControls() {
+        const label = stopwatch.running ? 'Stop' : 'Start';
+        stopwatchStart.title = label;
+        stopwatchStart.setAttribute('aria-label', label);
+        $('.setting-icon', stopwatchStart).innerHTML = stopwatch.running ? icons.pause : icons.play;
+        stopwatchReset.disabled = stopwatch.running || stopwatch.elapsed() === 0;
+    }
+
+    // Started, stopped or reset: saved, and the board taken to the new
+    // face in a single magic change (magic.js), whatever the hand's
+    // speed, as a replay is taken to a move (replay.js). The hundredths a
+    // stop brings out are to be read now, not once the hands have got
+    // there; and a start puts them away again as quickly, before the
+    // seconds they are in the way of move on.
+    function stopwatchChanged() {
+        writeSetting('stopwatch', JSON.stringify(stopwatch));
+        showStopwatchControls();
+        describeBoard();
+        if (goClock.stopwatch) {
+            goClock.magic_once = true;
+            goClock.transform();
+        }
+    }
+
+    function startOrStopStopwatch() {
+        if (stopwatch.running) {
+            stopwatch.stop();
+        } else {
+            stopwatch.start();
+        }
+        stopwatchChanged();
+    }
+
+    // The replay's bar (index.html): play or pause, next to the game's
+    // line, with a marker at the move the board shows, which can be dragged
+    // to any move, while a game is running (placeToolBar, above).
+    const replayBar = $('#replay-bar');
+    const replayTrack = $('#replay-track');
+    const replayMarker = $('#replay-marker');
+    let replayMoves = 0;
 
     function showReplayProgress(moves, total) {
         replayMoves = total;
@@ -991,9 +1081,12 @@ window.addEventListener('load', () => {
                     showInfo(result, {icon, stay: 6000});
                 }
             },
+            // The board is the clock's again, unless another tool has
+            // already taken it.
             onEnd: (error) => {
-                setReplaying(false);
-                replayBar.hidden = true;
+                if (tool === 'replay') {
+                    setTool('clock');
+                }
                 if (error) {
                     console.error('The game could not be replayed', error);
                 }
@@ -1008,13 +1101,11 @@ window.addEventListener('load', () => {
                     showInfo(gameTitle(game.info), {icon, stay: 10000});
                 }
             }, () => {});
-            setReplaying(true);
+            setTool('replay');
             replayPaused = false;
             playReplay();
             // Straight away, while the board is still being cleared.
             showReplayProgress(0, 0);
-            replayBar.hidden = false;
-            placeReplayBar();
         }
     }
 
@@ -1026,10 +1117,11 @@ window.addEventListener('load', () => {
         }
     }
 
-    // The next (or previous) face or background, announced on the board's
-    // top edge: what the arrow keys do.
+    // The next (or previous) face or background: what the arrow keys do.
+    // A face is the clock's, so the board goes back to the clock for it.
     function changeView(step) {
         setView(view + step);
+        setTool('clock');
         cancelReplay(goClock);
         goClock.transform();
     }
@@ -1039,8 +1131,18 @@ window.addEventListener('load', () => {
     }
 
     // What the board shows, for assistive tech: a grid of stones means
-    // nothing to a screen reader, so the board's label carries the time.
+    // nothing to a screen reader, so the board's label carries the time,
+    // or the stopwatch's (its hundredths once it has stopped, as the
+    // board has them).
     function describeBoard() {
+        if (tool === 'stopwatch') {
+            const ms = stopwatch.elapsed();
+            const two = (n) => String(n).padStart(2, '0');
+            const time = `${Math.floor(ms/60000)}:${two(Math.floor(ms/1000)%60)}`;
+            const reading = stopwatch.running ? `${time}, running` : `${time}.${two(Math.floor(ms/10)%100)}, stopped`;
+            goban.setAttribute('aria-label', `Go board stopwatch showing ${reading}`);
+            return;
+        }
         const time = new Date().toLocaleTimeString([], {hour: 'numeric', minute: '2-digit', hour12: mode === 0});
         goban.setAttribute('aria-label', `Go board clock showing ${time}`);
     }
@@ -1082,7 +1184,7 @@ window.addEventListener('load', () => {
     goClock.onDraw = () => {
         setWood(wood);
         sizeBackground();
-        placeReplayBar();
+        placeToolBars();
         if (!info.hidden) {
             placeInfo();
         }
@@ -1116,6 +1218,9 @@ window.addEventListener('load', () => {
     }
 
     $('#replay .setting-icon').innerHTML = icons.replay;
+    $('#stopwatch .setting-icon').innerHTML = icons.stopwatch;
+    $('.setting-icon', stopwatchReset).innerHTML = icons.reset;
+    showStopwatchControls();
     $('#tools-control .setting-icon').innerHTML = icons.tools;
     setBoardOpen(false);
     boardToggle.addEventListener('click', () => setBoardOpen(boardControl.dataset.open !== 'true'));
@@ -1127,7 +1232,9 @@ window.addEventListener('load', () => {
     setSeconds(showSeconds);
     setPlacement(placement);
     setSound(sound);
-    setReplaying(false);
+    // The clock, or the stopwatch if that was on the board when the page
+    // was last shut.
+    setTool(readSetting('tool') === 'stopwatch' ? 'stopwatch' : 'clock');
     goClock.haptic = haptic;
 
     // The hand: up to two fingers on the board or its surround are the
@@ -1164,7 +1271,9 @@ window.addEventListener('load', () => {
     // image up and cancel the hand.
     goban.addEventListener('dragstart', (event) => event.preventDefault());
     // Keys: the arrows change the face (left and right) and the background
-    // (up and down), M mutes, R replays a game, I is the about box.
+    // (up and down), M mutes, R replays a game, S shows the stopwatch (or
+    // the clock again) and the space bar starts and stops it while it is
+    // showing, I is the about box.
     const keyActions = {
         ArrowRight: () => changeView(1),
         ArrowLeft: () => changeView(-1),
@@ -1174,6 +1283,8 @@ window.addEventListener('load', () => {
             setSound(sound === 1 ? 0 : 1);
         },
         r: toggleReplay,
+        s: () => useTool(tool === 'stopwatch' ? 'clock' : 'stopwatch'),
+        ' ': startOrStopStopwatch,
         i: () => aboutButton.click()
     };
     document.addEventListener('keydown', (event) => {
@@ -1181,7 +1292,13 @@ window.addEventListener('load', () => {
             setOpenControl(null);
             hideAbout();
         } else if (!event.metaKey && !event.ctrlKey && !event.altKey) {
-            const action = keyActions[event.key.length === 1 ? event.key.toLowerCase() : event.key];
+            const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
+            // The space bar is the stopwatch's only while it is on the
+            // board, and never on a button, whose own press it is.
+            if (key === ' ' && (tool !== 'stopwatch' || event.target.closest?.('button'))) {
+                return;
+            }
+            const action = keyActions[key];
             if (action) {
                 event.preventDefault();
                 action();
@@ -1208,10 +1325,10 @@ window.addEventListener('load', () => {
         if (boardControl.dataset.open === 'true' && !boardControl.contains(event.target)) {
             setBoardOpen(false);
         }
-        // Likewise the toolbar's own row, and the replay's with it.
+        // Likewise the toolbar's own row, and the tool's with it.
         if (toolbar.dataset.collapsed !== 'true' && !toolbar.contains(event.target)
-            && !$('#replay-bar').contains(event.target) && !aboutBox.contains(event.target)
-            && !boardControl.contains(event.target)) {
+            && !replayBar.contains(event.target) && !stopwatchBar.contains(event.target)
+            && !aboutBox.contains(event.target) && !boardControl.contains(event.target)) {
             setCollapsed(true);
         }
         if (!aboutBox.hidden && !aboutBox.contains(event.target) && !aboutButton.contains(event.target)) {
@@ -1232,6 +1349,20 @@ window.addEventListener('load', () => {
         if (!goClock.replay) {
             startGame();
         }
+    });
+    stopwatchButton.addEventListener('click', (event) => {
+        useTool('stopwatch');
+        // Clicked rather than pressed from the keyboard, it lets go of the
+        // focus it took, which would have the space bar pressing it again
+        // rather than starting the stopwatch.
+        if (event.detail > 0) {
+            stopwatchButton.blur();
+        }
+    });
+    stopwatchStart.addEventListener('click', startOrStopStopwatch);
+    stopwatchReset.addEventListener('click', () => {
+        stopwatch.reset();
+        stopwatchChanged();
     });
     playButton.addEventListener('click', () => {
         const atEnd = replayMoves > 0 && Number(replayTrack.getAttribute('aria-valuenow')) >= replayMoves;

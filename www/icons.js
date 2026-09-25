@@ -160,6 +160,12 @@ export const icons = {
     board: svg(miniGoban()),
     // A game replayed: the goban, with a play button over it.
     replay: svg(miniGoban() + '<path d="M8.75 7v10l8.25 -5Z" fill="currentColor" stroke="none"/>'),
+    // The stopwatch: its case, the crown on top that starts and stops it,
+    // the button beside that, and the hand a third of the way round.
+    stopwatch: svg('<circle cx="12" cy="13.5" r="8"/><path d="M12 5.5V3M9.5 2.5h5M17.7 7.8l1.4 -1.4"/>'
+        + '<path d="M12 13.5l3.9 -2.25"/><circle cx="12" cy="13.5" r="1" fill="currentColor" stroke="none"/>'),
+    // The stopwatch put back to nothing: an arrow round anticlockwise.
+    reset: svg('<path d="M5.2 15.5a7.5 7.5 0 1 0 1.1 -8.3L3.5 10"/><path d="M3.5 5v5h5"/>'),
     // The replay held, or playing: a play triangle, for the button that
     // would set it going again; two bars, for the one that would hold it.
     play: svg('<path d="M7.5 5v14l11.5 -7Z" fill="currentColor" stroke="none"/>'),
