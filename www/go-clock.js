@@ -134,6 +134,11 @@ export function GoClock(){
     // null: set by my-clock.js while the stopwatch is the tool in use. It
     // keeps its own time whether or not the board is showing it.
     this.stopwatch = null;
+    // A picture from the gallery (gallery.js), as a board, shown instead of
+    // the time, or null; and `onFinished`, called whenever the hands find
+    // it made and nothing left to do (my-clock.js waits on it to move on).
+    this.picture = null;
+    this.onFinished = null;
 
     this.offsets = []; // The small offsets of each stone position to make it less regular-looking
 
@@ -526,6 +531,10 @@ export function GoClock(){
     // The board the face wants now (or at the given time, for the tests):
     // the stopwatch's, while it has the board, or the time's.
     this.update = function(seconds, minutes, hours, days) {
+        if (this.picture) {
+            this.stones = this.picture;
+            return;
+        }
         if (this.stopwatch) {
             this.stones = stopwatchFace(this.stopwatch.elapsed(), this.stopwatch.running);
             return;
@@ -616,6 +625,7 @@ export function GoClock(){
                 if (this.replay) {
                     this.waitForReplay();
                 } else {
+                    this.finished();
                     this.idle_timer = setTimeout(this.transform.bind(this), this.nextTick());
                 }
                 return;
@@ -698,7 +708,17 @@ export function GoClock(){
             }
             // Nothing to do: look again just after the next second turns,
             // which is the soonest any face can change.
+            if (!this.hands.some((hand) => hand.reaching)) {
+                this.finished();
+            }
             this.idle_timer = setTimeout(this.transform.bind(this), this.nextTick());
+        }
+    };
+
+    // A picture made: the board shows it and the hands are free.
+    this.finished = function() {
+        if (this.picture && this.stones_shown.every((stone, i) => stone == this.picture[i])) {
+            this.onFinished?.();
         }
     };
 

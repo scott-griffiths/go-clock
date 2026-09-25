@@ -694,7 +694,8 @@ body {
    brought back (it is not itself a member of that row, so the CSS keys
    off the toolbar's data-collapsed rather than the usual rule). */
 .replay-bar,
-.stopwatch-bar {
+.stopwatch-bar,
+.gallery-bar {
     position: fixed;
     z-index: 15;
     display: flex;
@@ -705,7 +706,8 @@ body {
 }
 
 .toolbar[data-collapsed="true"] ~ #replay-bar,
-.toolbar[data-collapsed="true"] ~ #stopwatch-bar {
+.toolbar[data-collapsed="true"] ~ #stopwatch-bar,
+.toolbar[data-collapsed="true"] ~ #gallery-bar {
     visibility: hidden;
     opacity: 0;
     transition: opacity 200ms ease, visibility 0s 200ms;
@@ -776,6 +778,7 @@ body {
 
     .replay-bar,
     .stopwatch-bar,
+    .gallery-bar,
     .board-control,
     .board-actions {
         gap: 4px;
@@ -789,7 +792,8 @@ body {
     .toolbar .setting-summary,
     .board-control .setting-summary,
     .replay-bar .setting-summary,
-    .stopwatch-bar .setting-summary {
+    .stopwatch-bar .setting-summary,
+    .gallery-bar .setting-summary {
         width: 38px;
         min-height: 38px;
     }
@@ -834,7 +838,8 @@ body {
     }
 
     .replay-bar,
-    .stopwatch-bar {
+    .stopwatch-bar,
+    .gallery-bar {
         flex-direction: column;
     }
 
