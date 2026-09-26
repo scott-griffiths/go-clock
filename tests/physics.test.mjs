@@ -122,6 +122,29 @@ test('a stone kept shoved hard into another rides up onto it, and comes down onc
     assert.equal(a.lift, 0);
 });
 
+test('in a world where stones lie flat, a stone left up on another on the board slides off it once nothing pushes it', () => {
+    const w = world();
+    const a = w.add(stone({x: 300, y: 300, climbs: true}));
+    const b = w.add(stone({x: 320, y: 300, asleep: true}));
+    for (let t = 0; t < 0.5; t += 0.016) {
+        a.vx = Math.max(a.vx, diameter*8);
+        b.vx = 0;
+        b.x = 320;
+        w.advance(0.016);
+    }
+    b.asleep = false;
+    a.vx = 0;
+    b.vx = 0;
+    run(w, 1, () => w.still());
+    assert.equal(a.lift, 1, 'left alone, it stays up');
+    w.lieFlat = true;
+    assert.equal(w.still(), false);
+    run(w, 1, () => w.still());
+    assert.ok(w.still(), 'it never came down');
+    assert.equal(a.lift, 0);
+    assert.ok(Math.hypot(b.x - a.x, b.y - a.y) >= diameter - 1e-6, `still overlapping, ${b.x - a.x} apart`);
+});
+
 test('a stone that does not climb is pushed off, and a soft knock lifts neither', () => {
     const w = world();
     const a = w.add(stone({x: 300, y: 300, vx: diameter*8, climbs: false}));

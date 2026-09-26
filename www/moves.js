@@ -10,7 +10,7 @@
 // element, since only the one hand swaps.
 
 import {gridsize, white, go_bowl, go_table, dist, pointX, pointY} from './board.js';
-import {$, setStyles, setVisible, setStoneShadow, stoneImageSrc, cancelElementAnimations, animateElement, tableStoneScale, carryHeight} from './stone-dom.js';
+import {$, setStyles, setVisible, setStoneShadow, animateStoneShadow, stoneImageSrc, cancelElementAnimations, animateElement, tableStoneScale, carryHeight} from './stone-dom.js';
 import {settleAfterLanding, setOffset} from './placement.js';
 
 // A stone from the bowl takes as long as a move of this many points: a
@@ -82,7 +82,7 @@ function liftFromTable(clock, hand, entry, coords2, colour, speed) {
     var max_height = carryHeight(distance);
     var middle = clock.pixelStonePosition((entry.x + p2[0] + p2[2]/2)/2, (entry.y + p2[1] + p2[3]/2)/2, max_height);
     var end_tasks = function() {
-        var landingIndex = Math.round(hand.to[0]) + gridsize*Math.round(hand.to[1]);
+        var landingIndex = clock.get_index(hand.to);
         self.stones_shown[landingIndex] = hand.colour;
         setVisible(hand.element(), false);
         setVisible(hand.element().querySelector('.stone-shadow'), false);
@@ -102,9 +102,7 @@ function liftFromTable(clock, hand, entry, coords2, colour, speed) {
     var movingStoneImage = hand.element().querySelector('img');
     movingStoneImage.src = entry.src;
     setVisible(movingStoneImage, true);
-    requestAnimationFrame(function() {
-        setStoneShadow(movingShadow, max_height);
-    });
+    animateStoneShadow(movingShadow, 0, max_height, duration/2, {easing: 'ease-in'});
     animateElement(hand.element(), duration/2, {
         left: middle[0],
         top: middle[1],
@@ -112,7 +110,7 @@ function liftFromTable(clock, hand, entry, coords2, colour, speed) {
         height: middle[3],
         easing: 'ease-in',
         onComplete: function() {
-            setStoneShadow(movingShadow, 0);
+            animateStoneShadow(movingShadow, max_height, 0, duration/2, {easing: 'ease-out'});
             animateElement(hand.element(), duration/2, {
                 left: p2[0],
                 top: p2[1],
@@ -131,7 +129,7 @@ function repositionStone(clock, hand, coords1, coords2, colour, speed) {
     var self = clock;
     var end_tasks = function() {
         // add stone to board
-        var landingIndex = Math.round(hand.to[0]) + gridsize*Math.round(hand.to[1]);
+        var landingIndex = clock.get_index(hand.to);
         self.stones_shown[landingIndex] = hand.colour;
         setVisible(hand.element(), false);
         setVisible(hand.element().querySelector('.stone-shadow'), false);
@@ -188,9 +186,7 @@ function repositionStone(clock, hand, coords1, coords2, colour, speed) {
     } else {
         var max_height = carryHeight(distance);
         var middle = clock.stonePosition((coords1[0] + coords2[0])/2, (coords1[1] + coords2[1])/2, max_height);
-        requestAnimationFrame(function() {
-            setStoneShadow(movingShadow, max_height);
-        });
+        animateStoneShadow(movingShadow, 0, max_height, duration/2, {easing: 'ease-in'});
         animateElement(hand.element(), duration/2, {
             left: middle[0],
             top: middle[1],
@@ -198,7 +194,7 @@ function repositionStone(clock, hand, coords1, coords2, colour, speed) {
             height: middle[3],
             easing: 'ease-in',
             onComplete: function() {
-                setStoneShadow(movingShadow, 0);
+                animateStoneShadow(movingShadow, max_height, 0, duration/2, {easing: 'ease-out'});
                 animateElement(hand.element(), duration/2, {
                     left: p2[0],
                     top: p2[1],
@@ -220,7 +216,7 @@ function dropStone(clock, hand, coords, colour, speed) {
     var self = clock;
     var end_tasks = function() {
         // add stone to board
-        var landingIndex = Math.round(hand.to[0]) + gridsize*Math.round(hand.to[1]);
+        var landingIndex = clock.get_index(hand.to);
         self.stones_shown[landingIndex] = hand.colour;
         setVisible(hand.element(), false);
         setVisible(hand.element().querySelector('.stone-shadow'), false);
@@ -234,15 +230,12 @@ function dropStone(clock, hand, coords, colour, speed) {
     
     setStyles(hand.element(), {left: p1[0], top: p1[1], width: p1[2], height: p1[3]});
     var movingShadow = hand.element().querySelector('.stone-shadow');
-    setStoneShadow(movingShadow, 10);
+    animateStoneShadow(movingShadow, 10, 0, duration);
     var src = stoneImageSrc(colour, hand.src);
     var movingStoneImage = hand.element().querySelector('img');
     movingStoneImage.src = src;
     setVisible(movingStoneImage, true);
     hand.element().style.opacity = '0.3';
-    requestAnimationFrame(function() {
-        setStoneShadow(movingShadow, 0);
-    });
     animateElement(hand.element(), duration, {
         left: p2[0],
         top: p2[1],
@@ -270,14 +263,11 @@ function pickupStone(clock, hand, coords, colour, speed) {
     
     setStyles(hand.element(), {left: p1[0], top: p1[1], width: p1[2], height: p1[3]});
     var movingShadow = hand.element().querySelector('.stone-shadow');
-    setStoneShadow(movingShadow, 0);
+    animateStoneShadow(movingShadow, 0, 10, duration);
     var src = stoneImageSrc(colour, hand.src);
     var movingStoneImage = hand.element().querySelector('img');
     movingStoneImage.src = src;
     setVisible(movingStoneImage, true);
-    requestAnimationFrame(function() {
-        setStoneShadow(movingShadow, 10);
-    });
     animateElement(hand.element(), duration, {
         left: p2[0],
         top: p2[1],

@@ -120,6 +120,12 @@ export class StoneWorld {
         this.flat = flat;
         this.stones = [];
         this.elapsed = 0;
+        // A stone up on another on the board slides off it and comes down
+        // as soon as nothing is pushing it up there (the hand's world): a
+        // point holds one stone, flat, so one left lying over another
+        // would otherwise have to move when the board takes it back, long
+        // after anything touched it.
+        this.lieFlat = false;
     }
 
     add(stone) {
@@ -148,7 +154,7 @@ export class StoneWorld {
             // it lies over it; and down again once it has slid off.
             if (stone.pressed) {
                 stone.lift = Math.min(1, stone.lift + dt/riseTime);
-            } else if (stone.lift > 0 && !stone.onTop) {
+            } else if (stone.lift > 0 && (!stone.onTop || this.comesDown(stone))) {
                 stone.lift = Math.max(0, stone.lift - dt/fallTime);
             }
             if (!stone.offBoard && (this.beyondEdge(stone) || (this.isVoid && this.speedOf(stone) > 0))) {
@@ -554,7 +560,12 @@ export class StoneWorld {
     still() {
         return this.stones.every((stone) => stone.gone || stone.falling
             || (!(stone.offBoard && !stone.landed) && !stone.sinking && this.speedOf(stone) === 0 && !isTumbling(stone)
-                && (stone.lift === 0 || stone.onTop || stone.asleep)));
+                && (stone.lift === 0 || (stone.onTop && !this.comesDown(stone)) || stone.asleep)));
+    }
+
+    // A stone up on another that is to come down off it even so (lieFlat).
+    comesDown(stone) {
+        return this.lieFlat && !stone.offBoard;
     }
 }
 

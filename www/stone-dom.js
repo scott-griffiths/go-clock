@@ -119,19 +119,75 @@ export function carryHeight(points) {
 }
 
 // A stone's shadow, for a stone `height` (0 to maxLift) off the board:
-// further away, softer and fainter the higher it is. The CSS reads these.
+// further away, softer and fainter the higher it is, but still there to
+// see all the way up, so it does not seem to arrive only as the stone
+// lands. The look at a height, as numbers.
+function shadowLook(height) {
+    const lift = Math.max(0, Math.min(height, maxLift));
+    const t = lift/maxLift;
+    return {
+        opacity: 0.72*(1 - 0.5*t),
+        fill: 0.34*(1 - 0.45*t),
+        glow: 0.4*(1 - 0.25*t),
+        blur: 3 + lift*0.8,
+        spread: 1 - lift*0.06,
+        dx: 1.25 + lift*0.45,
+        dy: 1.75 + lift*0.4
+    };
+}
+
+// The shadow element of a stone's element (or the shadow itself): the
+// look is set on it, not left to be inherited, since it has its own.
+function shadowOf(element) {
+    return element.classList.contains('stone-shadow') ? element : element.querySelector('.stone-shadow') ?? element;
+}
+
+// The shadow set to its look at `height`. The CSS reads these; any
+// animation of it (animateStoneShadow) is called off.
 export function setStoneShadow(element, height = 0) {
-    const lift = Math.min(height, maxLift);
-    const liftRatio = lift/maxLift;
-    const fade = Math.pow(1 - liftRatio, 1.4);
-    element.style.setProperty('--stone-shadow-scale', 1);
-    element.style.setProperty('--stone-shadow-opacity', Math.max(0.02, 0.72*fade));
-    element.style.setProperty('--stone-shadow-fill-alpha', Math.max(0.01, 0.34*fade));
-    element.style.setProperty('--stone-shadow-blur-alpha', Math.max(0.01, 0.4*fade));
-    element.style.setProperty('--stone-shadow-blur-size', `${3 + lift*0.8}px`);
-    element.style.setProperty('--stone-shadow-spread-size', `${1 - lift*0.06}px`);
-    element.style.setProperty('--stone-shadow-offset-x', `${1.25 + lift*0.45}px`);
-    element.style.setProperty('--stone-shadow-offset-y', `${1.75 + lift*0.4}px`);
+    const shadow = shadowOf(element);
+    if (shadow.shadowAnimation) {
+        shadow.shadowAnimation.cancel();
+        shadow.shadowAnimation = null;
+    }
+    const look = shadowLook(height);
+    shadow.style.setProperty('--stone-shadow-opacity', look.opacity);
+    shadow.style.setProperty('--stone-shadow-fill-alpha', look.fill);
+    shadow.style.setProperty('--stone-shadow-blur-alpha', look.glow);
+    shadow.style.setProperty('--stone-shadow-blur-size', `${look.blur}px`);
+    shadow.style.setProperty('--stone-shadow-spread-size', `${look.spread}px`);
+    shadow.style.setProperty('--stone-shadow-offset-x', `${look.dx}px`);
+    shadow.style.setProperty('--stone-shadow-offset-y', `${look.dy}px`);
+}
+
+// The shadow following its stone from `from` to `to` high over
+// `duration` seconds, eased as the stone is, so it rises and comes down
+// with it rather than jumping at either end. Left set to `to`.
+export function animateStoneShadow(element, from, to, duration, {easing = 'ease', delay = 0} = {}) {
+    const shadow = shadowOf(element);
+    setStoneShadow(shadow, to);
+    if (!shadow.animate || duration <= 0) {
+        return;
+    }
+    // The look is not linear in the height: a few steps along the way.
+    const steps = 6;
+    const keyframes = [];
+    for (let i = 0; i <= steps; ++i) {
+        const look = shadowLook(from + (to - from)*i/steps);
+        keyframes.push({
+            opacity: look.opacity,
+            backgroundColor: `rgb(0 0 0 / ${look.fill})`,
+            boxShadow: `0 0 ${look.blur}px ${look.spread}px rgb(0 0 0 / ${look.glow})`,
+            transform: `translate(${look.dx}px, ${look.dy}px)`
+        });
+    }
+    const animation = shadow.animate(keyframes, {duration: duration*1000, delay: delay*1000, easing, fill: 'backwards'});
+    shadow.shadowAnimation = animation;
+    animation.addEventListener('finish', () => {
+        if (shadow.shadowAnimation === animation) {
+            shadow.shadowAnimation = null;
+        }
+    }, {once: true});
 }
 
 // Half the white stones are the plain one, the rest one of three others.

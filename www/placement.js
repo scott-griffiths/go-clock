@@ -8,7 +8,7 @@
 // point, in board units, never so far that the stone rounds to another
 // point); these are functions of it.
 
-import {dist, gridsize, minx, maxx} from './board.js';
+import {dist, gridsize, minx, maxx, miny, maxy} from './board.js';
 
 function disorderRadius(clock) {
     if (clock.placement == 0) {
@@ -42,19 +42,15 @@ function randomOffset(clock) {
     return [Math.cos(angle)*radius, Math.sin(angle)*radius];
 }
 
-// Within the radius, and never so far along either axis that the stone
-// rounds to the next point: everything that finds a stone's element by
-// its coordinates (drawStone, eraseStone, getDrawnStoneSrc) relies on
-// get_index(get_coords(i)) being i.
+// Within the radius. (A stone a finger left further off than a hand
+// would is let lie there: the coordinates carry their point's index, see
+// get_coords, so it need not round back to it.)
 function clampOffset(clock, offset, maxRadius = maxOffsetRadius(clock)) {
     var radius = Math.sqrt(offset[0]*offset[0] + offset[1]*offset[1]);
     if (radius > maxRadius) {
         offset = [offset[0]/radius*maxRadius, offset[1]/radius*maxRadius];
     }
-    return [
-        Math.max(-0.49, Math.min(0.49, offset[0])),
-        Math.max(-0.49, Math.min(0.49, offset[1]))
-    ];
+    return offset;
 }
 
 export function setOffset(clock, index, offset) {
@@ -71,7 +67,9 @@ function adjustOffset(clock, index, dx, dy) {
 function coordsForOffset(clock, index, offset) {
     var x = index % gridsize;
     var y = (index - x)/gridsize;
-    return [x + offset[0], y + offset[1]];
+    var coords = [x + offset[0], y + offset[1]];
+    coords.index = index;
+    return coords;
 }
 
 export function offsetRadius(clock, index) {
@@ -174,6 +172,13 @@ function stoneCollisionDistance(clock) {
     return (gridsize - 1)/(20*(maxx - minx))*0.98;
 }
 
+// A point's height as a proportion of its width: the board is taller
+// than it is wide (857 by 800), so a step down it is further than a step
+// across. Distances between stones are measured in widths, or two a
+// finger left just touching one above the other count as overlapping and
+// are shoved apart by the next stone to land near them.
+const pointAspect = (maxy - miny)*857/((maxx - minx)*800);
+
 function nearbyOccupiedIndexes(clock, seedIndex) {
     var indexes = new Set([seedIndex]);
     var seedX = seedIndex % gridsize;
@@ -209,17 +214,19 @@ function relaxOverlaps(clock, seedIndex) {
                 var coordsA = clock.get_coords(indexA);
                 var coordsB = clock.get_coords(indexB);
                 var dx = coordsB[0] - coordsA[0];
-                var dy = coordsB[1] - coordsA[1];
+                var dy = (coordsB[1] - coordsA[1])*pointAspect;
                 var distance = Math.sqrt(dx*dx + dy*dy);
                 if (distance >= minDistance) {
                     continue;
                 }
                 if (distance == 0) {
                     dx = (indexB % gridsize) - (indexA % gridsize) || 1;
-                    dy = ((indexB - indexB%gridsize) - (indexA - indexA%gridsize))/gridsize;
+                    dy = ((indexB - indexB%gridsize) - (indexA - indexA%gridsize))/gridsize*pointAspect;
                     distance = Math.sqrt(dx*dx + dy*dy);
                 }
                 var push = (minDistance - distance + 0.01)/distance;
+                // Back from widths to points.
+                dy /= pointAspect;
                 var pushA = indexA == seedIndex ? 0 : 0.5;
                 var pushB = indexB == seedIndex ? 0 : 0.5;
                 if (indexA == seedIndex || indexB == seedIndex) {

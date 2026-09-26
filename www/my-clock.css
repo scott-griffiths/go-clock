@@ -98,9 +98,8 @@ body {
     box-shadow: 0 0 var(--stone-shadow-blur-size, 3px) var(--stone-shadow-spread-size, 1px) rgb(0 0 0 / var(--stone-shadow-blur-alpha, 0.4));
     opacity: var(--stone-shadow-opacity, 0.72);
     pointer-events: none;
-    transform: translate(var(--stone-shadow-offset-x, 1.25px), var(--stone-shadow-offset-y, 1.75px)) scale(var(--stone-shadow-scale, 1));
+    transform: translate(var(--stone-shadow-offset-x, 1.25px), var(--stone-shadow-offset-y, 1.75px));
     transform-origin: center;
-    transition: opacity 160ms ease, transform 160ms ease;
 }
 
 #moving_stone,

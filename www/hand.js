@@ -168,6 +168,7 @@ export function fingerDown(clock, id, clientX, clientY) {
 
         // Whatever the hand was doing stops, and the stone it held drops
         // where it is; so does one it was pushing aside.
+        world.lieFlat = true;
         clock.dropHeldStones().forEach((stone) => world.add(stone));
 
         // The stones on the table are in it too.
@@ -433,8 +434,10 @@ export function fingerUp(clock, id) {
 
 // Every finger has gone and the stones lie still: read the board as it
 // is. Each stone stays put and is recorded at its nearest point, with
-// its displacement as its offset; only when two stones share a nearest
-// point does the second take the next free one, with a short slide.
+// its displacement as its offset; when two stones share a nearest point
+// the second is counted at the next free one, but still lies where it
+// is, however far that is from its point, until the clock's hand moves
+// it (the idle hand straightens a stone well off its point: placement.js).
 // Fallen stones stay on the table, in play.
 export function endFinger(clock) {
     var finger = clock.finger;
@@ -477,12 +480,7 @@ export function endFinger(clock) {
         taken.add(index);
         var ix = index % gridsize;
         var iy = (index - ix)/gridsize;
-        var offset = [
-            Math.max(-0.49, Math.min(0.49, coords[0] - ix)),
-            Math.max(-0.49, Math.min(0.49, coords[1] - iy))
-        ];
-        var slides = Math.abs(offset[0] - (coords[0] - ix)) > 0.001 || Math.abs(offset[1] - (coords[1] - iy)) > 0.001;
-        clock.offsets[index] = offset;
+        clock.offsets[index] = [coords[0] - ix, coords[1] - iy];
         clock.stones_shown[index] = stone.colour;
         var position = $('#p' + index);
         var image = position.querySelector('img');
@@ -493,10 +491,8 @@ export function endFinger(clock) {
         position.classList.add('has-stone');
         setVisible(shadow, true);
         setVisible(image, true);
-        // Where it lies, and then, if its point was taken, the short
-        // way to the next one.
+        // Where it lies, to the pixel.
         setStyles(position, {left: stone.x - stone.r, top: stone.y - stone.r, width: stone.r*2, height: stone.r*2});
-        clock.updateBoardPosition(index, slides);
         stone.element.remove();
     });
     for (var i = 0; i < gridsize*gridsize; ++i) {

@@ -10,7 +10,7 @@
 
 import {gridsize, white, dist} from './board.js';
 import {routeIsClear} from './planner.js';
-import {$, setStyles, setVisible, setStoneShadow, stoneImageSrc, stoneElement, animateElement, elementCentre,
+import {$, setStyles, setVisible, setStoneShadow, animateStoneShadow, stoneImageSrc, stoneElement, animateElement, elementCentre,
         cancelElementAnimations, drawOnTable, maxLift, tableStoneScale} from './stone-dom.js';
 import {setLandingOffset, setOffset, alignedOffset, alignmentTriggerRadius, offsetRadius} from './placement.js';
 
@@ -297,7 +297,7 @@ function fly(clock, flight, onLand) {
         setLandingOffset(clock, flight.to);
         const to = clock.get_coords(flight.to);
         setStyles(element, {...box(clock.stonePosition(to[0], to[1], maxLift)), opacity: 0});
-        setStoneShadow(shadow, maxLift);
+        animateStoneShadow(shadow, maxLift, 0, slideTime, {easing: 'ease-out'});
         animateElement(element, slideTime, {...box(clock.stonePosition(to[0], to[1], 0)), opacity: 1, easing: 'ease-out', onComplete: () => {
             element.remove();
             onLand();
@@ -307,7 +307,7 @@ function fly(clock, flight, onLand) {
     if (flight.kind == 'away') {
         const from = flight.fromCoords;
         setStyles(element, {...box(clock.stonePosition(from[0], from[1], 0)), opacity: 1});
-        setStoneShadow(shadow, 0);
+        animateStoneShadow(shadow, 0, maxLift, slideTime, {easing: 'ease-in'});
         animateElement(element, slideTime, {...box(clock.stonePosition(from[0], from[1], maxLift)), opacity: 0, easing: 'ease-in', onComplete: () => {
             element.remove();
             onLand();
@@ -334,10 +334,10 @@ function fly(clock, flight, onLand) {
     const up = flight.kind == 'slide'
         ? clock.stonePosition(flight.fromCoords[0], flight.fromCoords[1], flightHeight)
         : clock.pixelStonePosition(flight.entry.x, flight.entry.y, flightHeight);
-    setStoneShadow(shadow, flightHeight);
+    animateStoneShadow(shadow, 0, flightHeight, liftTime, {easing: 'ease-out'});
     animateElement(element, liftTime, {...box(up), easing: 'ease-out', onComplete: () => {
         animateElement(element, slideTime, {...box(clock.stonePosition(to[0], to[1], flightHeight)), easing: 'ease-in-out', onComplete: () => {
-            setStoneShadow(shadow, 0);
+            animateStoneShadow(shadow, flightHeight, 0, landTime, {easing: 'ease-in'});
             animateElement(element, landTime, {...box(clock.stonePosition(to[0], to[1], 0)), easing: 'ease-in', onComplete: () => {
                 element.remove();
                 onLand();

@@ -171,13 +171,18 @@ export function GoClock(){
     this.stones_shown = emptyBoard();
     this.reset_offsets();
 
-    // The coordinates of a point with a given index
+    // The coordinates of a point with a given index: where its stone lies,
+    // which is the point and its offset. They carry the index too, since a
+    // stone a finger left more than half a point off (hand.js) does not
+    // round back to its own.
     this.get_coords = function(p) {
-        return [p%gridsize + this.offsets[p][0], (p - p%gridsize)/gridsize + this.offsets[p][1]];
+        var coords = [p%gridsize + this.offsets[p][0], (p - p%gridsize)/gridsize + this.offsets[p][1]];
+        coords.index = p;
+        return coords;
     };
     // The reverse operation: Get index of point from coordinates
     this.get_index = function(p) {
-        return Math.round(p[0]) + gridsize*Math.round(p[1]);
+        return p.index ?? Math.round(p[0]) + gridsize*Math.round(p[1]);
     };
 
     this.updateBoardPosition = function(index, animate = false) {
@@ -265,7 +270,7 @@ export function GoClock(){
         var cx = this.goban_width/2, cy = this.goban_height/2;
         x = cx + (x - cx)*scale;
         y = cy + (y - cy)*scale;
-        return [Math.round(x - diameter/2), Math.round(y - diameter/2), diameter, diameter];
+        return [x - diameter/2, y - diameter/2, diameter, diameter];
     };
 
     // The board, and the screen, as the physics sees them: rectangles in
@@ -298,7 +303,7 @@ export function GoClock(){
                 colour: entry.colour,
                 x: entry.x,
                 y: entry.y,
-                r: diameter/2,
+                r: this.stoneDiameter()/2,
                 vx: (Math.random() - 0.5)*diameter*2,
                 vy: (Math.random() - 0.5)*diameter*2,
                 offBoard: true,
@@ -326,7 +331,7 @@ export function GoClock(){
             colour: entry.colour,
             x: entry.x,
             y: entry.y,
-            r: diameter/2,
+            r: this.stoneDiameter()/2,
             vx: 0,
             vy: 0,
             offBoard: true,
@@ -338,9 +343,16 @@ export function GoClock(){
         sinkOn(stones, 0, {board: this.boardRect(), screen: this.screenRect(), diameter: diameter});
     };
 
+    // How wide a stone lying on the board is drawn, in whole px: a stone
+    // on a point and a loose one alike, so a stone does not change size
+    // as a finger takes the board on and gives it back.
+    this.stoneDiameter = function() {
+        return this.goban_width/20 | 0;
+    };
+
     // A stone free of the grid, drawn by an element of its own (stone-dom.js).
     this.looseStone = function(src, colour, x, y) {
-        return looseStone($('#goban'), this.goban_width/20, src, colour, x, y);
+        return looseStone($('#goban'), this.stoneDiameter(), src, colour, x, y);
     };
 
     // Whatever the hands are doing stops, and the stones they hold drop
@@ -582,7 +594,7 @@ export function GoClock(){
         position.classList.remove('has-stone');
         setVisible(position.querySelector('.stone-shadow'), false);
         setVisible(position.querySelector('img'), false);
-        this.stones_shown[Math.round(coords[0]) + gridsize*Math.round(coords[1])] = 0;
+        this.stones_shown[i] = 0;
         return;
     };
 
@@ -626,12 +638,11 @@ export function GoClock(){
         xpos = cx + (xpos - cx)*scale;
         ypos = cy + (ypos - cy)*scale;
         var diameter = (this.goban_width/20) * scale | 0;
-        // Rounded to the nearest pixel, not truncated: a stone at rest on
-        // a point sits at a coordinate that is itself very nearly a whole
-        // number, right on a truncation boundary, so `| 0` there would
-        // flip it a pixel low on the least float wobble - felt as a jump
-        // when the hand puts a stone back where it found it (hand.js).
-        return [Math.round(xpos - diameter/2 + this.x_offset), Math.round(ypos - diameter/2 + this.y_offset), diameter, diameter];
+        // Not rounded to the pixel: a loose stone under the hand lies
+        // wherever the physics leaves it, and the point that takes it on
+        // when the hand lets go (hand.js) must draw it exactly there, or
+        // it is seen to jump.
+        return [xpos - diameter/2 + this.x_offset, ypos - diameter/2 + this.y_offset, diameter, diameter];
     };
     
     // A move towards the board the face wants for each hand that is free,
