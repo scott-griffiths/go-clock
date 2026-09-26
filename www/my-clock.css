@@ -93,13 +93,49 @@ body {
     position: absolute;
     z-index: 0;
     inset: 0;
-    border-radius: 50%;
-    background: rgb(var(--stone-shadow-rgb, 0 0 0) / var(--stone-shadow-fill-alpha, 0.34));
-    box-shadow: 0 0 var(--stone-shadow-blur-size, 3px) var(--stone-shadow-spread-size, 1px) rgb(var(--stone-shadow-rgb, 0 0 0) / var(--stone-shadow-blur-alpha, 0.4));
-    opacity: var(--stone-shadow-opacity, 0.72);
+    opacity: var(--stone-shadow-opacity, 0.62);
     pointer-events: none;
     transform: translate(var(--stone-shadow-offset-x, 1.25px), var(--stone-shadow-offset-y, 1.75px));
     transform-origin: center;
+}
+
+/* A shadow, and a stone out of focus, are pictures drawn ahead of time at
+   a few heights (soft.js): the one below the stone's height, and the one
+   above it faded in over it. Which pictures, how far out beyond the stone
+   they reach (`inset`) and the pictures themselves are rules stone-dom.js
+   adds as it draws them. */
+.stone-shadow::before,
+.stone-shadow::after,
+.stone-focus::before,
+.stone-focus::after {
+    content: '';
+    position: absolute;
+    background: no-repeat center / 100% 100%;
+}
+
+.stone-shadow::after {
+    opacity: var(--stone-shadow-mix, 0);
+}
+
+.stone-focus {
+    position: absolute;
+    z-index: 1;
+    pointer-events: none;
+}
+
+.stone-focus::before,
+.stone-focus::after {
+    inset: 0;
+}
+
+.stone-focus::after {
+    opacity: var(--stone-focus-mix, 0);
+}
+
+.stone-focus[hidden],
+.stone[hidden] ~ .stone-focus,
+.flying > .stone-focus {
+    display: none;
 }
 
 #moving_stone,

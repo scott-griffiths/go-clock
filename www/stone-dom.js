@@ -5,6 +5,7 @@
 // time or the grid.
 
 import {white, black, gridsize, minx, maxx, miny, maxy} from './board.js';
+import {addImageRules, between, shadowImage, blurredImages} from './soft.js';
 
 const ext = "images/";
 
@@ -123,10 +124,14 @@ export function carryHeight(points) {
 export const shadowDebug = false;
 const shadowRgb = shadowDebug ? '220 0 0' : '0 0 0';
 
+// The board's measures, for the shadows (setShadowBoard, below).
+let board = null;
+
 // A stone's shadow, for a stone `height` (0 to maxLift) off the board:
 // further away, softer and fainter the higher it is, but still there to
 // see all the way up, so it does not seem to arrive only as the stone
-// lands. The look at a height, as numbers.
+// lands. The look at a height, as numbers; the blur and the spread in
+// shares of a stone's width, so it looks the same on any screen.
 function shadowLook(height) {
     const lift = Math.max(0, Math.min(height, maxLift));
     const t = lift/maxLift;
@@ -135,21 +140,62 @@ function shadowLook(height) {
             opacity: 0.9,
             fill: 0.9,
             glow: 0.9,
-            blur: 0.5,
-            spread: 1 - lift*0.06,
+            blur: 0.025,
+            spread: 0.05 - lift*0.003,
             dx: 1.25 + lift*0.45,
             dy: 1.75 + lift*0.4
         };
     }
+    // The blur widening and the solid middle shrinking as the stone
+    // rises, until a high one casts a haze rather than a disc.
     return {
-        opacity: 0.72*(1 - 0.5*t),
-        fill: 0.34*(1 - 0.45*t),
-        glow: 0.4*(1 - 0.25*t),
-        blur: 3 + lift*0.8,
-        spread: 1 - lift*0.06,
+        opacity: 0.62*(1 - 0.65*t),
+        fill: 0.3*(1 - 0.6*t),
+        glow: 0.36*(1 - 0.45*t),
+        blur: 0.16 + 0.055*lift,
+        spread: 0.05 - 0.018*lift,
         dx: 1.25 + lift*0.45,
         dy: 1.75 + lift*0.4
     };
+}
+
+// The shadows are drawn once, the first time one is wanted, at `levels`
+// heights from the board to maxLift (soft.js): small, being soft, and
+// with room enough around them for the haze of the highest.
+const shadowLevels = 9;
+const shadowDrawing = {diameter: 40, pad: 1.3};
+let shadowsDrawn = false;
+function drawShadows() {
+    if (shadowsDrawn || typeof document === 'undefined') {
+        return;
+    }
+    shadowsDrawn = true;
+    const rules = [`.stone-shadow::before, .stone-shadow::after {inset: ${-100*shadowDrawing.pad}%;}`];
+    for (let i = 0; i < shadowLevels; ++i) {
+        const url = shadowImage(shadowLook(i*maxLift/(shadowLevels - 1)), shadowRgb, shadowDrawing);
+        rules.push(`.stone-shadow[data-lower="${i}"]::before, .stone-shadow[data-upper="${i}"]::after {background-image: url("${url}");}`);
+    }
+    addImageRules(rules);
+}
+
+// A shadow as it is at `height`: the two drawn images either side of it,
+// and how it is faded and set off from its stone. Set only when it
+// changes: the hand and the sweep draw every stone every frame.
+function setShadowLook(shadow, height) {
+    drawShadows();
+    const look = shadowLook(height);
+    const {lower, upper, mix} = between(height/maxLift*(shadowLevels - 1), shadowLevels);
+    const key = `${lower} ${mix} ${look.opacity.toFixed(3)} ${look.dx.toFixed(2)} ${look.dy.toFixed(2)}`;
+    if (shadow.lookKey === key) {
+        return;
+    }
+    shadow.lookKey = key;
+    shadow.dataset.lower = lower;
+    shadow.dataset.upper = upper;
+    shadow.style.setProperty('--stone-shadow-mix', mix);
+    shadow.style.setProperty('--stone-shadow-opacity', look.opacity.toFixed(3));
+    shadow.style.setProperty('--stone-shadow-offset-x', `${look.dx.toFixed(2)}px`);
+    shadow.style.setProperty('--stone-shadow-offset-y', `${look.dy.toFixed(2)}px`);
 }
 
 // The shadow element of a stone's element (or the shadow itself): the
@@ -163,57 +209,105 @@ function shadowOf(element) {
 // shadow, lying on the surface, stays sharp, and so does a stone on the
 // table, further off than the board. The blur at a height, in px: a share
 // of the stone's own width at the most (maxLift), so it looks the same on
-// any screen.
+// any screen (a standard deviation, as CSS's blur() has it).
 export const liftBlur = 0.12;
-function liftBlurAt(stone, height) {
-    const width = parseFloat(stone.parentElement?.style.width) || 0;
-    return Math.round(Math.max(0, Math.min(height, maxLift))/maxLift*liftBlur*width*10)/10;
+
+// The stones out of focus are drawn once each (soft.js), at `focusLevels`
+// heights up to maxLift, the stone as it is being the one at the board;
+// the first time any is wanted, and all of them soon after the page
+// loads, a stone at a time, so that the first to be lifted has them.
+// Until a stone's are drawn it is lifted sharp.
+const focusLevels = 6;
+const focusDrawing = {diameter: 128, pad: 0.36};
+const focusSrcs = [...stoneSrcs, flatWhiteStoneSrc, flatBlackStoneSrc];
+const focusDrawn = new Map();
+function focusIndex(src) {
+    return src ? focusSrcs.findIndex((known) => src === known || src.endsWith('/' + known)) : -1;
 }
-const blurFilter = (px) => (px > 0 ? `blur(${px}px)` : '');
+function drawFocus(index) {
+    if (focusDrawn.has(index) || typeof document === 'undefined') {
+        return focusDrawn.get(index) === true;
+    }
+    if (focusDrawn.size == 0) {
+        addImageRules([`.stone-focus {inset: ${-100*focusDrawing.pad}%;}`]);
+    }
+    focusDrawn.set(index, blurredImages(focusSrcs[index],
+        Array.from({length: focusLevels}, (_, i) => liftBlur*(i + 1)/focusLevels), focusDrawing)
+        .then((urls) => {
+            addImageRules(urls.map((url, i) =>
+                `.stone-focus[data-lower="${index}-${i + 1}"]::before, .stone-focus[data-upper="${index}-${i + 1}"]::after {background-image: url("${url}");}`));
+            focusDrawn.set(index, true);
+        }, (error) => {
+            console.warn('stone-dom: no blurred stones for', focusSrcs[index].slice(0, 60), error);
+            focusDrawn.set(index, false);
+        }));
+    return false;
+}
+if (typeof document !== 'undefined' && typeof window.addEventListener === 'function') {
+    window.addEventListener('load', () => {
+        focusSrcs.reduce((previous, _, index) => previous.then(() => {
+            drawFocus(index);
+            return focusDrawn.get(index);
+        }), Promise.resolve());
+    }, {once: true});
+}
 
 // The stone image beside a shadow, which the blur is on.
 function stoneBeside(shadow) {
     return shadow.parentElement?.querySelector(':scope > img') ?? null;
 }
 
-// The stone as sharp or as soft as `height` makes it; any animation of
-// it (animateStoneShadow) called off. Set only when it changes: the hand
-// and the sweep draw every stone every frame.
+// The stone as sharp or as soft as `height` makes it: up to the first
+// drawn level, the stone itself with that one faded in over it; above
+// it, the stone hidden, and the two levels either side, the upper faded
+// in over the lower. Set only when it changes: the hand and the sweep
+// draw every stone every frame.
 function setLiftFocus(shadow, height) {
     const stone = stoneBeside(shadow);
     if (!stone) {
         return;
     }
-    if (stone.focusAnimation) {
-        stone.focusAnimation.cancel();
-        stone.focusAnimation = null;
+    const index = focusIndex(stone.getAttribute('src'));
+    const drawn = index >= 0 && drawFocus(index);
+    const {lower, upper, mix} = drawn ? between(height/maxLift*focusLevels, focusLevels + 1) : {lower: 0, upper: 0, mix: 0};
+    const key = `${index} ${lower} ${mix}`;
+    if (stone.focusKey === key) {
+        return;
     }
-    const filter = blurFilter(liftBlurAt(stone, height));
-    if (stone.style.filter !== filter) {
-        stone.style.filter = filter;
+    stone.focusKey = key;
+    let soft = stone.nextElementSibling?.classList.contains('stone-focus') ? stone.nextElementSibling : null;
+    if (lower == 0 && mix == 0) {
+        if (soft) {
+            soft.hidden = true;
+        }
+        stone.style.visibility = '';
+        return;
     }
+    if (!soft) {
+        soft = document.createElement('div');
+        soft.className = 'stone-focus';
+        stone.after(soft);
+    }
+    soft.hidden = false;
+    soft.dataset.lower = `${index}-${lower}`;
+    soft.dataset.upper = `${index}-${upper}`;
+    soft.style.setProperty('--stone-focus-mix', lower == upper ? 1 : mix);
+    stone.style.visibility = lower > 0 ? 'hidden' : '';
 }
 
 // The shadow set to its look at `height`, and the stone its focus, for
 // how far it stands above the board's surface (`above`: the height,
-// unless it is below the board, on the table). The CSS reads these; any
-// animation of either (animateStoneShadow) is called off.
+// unless it is below the board, on the table). Any animation of either
+// (animateStoneShadow) is called off.
 export function setStoneShadow(element, height = 0, above = height) {
     const shadow = shadowOf(element);
     if (shadow.shadowAnimation) {
         shadow.shadowAnimation.cancel();
         shadow.shadowAnimation = null;
     }
+    shadow.rising = null;
     setLiftFocus(shadow, above);
-    const look = shadowLook(height);
-    shadow.style.setProperty('--stone-shadow-opacity', look.opacity);
-    shadow.style.setProperty('--stone-shadow-rgb', shadowRgb);
-    shadow.style.setProperty('--stone-shadow-fill-alpha', look.fill);
-    shadow.style.setProperty('--stone-shadow-blur-alpha', look.glow);
-    shadow.style.setProperty('--stone-shadow-blur-size', `${look.blur}px`);
-    shadow.style.setProperty('--stone-shadow-spread-size', `${look.spread}px`);
-    shadow.style.setProperty('--stone-shadow-offset-x', `${look.dx}px`);
-    shadow.style.setProperty('--stone-shadow-offset-y', `${look.dy}px`);
+    setShadowLook(shadow, height);
     if (height > 0) {
         trackShadow(shadow);
     }
@@ -227,7 +321,6 @@ export function setStoneShadow(element, height = 0, above = height) {
 // to the right the higher it is, the light being up to the left. The
 // board's own measures, set with each draw (go-clock.js): a stone's width
 // lying on it, and its middle, in the goban element's px.
-let board = null;
 export function setShadowBoard(geometry) {
     board = geometry;
 }
@@ -255,6 +348,7 @@ function placeShadows() {
     const gobanBox = goban?.getBoundingClientRect();
     const zoom = gobanBox && goban.offsetWidth ? gobanBox.width/goban.offsetWidth : 1;
     lifted.forEach((shadow) => {
+        followRise(shadow);
         if (placeShadow(shadow, gobanBox, zoom)) {
             lifted.delete(shadow);
         }
@@ -295,47 +389,49 @@ function placeShadow(shadow, gobanBox, zoom) {
 // The shadow following its stone from `from` to `to` high over
 // `duration` seconds, eased as the stone is, so it rises and comes down
 // with it rather than jumping at either end; and the stone going out of
-// focus and back as it does. Left set to `to`.
+// focus and back as it does. Left set to `to`. Its fading is an
+// animation; the rest is set every frame by followRise, as far on as
+// that animation has got (placeShadows).
 export function animateStoneShadow(element, from, to, duration, {easing = 'ease', delay = 0} = {}) {
     const shadow = shadowOf(element);
     setStoneShadow(shadow, to);
     if (!shadow.animate || duration <= 0) {
         return;
     }
-    // The look is not linear in the height: a few steps along the way.
-    const steps = 6;
-    const keyframes = [];
-    for (let i = 0; i <= steps; ++i) {
-        const look = shadowLook(from + (to - from)*i/steps);
-        // Its place is placeShadow's, every frame.
-        keyframes.push({
-            opacity: look.opacity,
-            backgroundColor: `rgb(${shadowRgb} / ${look.fill})`,
-            boxShadow: `0 0 ${look.blur}px ${look.spread}px rgb(${shadowRgb} / ${look.glow})`
-        });
-    }
-    const timing = {duration: duration*1000, delay: delay*1000, easing, fill: 'backwards'};
-    const animation = shadow.animate(keyframes, timing);
-    trackShadow(shadow);
+    // An animation of nothing, for its clock: eased and delayed as the
+    // stone's own rise is.
+    const animation = shadow.animate([], {duration: duration*1000, delay: delay*1000, easing, fill: 'backwards'});
     shadow.shadowAnimation = animation;
+    shadow.rising = {from, to, animation};
+    followRise(shadow);
+    trackShadow(shadow);
     animation.addEventListener('finish', () => {
         if (shadow.shadowAnimation === animation) {
             shadow.shadowAnimation = null;
+            followRise(shadow);
         }
     }, {once: true});
-    const stone = stoneBeside(shadow);
-    if (stone?.animate) {
-        const focus = stone.animate([
-            {filter: blurFilter(liftBlurAt(stone, from)) || 'blur(0px)'},
-            {filter: blurFilter(liftBlurAt(stone, to)) || 'blur(0px)'}
-        ], timing);
-        stone.focusAnimation = focus;
-        focus.addEventListener('finish', () => {
-            if (stone.focusAnimation === focus) {
-                stone.focusAnimation = null;
-            }
-        }, {once: true});
+}
+
+// A shadow, and its stone's focus, at the height its animation
+// (animateStoneShadow) has reached: eased, as the stone's own rise is,
+// and still at the start while it waits to begin.
+function followRise(shadow) {
+    const rising = shadow.rising;
+    if (!rising) {
+        return;
     }
+    let height = rising.to;
+    if (shadow.shadowAnimation === rising.animation) {
+        const progress = rising.animation.effect?.getComputedTiming().progress;
+        if (progress != null) {
+            height = rising.from + (rising.to - rising.from)*progress;
+        }
+    } else {
+        shadow.rising = null;
+    }
+    setLiftFocus(shadow, height);
+    setShadowLook(shadow, height);
 }
 
 // Half the white stones are the plain one, the rest one of three others.
