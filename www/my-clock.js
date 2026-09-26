@@ -65,7 +65,7 @@ const woods = [
 ];
 // Tucked away, the toggle comes back to full strength at a touch anywhere,
 // and dims again this long (in ms) after the last.
-const toggleWakeTime = 1500;
+const toggleWakeTime = 15000;
 
 const cookieKeys = new Map([
     ['background', 'goban_background'],
@@ -583,8 +583,10 @@ window.addEventListener('load', () => {
         if (!open && openControls[0]?.closest('#board-control')) {
             setOpenControl(null);
         }
-        // The board's menu and the toolbar's are one at a time.
-        if (open && toolbar.dataset.collapsed !== 'true') {
+        // The board's menu and the toolbar's are one at a time, in
+        // portrait, where they share the top of the screen; in landscape
+        // they are down opposite sides, and can both be out.
+        if (open && toolbar.dataset.collapsed !== 'true' && !isLandscape()) {
             setCollapsed(true);
         }
         boardControl.dataset.open = String(open);
@@ -605,9 +607,14 @@ window.addEventListener('load', () => {
     // stopwatch's buttons, or the replay's play and line (those two come
     // and go with the row anyway).
     function setCollapsed(collapsed, openTool = false) {
-        setOpenControl(null);
-        // The toolbar's menu and the board's are one at a time.
-        if (!collapsed) {
+        // Its own lists close with it; the board's, out beside it in
+        // landscape, stay.
+        if (!openControls[0]?.closest('#board-control')) {
+            setOpenControl(null);
+        }
+        // The toolbar's menu and the board's are one at a time (in
+        // portrait: see setBoardOpen).
+        if (!collapsed && !isLandscape()) {
             setBoardOpen(false);
         }
         toolbar.dataset.collapsed = collapsed ? 'true' : 'false';
@@ -979,6 +986,14 @@ window.addEventListener('load', () => {
                 height: ''
             });
         }
+        // How far each of its buttons goes back to be under the toggle
+        // while the row is tucked away (the stylesheet slides them).
+        [...bar.children].forEach((child) => {
+            const back = isLandscape()
+                ? first.top - row.top + child.offsetTop
+                : first.left - row.left + child.offsetLeft;
+            child.style.setProperty('--back', `${Math.round(back)}px`);
+        });
     }
 
     function placeToolBars() {
@@ -1345,6 +1360,11 @@ window.addEventListener('load', () => {
         if (resizeFrame === null) {
             resizeFrame = window.requestAnimationFrame(() => {
                 resizeFrame = null;
+                // Turned to portrait with both menus out: one at a time
+                // there (setBoardOpen), so the board's goes back.
+                if (!isLandscape() && toolbar.dataset.collapsed !== 'true' && boardControl.dataset.open === 'true') {
+                    setBoardOpen(false);
+                }
                 resizeClock();
             });
         }

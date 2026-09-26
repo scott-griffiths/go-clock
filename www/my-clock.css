@@ -413,7 +413,7 @@ body {
     height: 18px;
 }
 
-/* Tucked away, the toggle dims well down after a moment, so it is not
+/* Tucked away, the toggle dims well down after a while, so it is not
    the first thing seen, and the board's own menu with it; a touch
    anywhere (my-clock.js sets `awake` for a while) or a keyboard's focus
    brings them straight back, and neither dims while the other's menu is
@@ -422,7 +422,7 @@ body {
    white on dark. */
 .toolbar[data-collapsed="true"] .menu-toggle {
     opacity: 0.45;
-    transition: opacity 600ms ease 2s, background-color 600ms ease 2s, color 600ms ease 2s, var(--toggle-resize);
+    transition: opacity 600ms ease, background-color 600ms ease, color 600ms ease, var(--toggle-resize);
 }
 
 .toolbar[data-collapsed="true"] .menu-toggle svg {
@@ -432,7 +432,7 @@ body {
 
 .toolbar[data-collapsed="true"] ~ .board-control {
     opacity: 0.45;
-    transition: opacity 600ms ease 2s;
+    transition: opacity 600ms ease;
 }
 
 .toolbar[data-collapsed="true"][data-awake="true"] .menu-toggle,
@@ -768,7 +768,25 @@ body {
 .toolbar[data-collapsed="true"] ~ #gallery-bar {
     visibility: hidden;
     opacity: 0;
-    transition: opacity 200ms ease, visibility 0s 200ms;
+    transition: opacity 200ms ease, visibility 0s 280ms;
+}
+
+/* A bar's buttons come out with the toolbar's row and go back with it,
+   as the faces do (.setting-options-row, below): each slides from under
+   the toggle to its place, `--back` px (my-clock.js placeToolBar), and
+   back again, fading as it arrives. */
+.replay-bar > *,
+.stopwatch-bar > *,
+.gallery-bar > * {
+    transition: transform 280ms ease-in-out, opacity 200ms ease;
+}
+
+.toolbar[data-collapsed="true"] ~ #replay-bar > *,
+.toolbar[data-collapsed="true"] ~ #stopwatch-bar > *,
+.toolbar[data-collapsed="true"] ~ #gallery-bar > * {
+    opacity: 0;
+    transform: translateX(calc(-1*var(--back, 0px)));
+    transition: transform 280ms ease-in-out, opacity 200ms ease 80ms;
 }
 
 .replay-track {
@@ -904,6 +922,12 @@ body {
     .stopwatch-bar,
     .gallery-bar {
         flex-direction: column;
+    }
+
+    .toolbar[data-collapsed="true"] ~ #replay-bar > *,
+    .toolbar[data-collapsed="true"] ~ #stopwatch-bar > *,
+    .toolbar[data-collapsed="true"] ~ #gallery-bar > * {
+        transform: translateY(calc(-1*var(--back, 0px)));
     }
 
     .replay-line {
