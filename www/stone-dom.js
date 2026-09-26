@@ -142,14 +142,53 @@ function shadowOf(element) {
     return element.classList.contains('stone-shadow') ? element : element.querySelector('.stone-shadow') ?? element;
 }
 
-// The shadow set to its look at `height`. The CSS reads these; any
-// animation of it (animateStoneShadow) is called off.
-export function setStoneShadow(element, height = 0) {
+// The camera is focused on the board's surface: a stone lifted off it,
+// nearer the eye, is out of focus, the more so the higher it is; its
+// shadow, lying on the surface, stays sharp, and so does a stone on the
+// table, further off than the board. The blur at a height, in px: a share
+// of the stone's own width at the most (maxLift), so it looks the same on
+// any screen.
+export const liftBlur = 0.12;
+function liftBlurAt(stone, height) {
+    const width = parseFloat(stone.parentElement?.style.width) || 0;
+    return Math.round(Math.max(0, Math.min(height, maxLift))/maxLift*liftBlur*width*10)/10;
+}
+const blurFilter = (px) => (px > 0 ? `blur(${px}px)` : '');
+
+// The stone image beside a shadow, which the blur is on.
+function stoneBeside(shadow) {
+    return shadow.parentElement?.querySelector(':scope > img') ?? null;
+}
+
+// The stone as sharp or as soft as `height` makes it; any animation of
+// it (animateStoneShadow) called off. Set only when it changes: the hand
+// and the sweep draw every stone every frame.
+function setLiftFocus(shadow, height) {
+    const stone = stoneBeside(shadow);
+    if (!stone) {
+        return;
+    }
+    if (stone.focusAnimation) {
+        stone.focusAnimation.cancel();
+        stone.focusAnimation = null;
+    }
+    const filter = blurFilter(liftBlurAt(stone, height));
+    if (stone.style.filter !== filter) {
+        stone.style.filter = filter;
+    }
+}
+
+// The shadow set to its look at `height`, and the stone its focus, for
+// how far it stands above the board's surface (`above`: the height,
+// unless it is below the board, on the table). The CSS reads these; any
+// animation of either (animateStoneShadow) is called off.
+export function setStoneShadow(element, height = 0, above = height) {
     const shadow = shadowOf(element);
     if (shadow.shadowAnimation) {
         shadow.shadowAnimation.cancel();
         shadow.shadowAnimation = null;
     }
+    setLiftFocus(shadow, above);
     const look = shadowLook(height);
     shadow.style.setProperty('--stone-shadow-opacity', look.opacity);
     shadow.style.setProperty('--stone-shadow-fill-alpha', look.fill);
@@ -162,7 +201,8 @@ export function setStoneShadow(element, height = 0) {
 
 // The shadow following its stone from `from` to `to` high over
 // `duration` seconds, eased as the stone is, so it rises and comes down
-// with it rather than jumping at either end. Left set to `to`.
+// with it rather than jumping at either end; and the stone going out of
+// focus and back as it does. Left set to `to`.
 export function animateStoneShadow(element, from, to, duration, {easing = 'ease', delay = 0} = {}) {
     const shadow = shadowOf(element);
     setStoneShadow(shadow, to);
@@ -181,13 +221,27 @@ export function animateStoneShadow(element, from, to, duration, {easing = 'ease'
             transform: `translate(${look.dx}px, ${look.dy}px)`
         });
     }
-    const animation = shadow.animate(keyframes, {duration: duration*1000, delay: delay*1000, easing, fill: 'backwards'});
+    const timing = {duration: duration*1000, delay: delay*1000, easing, fill: 'backwards'};
+    const animation = shadow.animate(keyframes, timing);
     shadow.shadowAnimation = animation;
     animation.addEventListener('finish', () => {
         if (shadow.shadowAnimation === animation) {
             shadow.shadowAnimation = null;
         }
     }, {once: true});
+    const stone = stoneBeside(shadow);
+    if (stone?.animate) {
+        const focus = stone.animate([
+            {filter: blurFilter(liftBlurAt(stone, from)) || 'blur(0px)'},
+            {filter: blurFilter(liftBlurAt(stone, to)) || 'blur(0px)'}
+        ], timing);
+        stone.focusAnimation = focus;
+        focus.addEventListener('finish', () => {
+            if (stone.focusAnimation === focus) {
+                stone.focusAnimation = null;
+            }
+        }, {once: true});
+    }
 }
 
 // Half the white stones are the plain one, the rest one of three others.
@@ -334,7 +388,8 @@ export function looseStone(goban, diameter, src, colour, x, y) {
 // little smaller for being further away; and up on another stone by
 // `lift`, if it has ridden up one.
 export function drawOnTable(element, drop, translate = '', lift = 0) {
-    setStoneShadow(element, drop < 1 ? 8*Math.sin(drop*Math.PI) : rideHeight*lift);
+    // Going down, and lying, below the board: never nearer the eye.
+    setStoneShadow(element, drop < 1 ? 8*Math.sin(drop*Math.PI) : rideHeight*lift, 0);
     element.style.transform = `${translate} ${tableTransform(drop, lift)}`.trim();
     element.classList.toggle('riding', lift > 0);
 }

@@ -17,7 +17,7 @@
 // which sees them out of sight in a world of its own.
 
 import {StoneWorld} from './physics.js';
-import {setStyles, setVisible, stoneSrcs, flatWhiteStoneSrc, flatBlackStoneSrc} from './stone-dom.js';
+import {setStyles, setVisible, stoneSrcs, flatWhiteStoneSrc, flatBlackStoneSrc, liftBlur} from './stone-dom.js';
 
 const frames = 18;
 const columns = 6;
@@ -75,6 +75,14 @@ export function drawFlying(element, stone, world, translate = '') {
     element.classList.add('rising');
     drawTumbling(element, stone, translate, `scale(${1 + 1.0*height})`);
     element.style.opacity = String(height < 0.55 ? 1 : 1 - (height - 0.55)/0.45);
+    // Rising towards the eye, out of the board's focus (liftBlur,
+    // stone-dom.js): by the time it fades, as blurred as a stone lifted
+    // as high as a hand ever lifts one.
+    const blur = Math.round(Math.min(1, height/0.55)*liftBlur*(parseFloat(element.style.width) || 0)*10)/10;
+    const filter = blur > 0 ? `blur(${blur}px)` : '';
+    if (element.style.filter !== filter) {
+        element.style.filter = filter;
+    }
 }
 
 // An element done with tumbling: back to an image and a shadow.
@@ -83,6 +91,7 @@ export function clearFlying(element) {
     element.style.removeProperty('background-image');
     element.style.removeProperty('background-size');
     element.style.removeProperty('background-position');
+    element.style.removeProperty('filter');
 }
 
 // The stones still in the air when their world is done with them (see
