@@ -24,6 +24,25 @@ const landTime = 0.16;
 const flightHeight = 5;
 const slidePerPoint = 0.15;
 
+// How long a flight of this kind is in the air, in ms, from setting off
+// to landing: a stone lifted (from the table, or from a point it is not
+// slid from) rises, crosses and lands; one from the bowl drops in, and
+// one going to it rises away. A lifted stone's crossing takes `crossTime`
+// seconds if given (the flight's own, below), or the magic's own, the
+// same however far it goes.
+export function flightTime(kind, crossTime = slideTime) {
+    return 1000*(kind == 'bowl' || kind == 'away' ? slideTime : liftTime + crossTime + landTime);
+}
+
+// How long a lifted stone takes to cross `points` of the board at a
+// steady pace, in seconds: the replay's (replay.js), whose stones all
+// travel at the one speed whatever its beat, so that a faster beat has
+// more of them in the air rather than each going faster.
+const carrySpeed = 8;
+export function crossTimeFor(points) {
+    return points/carrySpeed;
+}
+
 // Everything the board wants done, set going at once. Returns whether
 // anything is in flight (the last landing calls transform() again).
 //
@@ -35,7 +54,9 @@ const slidePerPoint = 0.15;
 // of whose landing points counts as taken by the stone arriving there
 // until it has landed. Whatever those landings leave wrong, the look
 // after the last of them puts right, as ever.
-export function magicTransform(clock) {
+// `quick` staggers the flights a tenth as long again, for a board taken
+// straight to a position (a replay's seek): hundreds of flights at once.
+export function magicTransform(clock, {quick = clock.magic_once} = {}) {
     const wanted = clock.stones;
     // The board as it will be once the stones in the air are down.
     const shown = [...clock.stones_shown];
@@ -158,7 +179,7 @@ export function magicTransform(clock) {
         baseOrder[chosen] = rank;
         at = flights[chosen].to !== undefined ? flights[chosen].to : flightPoint(flights[chosen]);
     }
-    // A replay jumping straight to a position (magic_once) can mean
+    // A replay jumping straight to a position (`quick`) can mean
     // hundreds of flights at once, so there the stagger is a tenth as
     // long again, or the jump would take forever.
     //
@@ -193,35 +214,55 @@ export function magicTransform(clock) {
             break;
         }
     }
-    const stagger = (liftTime + slideTime + landTime) / (clock.magic_once ? 200 : 20);
+    const stagger = (liftTime + slideTime + landTime) / (quick ? 200 : 20);
     flights.forEach((flight, i) => {
-        clock.magic_flights.push(flight);
-        flight.timeoutId = window.setTimeout(() => {
-            flight.timeoutId = null;
-            // The stone is off its point only once its own flight starts,
-            // not before, so it sits there undisturbed through its wait.
-            if (flight.kind == 'slide' || flight.kind == 'away') {
-                flight.src = clock.getDrawnStoneSrc(flight.fromCoords);
-                clock.eraseStone(flight.fromCoords);
+        launchFlight(clock, flight, order[i]*stagger*1000, () => {
+            if (flight.to !== undefined && !landed) {
+                landed = true;
+                clock.sound?.place(flight.colour == white ? 'white' : 'black');
             }
-            fly(clock, flight, () => {
-                clock.magic_flights.splice(clock.magic_flights.indexOf(flight), 1);
-                if (flight.to !== undefined) {
-                    clock.stones_shown[flight.to] = flight.colour;
-                    clock.drawStone(clock.get_coords(flight.to), flight.colour, 0, flight.src);
-                    if (!landed) {
-                        landed = true;
-                        clock.sound?.place(flight.colour == white ? 'white' : 'black');
-                    }
-                }
-                if (clock.magic_flights.length == 0) {
-                    // A moment with the board as it is, then the next look.
-                    clock.idle_timer = window.setTimeout(() => clock.transform(), clock.pause);
-                }
-            });
-        }, order[i]*stagger*1000);
+            if (clock.magic_flights.length == 0) {
+                // A moment with the board as it is, then the next look.
+                clock.idle_timer = window.setTimeout(() => clock.transform(), clock.pause);
+            }
+        });
     });
     return true;
+}
+
+// One flight set going `delay` ms from now (0, at once), and the board
+// kept as it goes: counted in the air (clock.magic_flights) from now,
+// so a finger can take it over (dropMagicStones) even while it waits;
+// its stone off its point only once it sets off, not before, so it sits
+// there undisturbed through its wait; and on the board where it lands.
+// `onLand` is called once it is down (or gone into the bowl).
+export function launchFlight(clock, flight, delay, onLand) {
+    if ((flight.kind == 'slide' || flight.kind == 'away') && !flight.fromCoords) {
+        flight.fromCoords = clock.get_coords(flight.from);
+    }
+    clock.magic_flights.push(flight);
+    const go = () => {
+        flight.timeoutId = null;
+        if (flight.kind == 'slide' || flight.kind == 'away') {
+            flight.src = clock.getDrawnStoneSrc(flight.fromCoords);
+            clock.eraseStone(flight.fromCoords);
+        }
+        flight.onDepart?.();
+        fly(clock, flight, () => {
+            clock.magic_flights.splice(clock.magic_flights.indexOf(flight), 1);
+            if (flight.to !== undefined) {
+                clock.stones_shown[flight.to] = flight.colour;
+                clock.drawStone(clock.get_coords(flight.to), flight.colour, 0, flight.src);
+            }
+            onLand();
+        });
+    };
+    if (delay > 0) {
+        flight.timeoutId = window.setTimeout(go, delay);
+    } else {
+        flight.timeoutId = null;
+        go();
+    }
 }
 
 // Whether the board wanted has changed since the flights in the air were
@@ -248,7 +289,7 @@ export function retarget(clock) {
 
 // A stone off the table: out of the list, and anything lying up on it
 // comes down, unless it lies on another too.
-function takeFromTable(clock, entry) {
+export function takeFromTable(clock, entry) {
     clock.table_stones.splice(clock.table_stones.indexOf(entry), 1);
     const diameter = clock.goban_width/20;
     clock.table_stones.forEach((other) => {
@@ -330,7 +371,7 @@ function fly(clock, flight, onLand) {
         : clock.pixelStonePosition(flight.entry.x, flight.entry.y, flightHeight);
     animateStoneShadow(shadow, 0, flightHeight, liftTime, {easing: 'ease-out'});
     animateElement(element, liftTime, {...box(up), easing: 'ease-out', onComplete: () => {
-        animateElement(element, slideTime, {...box(clock.stonePosition(to[0], to[1], flightHeight)), easing: 'ease-in-out', onComplete: () => {
+        animateElement(element, flight.crossTime ?? slideTime, {...box(clock.stonePosition(to[0], to[1], flightHeight)), easing: 'ease-in-out', onComplete: () => {
             animateStoneShadow(shadow, flightHeight, 0, landTime, {easing: 'ease-in'});
             animateElement(element, landTime, {...box(clock.stonePosition(to[0], to[1], 0)), easing: 'ease-in', onComplete: () => {
                 element.remove();

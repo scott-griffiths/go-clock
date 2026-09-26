@@ -1,34 +1,16 @@
-// The board a replay asks for, move by move: the next position of the
-// game, or the one after once a hand is carrying the stone that makes
-// it; never a stone out of turn, and after a capture the captured stones
-// off before the next stone.
+// A game replayed: its positions, a capture being two (the stone down,
+// then the captured stones off); and its stones planned onto the board on
+// an even beat, each setting off as long before its moment as its own
+// flight takes, from the nearest stone of its colour on the table or else
+// the bowl.
 
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {gameStages, replayWanted, stageOfMove, movesShown, seekReplay, setReplayRate, replayWait} from '../www/replay.js';
+import {gameStages, stageOfMove, movesShown, planPlacements, flightsToCallOff} from '../www/replay.js';
 import {playGame} from '../www/sgf.js';
-import {emptyBoard, pointIndex, pointX, pointY, white, black} from '../www/board.js';
+import {pointIndex, white, black} from '../www/board.js';
 
 const at = (x, y) => pointIndex(x, y);
-
-// A clock with the game under way, the board showing its position
-// `reached` (or empty, before the first), its hands carrying nothing
-// unless told, and the playback allowing whatever the board can reach.
-function clockWith(stages, reached) {
-    return {
-        stones_shown: reached < 0 ? emptyBoard() : [...stages[reached].board],
-        hands: [{moving: false, to: [0, 0]}, {moving: false, to: [0, 0]}],
-        get_index: (coords) => at(coords[0], coords[1]),
-        busy: () => false,
-        transform: () => {},
-        replay: {game: {stages}, stage: reached + 1, cleared: true, started: true, cancelled: false,
-                 seeking: null, rate: 2, allowed: Infinity, allowedAt: 0}
-    };
-}
-
-function carrying(clock, hand, index, colour) {
-    clock.hands[hand] = {moving: true, to: [pointX(index), pointY(index)], colour};
-}
 
 // Black takes a white stone in a ko: white at (4,4) is surrounded but
 // for (5,4), which black then plays.
@@ -42,55 +24,19 @@ const koMoves = playGame([
 ]);
 const stages = gameStages(koMoves);
 
+// A table stone's flight takes longer than a bowl stone's.
+const travel = (entry) => (entry ? 900 : 500);
+
+function plan(fields) {
+    return planPlacements({stages, moves: koMoves, stage: 0, nextLandAt: 0, now: 0, rate: 2, tableStones: [], travel, ...fields});
+}
+
 test('a capture is a position with the stone down and then one with the captured stones off', () => {
     assert.equal(stages.length, koMoves.length + 1);
     assert.equal(stages[8].board[at(4, 4)], white);
     assert.equal(stages[8].stoneMore, true);
     assert.equal(stages[9].board[at(4, 4)], 0);
     assert.equal(stages[9].stoneMore, false);
-});
-
-test('with the hands empty only the next move is wanted', () => {
-    const clock = clockWith(stages, -1);
-    assert.deepEqual(replayWanted(clock), stages[0].board);
-    clock.stones_shown = [...stages[0].board];
-    assert.deepEqual(replayWanted(clock), stages[1].board);
-    assert.equal(clock.replay.stage, 1);
-});
-
-test('with a hand carrying the next stone, the one after is wanted', () => {
-    const clock = clockWith(stages, 3);
-    carrying(clock, 0, koMoves[4].point, black);
-    assert.deepEqual(replayWanted(clock), stages[5].board);
-    // And no further, whatever the other hand does: the next one is still in the air.
-    assert.equal(clock.replay.stage, 4);
-});
-
-test('a hand carrying some other stone gives the game nothing beyond the next move', () => {
-    const clock = clockWith(stages, 3);
-    carrying(clock, 0, at(15, 15), black);
-    assert.deepEqual(replayWanted(clock), stages[4].board);
-});
-
-test('the stone after a capture is not wanted until the captured stones are off', () => {
-    // The capturing stone is in the air: only its own position is wanted.
-    const clock = clockWith(stages, 7);
-    carrying(clock, 0, koMoves[8].point, black);
-    assert.deepEqual(replayWanted(clock), stages[8].board);
-    // Down: the captured stone off is wanted, and nothing beyond.
-    clock.hands[0].moving = false;
-    clock.stones_shown = [...stages[8].board];
-    assert.deepEqual(replayWanted(clock), stages[9].board);
-    assert.equal(clock.replay.stage, 9);
-    // Off: the next move.
-    clock.stones_shown = [...stages[9].board];
-    assert.deepEqual(replayWanted(clock), stages[10].board);
-});
-
-test('a finished game wants its last position', () => {
-    const clock = clockWith(stages, stages.length - 1);
-    assert.deepEqual(replayWanted(clock), stages[stages.length - 1].board);
-    assert.equal(clock.replay.stage, stages.length);
 });
 
 test('each stage knows its move, and a move\'s last stage is the one with its captures off', () => {
@@ -103,70 +49,121 @@ test('each stage knows its move, and a move\'s last stage is the one with its ca
     assert.equal(stageOfMove(stages, 9), 10);
 });
 
-test('held, the position reached is wanted and kept; the moves shown are reported as the board reaches them', () => {
-    const shown = [];
-    const clock = clockWith(stages, 3);
-    clock.replay.onProgress = (moves, total) => shown.push([moves, total]);
-    clock.replay.game.moves = koMoves;
-    setReplayRate(clock, 0);
-    assert.deepEqual(replayWanted(clock), stages[3].board);
-    assert.equal(movesShown(clock.replay), 4);
-    // A stone that was in the air lands: the board has moved on, and stays there.
-    clock.stones_shown = [...stages[4].board];
-    assert.deepEqual(replayWanted(clock), stages[4].board);
-    assert.deepEqual(shown, [[5, 10]]);
-    setReplayRate(clock, 2);
-    assert.deepEqual(replayWanted(clock), stages[5].board);
+test('the moves shown are those of the position reached, or of the one being sought', () => {
+    const game = {stages};
+    assert.equal(movesShown({game, stage: 0, seeking: null}), 0);
+    assert.equal(movesShown({game, stage: 10, seeking: null}), 9);
+    assert.equal(movesShown({game, stage: 3, seeking: 9}), 9);
 });
 
-test('the playback allows a move at a time at its rate, and a board too slow for it falls behind rather than racing after', () => {
-    const clock = clockWith(stages, -1);
-    clock.replay.game.moves = koMoves;
-    clock.replay.allowed = 1;
-    clock.replay.allowedAt = performance.now();
-    setReplayRate(clock, 2);
-    // The first move is allowed at once; the second is not due yet.
-    assert.deepEqual(replayWanted(clock), stages[0].board);
-    clock.stones_shown = [...stages[0].board];
-    assert.deepEqual(replayWanted(clock), stages[0].board);
-    assert.ok(replayWait(clock) > 0 && replayWait(clock) <= 500, `wait ${replayWait(clock)}`);
-    // Time enough for many moves while the board stands still: the
-    // allowance does not run away with it, and order is kept.
-    clock.replay.allowedAt = performance.now() - 10000;
-    const wanted = replayWanted(clock);
-    assert.deepEqual(wanted, stages[1].board);
-    assert.ok(clock.replay.allowed <= movesShown(clock.replay) + 2);
+test('the stones land on an even beat, at every rate', () => {
+    [1, 2, 3, 4].forEach((rate) => {
+        const {plans} = plan({rate, now: 0, nextLandAt: 0});
+        assert.ok(plans.length >= 2, `rate ${rate}: ${plans.length} planned`);
+        const first = plans[0].landAt;
+        plans.forEach((p, i) => assert.ok(Math.abs(p.landAt - (first + i*1000/rate)) < 1e-6, `rate ${rate}, stone ${i}: ${p.landAt}`));
+    });
 });
 
-test('taken to a move, that position is wanted until the board shows it, and the game goes on from it', () => {
-    const clock = clockWith(stages, 3);
-    clock.replay.game.moves = koMoves;
-    clock.busy = () => false;
-    clock.transform = () => {};
-    assert.equal(seekReplay(clock, 9), true);
-    assert.equal(movesShown(clock.replay), 9);
-    // However slow the hands, the board is taken there in one magic change.
-    assert.equal(clock.magic_once, true);
-    // Wanted, and still wanted with the board part way there.
-    assert.deepEqual(replayWanted(clock), stages[9].board);
-    clock.stones_shown = [...stages[6].board];
-    assert.deepEqual(replayWanted(clock), stages[9].board);
-    assert.equal(clock.replay.stage, 4);
-    // There: the next move is wanted.
-    clock.stones_shown = [...stages[9].board];
-    assert.deepEqual(replayWanted(clock), stages[10].board);
-    assert.equal(clock.replay.stage, 10);
-    assert.equal(clock.replay.seeking, null);
-    // Back to the start: the empty board, and held there while paused.
-    seekReplay(clock, 0);
-    setReplayRate(clock, 0);
-    assert.deepEqual(replayWanted(clock), emptyBoard());
-    clock.stones_shown = emptyBoard();
-    assert.deepEqual(replayWanted(clock), emptyBoard());
-    assert.equal(clock.replay.stage, 0);
-    setReplayRate(clock, 2);
-    assert.deepEqual(replayWanted(clock), stages[0].board);
-    // Not with a finger on the board.
-    clock.finger = {};
-    assert.equal(seekReplay(clock, 5), false);
+test('each stone sets off its own flight\'s time before it lands', () => {
+    const table = [{colour: black, coords: [3, 20]}];
+    const {plans} = plan({tableStones: table});
+    plans.forEach((p) => assert.equal(p.landAt - p.departAt, p.entry ? 900 : 500));
+    assert.equal(plans[0].entry, table[0], 'the black stone comes from the table');
+    assert.equal(plans[1].entry, null, 'no white on the table: from the bowl');
+});
+
+test('a slower flight sets off first though it lands after: black from the table, white from the bowl', () => {
+    // Black's second stone from the table (900 ms), white's before it
+    // from the bowl (500 ms), at 4 a second: black lands after white
+    // but sets off before it.
+    const table = [{colour: black, coords: [3, 20]}, {colour: black, coords: [15, 20]}];
+    const {plans} = plan({rate: 4, tableStones: table});
+    const white1 = plans[1];
+    const black2 = plans[2];
+    assert.equal(white1.move.colour, white);
+    assert.equal(black2.move.colour, black);
+    assert.ok(black2.entry, 'from the table');
+    assert.ok(black2.landAt > white1.landAt, 'lands after');
+    assert.ok(black2.departAt < white1.departAt, 'sets off before');
+});
+
+test('the first stone lands as soon as its flight allows, and never before the next moment due', () => {
+    assert.equal(plan({now: 1000, nextLandAt: 0}).plans[0].landAt, 1500);
+    assert.equal(plan({now: 1000, nextLandAt: 2200}).plans[0].landAt, 2200);
+});
+
+test('the nearest table stone of the colour is taken, each once, then the bowl', () => {
+    const near = {colour: black, coords: [3, 5.5]};
+    const far = {colour: black, coords: [18, 20]};
+    const {plans} = plan({rate: 4, tableStones: [far, near]});
+    const blacks = plans.filter((p) => p.move.colour == black);
+    assert.equal(blacks[0].entry, near);
+    assert.equal(blacks[1].entry, far);
+    assert.ok(blacks.slice(2).every((p) => p.entry === null));
+});
+
+test('only the stones landing in the next few seconds are planned; the rest when their turn comes', () => {
+    const {plans, stage, nextLandAt} = plan({rate: 1});
+    assert.ok(plans.every((p) => p.landAt - plans[0].landAt <= 5000));
+    assert.ok(stage < stages.length);
+    const later = plan({rate: 1, stage, nextLandAt, now: nextLandAt - 1000});
+    assert.equal(later.plans[0].stage, stage);
+    assert.equal(later.plans[0].landAt, nextLandAt);
+});
+
+test('a capture\'s stones coming off is no stone of its own: the next move follows on the beat', () => {
+    const {plans} = plan({rate: 4, stage: 8, now: 0, nextLandAt: 0});
+    assert.deepEqual(plans.map((p) => p.stage), [8, 10]);
+    assert.equal(plans[1].landAt - plans[0].landAt, 250);
+});
+
+test('each flight is as long at every beat: a faster beat has more stones in the air at once', () => {
+    // Every stone from the table, the further the longer, at one pace.
+    const table = [black, white].flatMap((colour) => Array.from({length: 6}, (_, i) => ({colour, coords: [i*3, 20]})));
+    const pace = (entry, point) => (entry ? 300 + 125*Math.hypot(entry.coords[0] - point % 19, entry.coords[1] - Math.floor(point/19)) : 500);
+    const flights = new Map();
+    const inAir = (plans) => Math.max(...plans.map((p) => plans.filter((q) => q.departAt <= p.landAt && q.landAt >= p.landAt).length));
+    const slow = plan({rate: 1, tableStones: table, travel: pace, random: () => 0.99});
+    const fast = plan({rate: 4, tableStones: table, travel: pace, random: () => 0.99});
+    slow.plans.forEach((p) => flights.set(p.stage, p.landAt - p.departAt));
+    fast.plans.forEach((p) => {
+        if (flights.has(p.stage)) {
+            assert.equal(p.landAt - p.departAt, flights.get(p.stage), `stage ${p.stage}`);
+        }
+    });
+    assert.ok(inAir(fast.plans) > inAir(slow.plans), `${inAir(fast.plans)} in the air at 4 a second, ${inAir(slow.plans)} at 1`);
+});
+
+test('starting afresh, the first stone waits so that none after it is late for its beat', () => {
+    // The third stone has a long way to come; the first two are quick.
+    const long = (entry) => (entry ? 3000 : 400);
+    const table = [{colour: black, coords: [18, 22]}];
+    const {plans} = plan({rate: 2, tableStones: [], travel: long, stage: 0, now: 0});
+    const withTable = plan({rate: 2, tableStones: table, travel: long, stage: 1, now: 0});
+    // Stage 1 is white (bowl), stage 2 black (from the table, 3 s).
+    assert.equal(withTable.plans[1].entry, table[0]);
+    withTable.plans.forEach((p, i) => {
+        assert.equal(p.landAt, withTable.plans[0].landAt + i*500, `stone ${i} on the beat`);
+        assert.ok(p.departAt >= 0, `stone ${i} sets off from now at the earliest`);
+    });
+    assert.equal(withTable.plans[1].departAt, 0, 'the long flight sets off at once, and the rest are timed from it');
+    assert.equal(plans[0].landAt, 400);
+});
+
+test('a change of beat keeps every stone up to the last already flying, so none is planned twice', () => {
+    // Stage 5 from the bowl is still waiting; stage 6, from far across the
+    // table, set off first and is flying; 7 and 8 are waiting.
+    const flights = [
+        {stage: 4, waiting: false},
+        {stage: 5, waiting: true},
+        {stage: 6, waiting: false},
+        {stage: 7, waiting: true},
+        {stage: 8, waiting: true},
+        {waiting: false} // a captured stone going off to the bowl
+    ];
+    assert.deepEqual(flightsToCallOff(flights, {keepCommitted: true}).map((f) => f.stage), [7, 8]);
+    // A seek or a cancel calls off everything still waiting.
+    assert.deepEqual(flightsToCallOff(flights).map((f) => f.stage), [5, 7, 8]);
+    assert.deepEqual(flightsToCallOff([{stage: 3, waiting: true}], {keepCommitted: true}).map((f) => f.stage), [3]);
 });

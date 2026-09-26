@@ -1,39 +1,30 @@
 // A game replayed on the clock: the board is cleared — swept, the stones
 // pushed off onto the table (sweep.js), or in space flung off in all
-// directions into the dark; then the hands play through a game record
-// (sgf.js), each stone from the table while there are any there and then
-// from the bowl, at the clock's speed, and the stones a move captures
-// lifted off once it is down; then, after a moment with the finished game
-// on the board, the clock takes the board back and its hands make the
-// time of it as they always do.
+// directions into the dark; then the game record (sgf.js) is played
+// through, a stone at a time on an even beat, each flying in from the
+// table while there are any there and then from the bowl, and the stones
+// a move captures lifted off as it lands; then, after a moment with the
+// finished game on the board, the clock takes the board back and its
+// hands make the time of it as they always do.
 //
-// The hands work as they do for the time: the clock (go-clock.js) keeps
-// the replay under way as `clock.replay`, and while there is one its
-// transform() takes the board it wants from replayWanted() instead of the
-// face, and plans for its hands as usual. The game is a run of positions
-// (`stages`), one per move, or two for a move that captures: the stone
-// down, then the captured stones off. The board is asked for the next
-// position; or, once a hand is carrying the stone that makes it, the one
-// beyond while that is just a stone more, so that the other hand has a
-// stone to fetch meanwhile — the clock sees to it that the second stone
-// lands after the first, and so the moves go down in order. A finger on
-// the board disturbs the game without ending it: the position wanted is
-// the same when it lifts, so the hands put it back and the game goes on.
-// A change of face, or the button again, cancels the replay
-// (cancelReplay), and the clock carries on from the board as it stands.
-//
-// How fast the game is played is not how fast the board is: the rate
-// (setReplayRate, in moves a second, 0 to hold the game where it is) is
-// the game's, and the speed setting the hands'. The rate is an allowance
-// of moves that grows with time and is spent as the board reaches each
-// move: the board never runs ahead of it, and a board too slow to keep
-// up falls behind rather than banking the time and racing after, the
-// moves going down in order all the same. A drag of the marker
-// (seekReplay) is the one thing that does not wait for the hands: the
-// board is taken to that move in a single magic change (magic.js),
-// whatever the speed setting, and the game goes on from there.
+// The hands have no part in it: the clock (go-clock.js) keeps the replay
+// under way as `clock.replay`, and while there is one its transform()
+// hands the board to replayTransform(), which sets the stones flying as
+// the magic does (magic.js), whatever the speed setting. The game is a
+// run of positions (`stages`), one per move, or two for a move that
+// captures: the stone down, then the captured stones off. What matters is
+// the cadence the stones land at, `rate` a second (setReplayRate; 0 holds
+// the game where it is), each setting off as long before its moment as
+// its own flight takes (planPlacements). A drag of the marker
+// (seekReplay), the page opened on a game, or a finger that has disturbed
+// the board, takes the board to the position in one quick magic change,
+// and the game goes on from there on its beat. A change of face, or the
+// button again, cancels the replay (cancelReplay), and the clock carries
+// on from the board as it stands.
 
-import {gridsize, emptyBoard} from './board.js';
+import {gridsize, emptyBoard, white, pointX, pointY} from './board.js';
+import {chooser} from './planner.js';
+import {flightTime, crossTimeFor, launchFlight, magicTransform, takeFromTable} from './magic.js';
 import {parseSgf, playGame} from './sgf.js';
 import {sweepBoard} from './sweep.js';
 import {flyOn} from './flight.js';
@@ -222,9 +213,10 @@ export function startReplay(clock, loading, {onStart = null, onRest = null, onEn
         cleared: false,
         started: false,
         resting: false,
-        rate: 0, // Moves a second; my-clock.js sets it as the game starts
-        allowed: 1, // Moves the game may have played by `allowedAt`
-        allowedAt: performance.now(),
+        rate: 0, // Stones a second; my-clock.js sets it as the game starts
+        planned: 0, // The first stage whose stone is not yet planned
+        nextLandAt: 0, // When the next stone may land (performance.now())
+        wake: null, // A timer: the next stones to plan
         seeking: null, // The stage the board is being taken to, or null
         cancelled: false,
         error: null,
@@ -269,32 +261,108 @@ export function startReplay(clock, loading, {onStart = null, onRest = null, onEn
     return true;
 }
 
-// How many positions beyond the next the board may be asked for, each
-// once the hands are carrying what makes the one before: with one hand's
-// stone in the air, the other has one to go for.
-const lookahead = 1;
+// A stone lands on the board every `1000/rate` ms while the game plays,
+// each flying in as the magic's do (magic.js) from the nearest stone of
+// its colour on the table, or else from the bowl, and setting off as
+// long before its moment as its flight takes. Every stone travels at the
+// one steady pace (crossTimeFor), whatever the beat: a faster beat has
+// more of them in the air at once, not each going faster; and a stone
+// from far across the table takes longer than one dropped in from the
+// bowl, so it may set off before a stone that lands ahead of it. The
+// stones landing within `horizon` ms are planned (which stone, from
+// where) and set waiting for their moment; the rest as their turn comes
+// nearer. It is longer than any flight, so each can set off in time.
+const horizon = 5000;
 
-// The board the replay wants now, for the clock's transform() to plan
-// towards: the next position of the game the board has not reached, so
-// long as the playback's allowance runs to it (and the one it has when
-// it does not, so the hands hold there); or
-// one beyond it (up to `lookahead`) when the stones on their way in the
-// hands make the position before it, and each is a stone more — never a
-// stone the game has not yet reached, so the moves cannot go down out of
-// turn, and never the stone after a capture until the captured stones
-// are off. An empty board until the game is ready. Null once the replay
-// is over (cancelled: the clock has the board back, and wants the time).
-// The board has reached a position when it shows exactly that (the
-// stones can land out of order, so it is the furthest that counts), and
-// a finger's disturbance leaves the same position wanted, to be put back.
-export function replayWanted(clock) {
+// The next stones to land, planned: for each placing stage from `stage`
+// (the first not yet planned) on, which stone of the table's to fetch
+// (the nearest of its colour to its point, a tie either way by chance),
+// or the bowl, and when it lands and so sets off. Each lands a beat
+// (`1000/rate` ms) after the one before, on from `nextLandAt` if that is
+// still to come; starting afresh (nothing on the beat yet), the first
+// lands as soon as every stone planned with it can keep the beat after
+// it, so none is late. Only those landing within `horizon` ms of `now`
+// are planned (from the first, starting afresh). `tableStones` are
+// {colour, coords}; `travel(entry, point)` a flight's ms, from that table
+// stone (null, the bowl) to that point. Pure, for the tests: returns the
+// plans, {stage, move, entry, landAt, departAt}, the stage it stopped at
+// and when the next stone after them lands. A capture's second stage
+// (the stones taken off) is not a stone to place: it goes with its move's.
+export function planPlacements({stages, moves, stage, nextLandAt, now, rate, tableStones, travel, random = Math.random}) {
+    const beat = 1000/rate;
+    const table = [...tableStones];
+    const onBeat = nextLandAt > now ? nextLandAt : null;
+    const picks = [];
+    while (stage < stages.length) {
+        if (!stages[stage].stoneMore) {
+            ++stage;
+            continue;
+        }
+        if ((onBeat ?? now) + picks.length*beat - now > horizon) {
+            break;
+        }
+        const move = moves[stages[stage].move];
+        const nearest = chooser(random);
+        table.forEach((entry) => {
+            if (entry.colour == move.colour) {
+                nearest.offer(entry, Math.hypot(entry.coords[0] - pointX(move.point), entry.coords[1] - pointY(move.point)));
+            }
+        });
+        const entry = nearest.best;
+        if (entry) {
+            table.splice(table.indexOf(entry), 1);
+        }
+        picks.push({stage, move, entry, flight: travel(entry, move.point)});
+        ++stage;
+    }
+    if (picks.length == 0) {
+        return {plans: [], stage, nextLandAt};
+    }
+    let landAt = onBeat ?? Math.max(...picks.map((pick, i) => now + pick.flight - i*beat));
+    const plans = picks.map((pick) => {
+        // Never set off before now: a stone planned late lands late, and
+        // the beat goes on from it.
+        landAt = Math.max(landAt, now + pick.flight);
+        const plan = {stage: pick.stage, move: pick.move, entry: pick.entry, landAt, departAt: landAt - pick.flight};
+        landAt += beat;
+        return plan;
+    });
+    return {plans, stage, nextLandAt: landAt};
+}
+
+// How far a table stone is from a point, in points.
+function tableDistance(entry, point) {
+    return Math.hypot(entry.coords[0] - pointX(point), entry.coords[1] - pointY(point));
+}
+
+// A stone's flight to `point`, in ms: across from the table at the
+// replay's steady pace, or dropped in from the bowl.
+function travel(entry, point) {
+    return entry ? flightTime('table', crossTimeFor(tableDistance(entry, point))) : flightTime('bowl');
+}
+
+// The board a game being replayed wants, made (called from the clock's
+// transform() while there is a replay): true while the replay has the
+// board, false once it is over and the clock has it back. The board is
+// first taken to where the game is, if it is not there (a seek, the
+// page opened on a game, or a finger having disturbed it), in one quick
+// magic change; then, while the game plays, its stones are set going
+// on their beat.
+export function replayTransform(clock) {
     const replay = clock.replay;
+    window.clearTimeout(replay.wake);
+    replay.wake = null;
     if (replay.cancelled) {
+        unschedule(clock);
+        if (clock.magic_flights.length > 0) {
+            return true;
+        }
         finish(clock);
-        return null;
+        return false;
     }
     if (!replay.cleared || !replay.game) {
-        return emptyBoard();
+        clock.stones = emptyBoard();
+        return true;
     }
     if (!replay.started) {
         replay.started = true;
@@ -302,58 +370,165 @@ export function replayWanted(clock) {
         reportProgress(replay);
     }
     const stages = replay.game.stages;
-    // Taken to a move: that position, until the board shows it.
+    // Nothing planned or in the air: the board should show the position
+    // reached, and the game is planned on from there.
+    if (clock.magic_flights.length == 0) {
+        replay.planned = replay.stage;
+        if (replay.seeking === null) {
+            const reached = replay.stage > 0 ? stages[replay.stage - 1].board : emptyBoard();
+            if (!sameBoard(clock.stones_shown, reached)) {
+                replay.seeking = replay.stage - 1;
+            }
+        }
+    }
+    // Taken to a position: once whatever is in the air has landed, in one
+    // quick change, and the game goes on from there.
     if (replay.seeking !== null) {
+        if (clock.magic_flights.length > 0) {
+            return true;
+        }
         const board = replay.seeking < 0 ? emptyBoard() : stages[replay.seeking].board;
-        if (!sameBoard(clock.stones_shown, board)) {
-            return board;
+        clock.stones = board;
+        if (!sameBoard(clock.stones_shown, board) && magicTransform(clock, {quick: true})) {
+            return true;
         }
-        replay.stage = replay.seeking + 1;
+        replay.stage = replay.planned = replay.seeking + 1;
         replay.seeking = null;
-        // The game goes on from here: the next move without waiting out
-        // its moment, unless it is being held.
-        replay.allowed = movesShown(replay) + (replay.rate > 0 ? 1 : 0);
-        replay.allowedAt = performance.now();
+        replay.nextLandAt = 0;
+        reportProgress(replay);
     }
-    // How far the board has got: the furthest position it shows, of the
-    // one wanted and the one it may be reaching for beyond it.
-    for (let ahead = lookahead; ahead >= 0; --ahead) {
-        const at = replay.stage + ahead;
-        if (at < stages.length && sameBoard(clock.stones_shown, stages[at].board)) {
-            replay.stage = at + 1;
-            reportProgress(replay);
-            break;
+    clock.stones = replay.stage > 0 ? stages[replay.stage - 1].board : emptyBoard();
+    if (replay.rate > 0) {
+        schedule(clock);
+    }
+    if (replay.stage >= stages.length && clock.magic_flights.length == 0) {
+        replaySettled(clock);
+    }
+    return true;
+}
+
+// The stones due soon planned (planPlacements) and set waiting for their
+// moment, and a look again when the next is due to be planned.
+function schedule(clock) {
+    const replay = clock.replay;
+    const game = replay.game;
+    const now = performance.now();
+    const {plans, stage, nextLandAt} = planPlacements({
+        stages: game.stages,
+        moves: game.moves,
+        stage: replay.planned,
+        nextLandAt: replay.nextLandAt,
+        now,
+        rate: replay.rate,
+        tableStones: clock.table_stones,
+        travel
+    });
+    replay.planned = stage;
+    replay.nextLandAt = nextLandAt;
+    plans.forEach((plan) => {
+        const flight = plan.entry
+            ? {kind: 'table', entry: plan.entry, to: plan.move.point, colour: plan.move.colour}
+            : {kind: 'bowl', to: plan.move.point, colour: plan.move.colour};
+        flight.stage = plan.stage;
+        flight.landAt = plan.landAt;
+        if (plan.entry) {
+            flight.crossTime = crossTimeFor(tableDistance(plan.entry, plan.move.point));
         }
+        if (plan.entry) {
+            takeFromTable(clock, plan.entry);
+        }
+        launchFlight(clock, flight, Math.max(0, plan.departAt - now), () => landed(clock, replay, flight));
+    });
+    if (replay.planned < game.stages.length) {
+        replay.wake = window.setTimeout(() => {
+            replay.wake = null;
+            if (clock.replay === replay && !clock.finger && !clock.sweeping_board) {
+                clock.transform();
+            }
+        }, Math.max(16, replay.nextLandAt - horizon - performance.now()));
     }
-    // As far as the playback allows, and no further.
-    const limit = allowedStage(replay);
-    if (replay.stage > limit) {
-        return replay.stage > 0 ? stages[replay.stage - 1].board : emptyBoard();
+}
+
+// A stone of the game down: the position reached, and a capture's stones
+// taken off to the bowl at once.
+function landed(clock, replay, flight) {
+    if (clock.replay !== replay) {
+        return;
     }
-    if (replay.stage >= stages.length) {
-        return stages[stages.length - 1].board;
+    clock.sound?.place(flight.colour == white ? 'white' : 'black');
+    const stages = replay.game.stages;
+    if (!replay.cancelled && replay.seeking === null && flight.stage === replay.stage) {
+        replay.stage = flight.stage + 1;
+        const next = stages[replay.stage];
+        if (next && !next.stoneMore) {
+            const before = stages[flight.stage].board;
+            for (let i = 0; i < before.length; ++i) {
+                if (before[i] != 0 && next.board[i] == 0 && clock.stones_shown[i] != 0) {
+                    launchFlight(clock, {kind: 'away', from: i, colour: clock.stones_shown[i]}, 0, () => {
+                        if (clock.replay === replay && clock.magic_flights.length == 0 && !clock.finger && !clock.sweeping_board) {
+                            clock.transform();
+                        }
+                    });
+                }
+            }
+            replay.stage += 1;
+        }
+        reportProgress(replay);
     }
-    // The board as it will be once the stones in the hands land.
-    const pending = [...clock.stones_shown];
-    clock.hands.forEach((hand) => {
-        if (hand.moving && hand.to[0] < gridsize) {
-            pending[clock.get_index(hand.to)] = hand.colour;
+    if (!clock.finger && !clock.sweeping_board) {
+        clock.transform();
+    }
+}
+
+// Of the game's flights (each with its `stage`, and `waiting` until it
+// sets off), which to call off: every one still waiting; or, with
+// `keepCommitted` (a change of beat), only those after the last stage
+// already in the air. A stone from far across the table sets off before
+// one from the bowl that lands ahead of it, so one still waiting may
+// come before one already flying: calling that off, and planning again
+// from it, would plan the flying one a second time, to land on a point
+// its first flight has already filled. Pure, for the tests: returns the
+// flights to call off.
+export function flightsToCallOff(flights, {keepCommitted = false} = {}) {
+    const flying = flights.filter((flight) => !flight.waiting && flight.stage !== undefined);
+    const lastFlying = keepCommitted && flying.length > 0 ? Math.max(...flying.map((flight) => flight.stage)) : -Infinity;
+    return flights.filter((flight) => flight.waiting && !(flight.stage !== undefined && flight.stage <= lastFlying));
+}
+
+// The stones planned but not yet set off called off (flightsToCallOff),
+// a stone one was to fetch from the table put back on it, and the game
+// planned again from the first of them, a beat after the last stone left
+// to land.
+function unschedule(clock, {keepCommitted = false} = {}) {
+    const replay = clock.replay;
+    window.clearTimeout(replay.wake);
+    replay.wake = null;
+    clock.magic_flights.forEach((flight) => {
+        flight.waiting = flight.timeoutId != null;
+    });
+    const callOff = new Set(flightsToCallOff(clock.magic_flights, {keepCommitted}));
+    let first = null;
+    callOff.forEach((flight) => {
+        window.clearTimeout(flight.timeoutId);
+        if (flight.kind == 'table') {
+            clock.table_stones.push(flight.entry);
+        }
+        if (flight.stage !== undefined && (first === null || flight.stage < first)) {
+            first = flight.stage;
         }
     });
-    let at = replay.stage;
-    while (at - replay.stage < lookahead && at + 1 <= limit && at + 1 < stages.length
-           && stages[at].stoneMore && stages[at + 1].stoneMore
-           && sameBoard(pending, stages[at].board)) {
-        ++at;
+    clock.magic_flights = clock.magic_flights.filter((flight) => !callOff.has(flight));
+    if (first !== null) {
+        replay.planned = first;
     }
-    return stages[at].board;
+    const left = clock.magic_flights.filter((flight) => flight.landAt !== undefined);
+    const last = left.length > 0 ? Math.max(...left.map((flight) => flight.landAt)) : 0;
+    replay.nextLandAt = last > 0 && replay.rate > 0 ? last + 1000/replay.rate : 0;
 }
 
 // The hands have nothing to do (transform() found no move): if the game
 // is over, a moment to look at it, then the board is the clock's again.
-// Otherwise the board is clear and the record is still to come, or the
-// stones are still settling, and transform() will be called again.
-export function replaySettled(clock) {
+function replaySettled(clock) {
     const replay = clock.replay;
     if (!replay.game || replay.rate === 0 || replay.stage < replay.game.stages.length || replay.resting) {
         return;
@@ -373,7 +548,7 @@ export function replaySettled(clock) {
 }
 
 // How many moves the board shows: the move of the last position reached,
-// counted from one; or, while the hands take it to a move, that move.
+// counted from one; or, while it is being taken to a move, that move.
 export function movesShown(replay) {
     const at = replay.seeking !== null ? replay.seeking : replay.stage - 1;
     return at >= 0 ? replay.game.stages[at].move + 1 : 0;
@@ -385,87 +560,47 @@ function reportProgress(replay) {
     }
 }
 
-// How many moves the game may have played by now: the allowance grown
-// at the rate, and never more than a move or two ahead of the board, so
-// time spent waiting for slow hands is not banked.
-function allowance(replay) {
-    const now = performance.now();
-    replay.allowed = Math.min(replay.allowed + (now - replay.allowedAt)*replay.rate/1000,
-                              movesShown(replay) + lookahead + 1);
-    replay.allowedAt = now;
-    return replay.allowed;
-}
-
-// The furthest position the playback allows the board to reach.
-function allowedStage(replay) {
-    return stageOfMove(replay.game.stages, Math.floor(allowance(replay)) - 1);
-}
-
-// How long until the game's next move is allowed, in ms; null when the
-// board is not waiting on the playback (the game is over, or held).
-export function replayWait(clock) {
-    const replay = clock.replay;
-    if (!replay || replay.cancelled || !replay.game || replay.rate === 0
-        || replay.seeking !== null || replay.stage >= replay.game.stages.length) {
-        return null;
-    }
-    if (replay.stage <= allowedStage(replay)) {
-        return 0;
-    }
-    const left = Math.floor(replay.allowed) + 1 - replay.allowed;
-    return Math.max(16, Math.round(left*1000/replay.rate));
-}
-
-// How fast the game plays, in moves a second; 0 holds it where it is
-// (the hands land what they carry and wait, and a game that has finished
-// stays on the board rather than being handed back to the clock).
+// How fast the game plays, in stones a second; 0 holds it where it is
+// (the stones already in the air land, and any before them still to set
+// off, and a game that has finished stays on the board rather than being
+// handed back to the clock). The stones after those are planned again on
+// the new beat.
 export function setReplayRate(clock, rate) {
     const replay = clock.replay;
-    if (!replay || replay.cancelled) {
+    if (!replay || replay.cancelled || replay.rate === rate) {
         return;
     }
-    const held = replay.rate === 0;
-    allowance(replay);
     replay.rate = rate;
-    if (rate === 0) {
-        // Held at once, whatever was allowed: only the stones in the
-        // hands still land.
-        replay.allowed = movesShown(replay);
-    } else if (held) {
-        // Let go: the next move without waiting out its moment first.
-        replay.allowed = Math.max(replay.allowed, movesShown(replay) + 1);
-    }
+    unschedule(clock, {keepCommitted: true});
     if (rate === 0 && replay.resting) {
         window.clearTimeout(replay.timer);
         replay.timer = null;
         replay.resting = false;
     }
-    if (!clock.busy() && !clock.finger && !clock.sweeping_board) {
+    if (!clock.finger && !clock.sweeping_board) {
         clock.transform();
     }
 }
 
 // The replay taken to the position after `move` moves (0, the empty
-// board): the board is taken there in one magic change (magic.js),
-// whatever the speed setting, and the game goes on from it. Not until
-// the game is under way, nor while a finger is on the board.
+// board): the board is taken there in one quick magic change, and the
+// game goes on from it. Not until the game is under way, nor while a
+// finger is on the board.
 export function seekReplay(clock, move) {
     const replay = clock.replay;
     if (!replay || replay.cancelled || !replay.game || !replay.cleared || clock.sweeping_board || clock.finger) {
         return false;
     }
     const stages = replay.game.stages;
+    unschedule(clock);
     replay.seeking = stageOfMove(stages, Math.max(0, Math.min(replay.game.moves.length, move)) - 1);
     if (replay.resting) {
         window.clearTimeout(replay.timer);
         replay.timer = null;
         replay.resting = false;
     }
-    clock.magic_once = true;
     reportProgress(replay);
-    if (!clock.busy() && !clock.finger && !clock.sweeping_board) {
-        clock.transform();
-    }
+    clock.transform();
     return true;
 }
 
@@ -478,8 +613,8 @@ function sameBoard(a, b) {
     return true;
 }
 
-// The replay stopped where it is. A hand still on its way lands first,
-// and its landing finishes the replay; otherwise it is finished now.
+// The replay stopped where it is. The stones in the air land first, and
+// the last of them finishes the replay; otherwise it is finished now.
 export function cancelReplay(clock) {
     const replay = clock.replay;
     if (!replay) {
@@ -488,9 +623,9 @@ export function cancelReplay(clock) {
     replay.cancelled = true;
     window.clearTimeout(replay.timer);
     replay.timer = null;
-    if (!clock.busy() && !clock.finger && !clock.sweeping_board) {
-        // Otherwise the next transform() (a landing, the finger going,
-        // the sweep settling) finishes it.
+    if (!clock.finger && !clock.sweeping_board) {
+        // Otherwise the next transform() (the finger going, the sweep
+        // settling) finishes it.
         clock.transform();
     }
 }

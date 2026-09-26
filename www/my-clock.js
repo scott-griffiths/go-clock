@@ -50,12 +50,11 @@ const views = ['Analogue', 'Jumping hour', 'Digital', 'Hybrid'];
 // (magic.js), and the rest is between one go and the next.
 const stoneSpeeds = [['Slow', 26, 180], ['Normal', 45, 60], ['Fast', 320, 8], ['Magic!', 320, 150, true]];
 const placements = ['Exact', 'Organic', 'Careless'];
-// How fast a game replays, in moves a second, at each of the hand's
-// speeds (stoneSpeeds, above): not how fast the hands are, but how fast
-// the game asks them for moves, so a slow board falls behind a brisk game
-// rather than the game waiting for it. Magic has as many hands as it
-// needs, and plays as fast as the hands can.
-const playbackRates = [1, 2, 6, 20];
+// How fast a game replays, in stones landing a second, at each of the
+// speed settings (stoneSpeeds, above): a game is played on an even beat
+// by stones flying in as the magic's do (replay.js), whatever the hands'
+// own speed, so only the beat changes.
+const playbackRates = [1, 2, 3, 8];
 const modes = ['12-hour', '24-hour'];
 // Each a filter on the board image; the last is no wood at all but the
 // computer's board, drawn plain (stone-dom.js), with flat stones to match.

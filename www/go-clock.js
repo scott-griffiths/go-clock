@@ -9,7 +9,7 @@ import {setTumbling, voidFlightTime, dropTime} from './physics.js';
 import {flyOn} from './flight.js';
 import {sinkOn} from './water.js';
 import {sweepBoard} from './sweep.js';
-import {replayWanted, replaySettled, replayWait} from './replay.js';
+import {replayTransform} from './replay.js';
 import {fingerDown, fingerMove, fingerUp, endFinger} from './hand.js';
 import {setLandingOffset, redistribute, strayPlan} from './placement.js';
 import {moveStone, moveDuration} from './moves.js';
@@ -131,7 +131,7 @@ export function GoClock(){
     this.flat_stones = false;
     this.sweeping_board = false;
     // A game being replayed on the board (replay.js), or null: while there
-    // is one, transform() works towards its positions instead of the time's.
+    // is one, transform() hands the board to it instead of making the time.
     this.replay = null;
     // A stopwatch (stopwatch.js) the board shows instead of the time, or
     // null: set by my-clock.js while the stopwatch is the tool in use. It
@@ -152,7 +152,7 @@ export function GoClock(){
     // Magic: as many hands as there are stones to move, every change
     // made in one go (magic.js); `magic_flights` the stones in the air,
     // and `magic_once` a single change to be made that way whatever the
-    // speed (a replay taken to a move, replay.js).
+    // speed (the stopwatch started or stopped, my-clock.js).
     this.magic = false;
     this.magic_once = false;
     this.magic_flights = [];
@@ -688,8 +688,6 @@ export function GoClock(){
     // moves: at a faster setting the moves are shorter, and so are they,
     // or the other hand would spend its time waiting and only one would
     // seem to work.
-    // While a game is being replayed, the board it wants is the game's
-    // next position rather than the face's (replay.js).
     this.transform = function() {
         if (this.sweeping_board || this.finger) {
             return;
@@ -703,13 +701,12 @@ export function GoClock(){
             }
             this.draw(this.pending_size[0], this.pending_size[1]);
         }
-        // The board a game being replayed wants, or the time's.
-        var wanted = this.replay ? replayWanted(this) : null;
-        if (wanted) {
-            this.stones = wanted;
-        } else {
-            this.update();
+        // A game being replayed has the board to itself (replay.js), until
+        // it is over; otherwise the time's.
+        if (this.replay && replayTransform(this)) {
+            return;
         }
+        this.update();
         if (this.magic || this.magic_once) {
             // Every change at once (magic.js); the last landing looks
             // again. Nothing left to do: a one-off change is done with,
@@ -732,12 +729,8 @@ export function GoClock(){
                 this.magic_once = false;
             }
             if (this.magic) {
-                if (this.replay) {
-                    this.waitForReplay();
-                } else {
-                    this.finished();
-                    this.idle_timer = setTimeout(this.transform.bind(this), this.nextTick());
-                }
+                this.finished();
+                this.idle_timer = setTimeout(this.transform.bind(this), this.nextTick());
                 return;
             }
         }
@@ -752,11 +745,6 @@ export function GoClock(){
                 return;
             }
             var otherHand = hand === this.hand ? this.other : this.hand;
-            if (this.replay && hand !== this.hands[0]) {
-                // Asked again: the first hand may have just set out with
-                // the game's next stone, and this one can go for the one after.
-                this.stones = replayWanted(this) || this.stones;
-            }
             var reserved = otherHand.points(this);
             // Nothing the face wants: a stone a finger left far off its
             // point put back on it.
@@ -786,9 +774,7 @@ export function GoClock(){
                     var duration = moveDuration(this, plan, this.speed*pace)*1000;
                     var spacing = Math.max(guard, duration*0.5, (otherHand.landsAt - otherHand.startedAt)*0.5);
                     var gap = now + holdOff + duration - otherHand.landsAt;
-                    // In a replay the other hand's stone is the earlier
-                    // move (replay.js), and this one lands after it.
-                    if (Math.abs(gap) < spacing || (this.replay && gap < 0)) {
+                    if (Math.abs(gap) < spacing) {
                         holdOff += spacing - gap;
                     }
                 }
@@ -807,15 +793,6 @@ export function GoClock(){
             }
         });
         if (!this.busy()) {
-            if (this.replay) {
-                // No move found, none waiting its moment: the game's next
-                // move is not due yet, the board is not ready for it, or
-                // the game is over.
-                if (!this.hands.some((hand) => hand.reaching)) {
-                    this.waitForReplay();
-                }
-                return;
-            }
             // Nothing to do: look again just after the next second turns,
             // which is the soonest any face can change.
             if (!this.hands.some((hand) => hand.reaching)) {
@@ -838,18 +815,6 @@ export function GoClock(){
     this.nextTick = function() {
         var now = this.stopwatch?.running ? this.stopwatch.elapsed() : Date.now();
         return 1000 - now % 1000 + 5;
-    };
-
-    // The hands have done what they can for the replay: a look again
-    // when its next move comes due, or, with the game over, the rest
-    // before the clock takes the board back (replay.js).
-    this.waitForReplay = function() {
-        var wait = replayWait(this);
-        if (wait === null) {
-            replaySettled(this);
-        } else {
-            this.idle_timer = setTimeout(this.transform.bind(this), Math.max(16, wait));
-        }
     };
 
     // A plan from planner.js, taken up by a hand: the stone it carries,
