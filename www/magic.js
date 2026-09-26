@@ -9,7 +9,7 @@
 // they last, so a finger can take them over (dropMagicStones).
 
 import {gridsize, white, dist} from './board.js';
-import {routeIsClear} from './planner.js';
+import {routeIsClear, chooser} from './planner.js';
 import {$, setStyles, setVisible, setStoneShadow, animateStoneShadow, stoneImageSrc, stoneElement, animateElement, elementCentre,
         cancelElementAnimations, drawOnTable, maxLift, tableStoneScale} from './stone-dom.js';
 import {setLandingOffset, isStray} from './placement.js';
@@ -62,29 +62,32 @@ export function magicTransform(clock) {
 
     // Each arrival takes the nearest leaving stone of its colour, then
     // the nearest on the table, and the bowl has the rest; the leaving
-    // stones nobody took go to the bowl.
+    // stones nobody took go to the bowl. Of stones equally near, either,
+    // by chance (planner.js), as the hands choose.
     const flights = [];
     const taken = new Set();
     arriving.forEach((to) => {
         const colour = wanted[to];
-        let best = null;
+        const nearest = chooser();
         leaving.forEach((from) => {
-            if (!taken.has(from) && shown[from] == colour && (best === null || dist(from, to) < dist(best, to))) {
-                best = from;
+            if (!taken.has(from) && shown[from] == colour) {
+                nearest.offer(from, dist(from, to));
             }
         });
+        const best = nearest.best;
         if (best !== null) {
             taken.add(best);
             flights.push({kind: 'slide', from: best, to, colour});
             return;
         }
         const at = clock.pixelForCoords(clock.get_coords(to));
-        let entry = null;
+        const nearestOnTable = chooser();
         clock.table_stones.forEach((candidate) => {
-            if (candidate.colour == colour && (!entry || Math.hypot(candidate.x - at[0], candidate.y - at[1]) < Math.hypot(entry.x - at[0], entry.y - at[1]))) {
-                entry = candidate;
+            if (candidate.colour == colour) {
+                nearestOnTable.offer(candidate, Math.hypot(candidate.x - at[0], candidate.y - at[1]));
             }
         });
+        const entry = nearestOnTable.best;
         if (entry) {
             takeFromTable(clock, entry);
             flights.push({kind: 'table', entry, to, colour});
@@ -140,21 +143,18 @@ export function magicTransform(clock) {
     // nearest next, the same trip planMove works out one move at a time
     // — so a whole group lifted at once does not rise as one
     // indistinguishable block, and starts off where the hand actually is
-    // rather than jumping to the top-left corner regardless. A stone is
-    // met where it is picked up (`from`, for a slide or one going away)
-    // or, coming from the table or the bowl, where it is put down (`to`).
+    // rather than jumping to the top-left corner regardless; of stones
+    // equally near, either, by chance. A stone is met where it is picked
+    // up (`from`, for a slide or one going away) or, coming from the table
+    // or the bowl, where it is put down (`to`).
     const flightPoint = (flight) => flight.from !== undefined ? flight.from : flight.to;
     const remaining = flights.map((_, i) => i);
     const baseOrder = new Array(flights.length);
     let at = clock.hand.position;
     for (let rank = 0; remaining.length > 0; ++rank) {
-        let nearest = 0;
-        remaining.forEach((idx, ri) => {
-            if (dist(at, flightPoint(flights[idx])) < dist(at, flightPoint(flights[remaining[nearest]]))) {
-                nearest = ri;
-            }
-        });
-        const chosen = remaining.splice(nearest, 1)[0];
+        const next = chooser();
+        remaining.forEach((idx, ri) => next.offer(ri, dist(at, flightPoint(flights[idx]))));
+        const chosen = remaining.splice(next.best, 1)[0];
         baseOrder[chosen] = rank;
         at = flights[chosen].to !== undefined ? flights[chosen].to : flightPoint(flights[chosen]);
     }
