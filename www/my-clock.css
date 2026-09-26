@@ -7,6 +7,10 @@
     --safe-right: env(safe-area-inset-right, 0px);
     --safe-bottom: env(safe-area-inset-bottom, 0px);
     --safe-left: env(safe-area-inset-left, 0px);
+    /* An open menu's button, the cross that closes it: smaller than the
+       rest, its cross the same size (my-clock.js places rows from it). */
+    --close-size: 30px;
+    --toggle-resize: width 200ms ease, height 200ms ease, min-height 200ms ease;
 }
 
 * {
@@ -284,7 +288,7 @@ body {
     opacity: 0;
     /* Back under the button: each its own distance to the right, the
        first one step on from it. */
-    left: calc((var(--i) + 1) * 48px);
+    left: calc(var(--i) * 48px + var(--close-size) + 6px);
     transition: left 280ms ease-in-out, top 280ms ease-in-out, opacity 200ms ease 80ms, visibility 0s 280ms;
 }
 
@@ -298,7 +302,7 @@ body {
     }
 
     .board-control[data-open="false"] .board-actions > * {
-        top: calc((var(--i) + 1) * -48px);
+        top: calc(var(--i) * -48px - var(--close-size) - 6px);
         left: 0;
     }
 }
@@ -320,7 +324,7 @@ body {
     opacity: 0;
     /* Back under the toggle: each button its own distance to the left,
        the first one step on from it. */
-    left: calc((var(--i) + 1) * -48px);
+    left: calc(var(--i) * -48px - var(--close-size) - 6px);
     transition: left 280ms ease-in-out, top 280ms ease-in-out, opacity 200ms ease 80ms, visibility 0s 280ms;
 }
 
@@ -347,16 +351,32 @@ body {
     padding: 0;
     background: rgb(0 0 0 / 0.7);
     opacity: 0.85;
+    transition: var(--toggle-resize);
 }
 
 /* Each menu's button leads its row, over the rest while they are tucked
-   away; open, it wears a cross (my-clock.js) and stays, the row sliding
-   out beyond it, and a tap on it puts the row back. */
+   away; open, it wears a cross (my-clock.js), shrinking to fit it, and
+   stays, the row sliding out beyond it, and a tap on it puts the row
+   back. */
 .toolbar .menu-toggle,
 #board-toggle {
     position: relative;
     z-index: 1;
     flex: none;
+}
+
+.toolbar[data-collapsed="false"] .menu-toggle,
+.board-control[data-open="true"] #board-toggle {
+    width: var(--close-size);
+    height: var(--close-size);
+    min-height: var(--close-size);
+}
+
+/* Tucked away, the toolbar's button wears the tool in use, picked out as
+   a chosen tool is in the open row: dark on white. */
+.toolbar[data-collapsed="true"] .menu-toggle {
+    background: rgb(255 255 255 / 0.93);
+    color: #261917;
 }
 
 .menu-toggle svg {
@@ -371,7 +391,7 @@ body {
    keyboard's focus brings them straight back. */
 .toolbar[data-collapsed="true"] .menu-toggle {
     opacity: 0.45;
-    transition: opacity 600ms ease 2s;
+    transition: opacity 600ms ease 2s, var(--toggle-resize);
 }
 
 .toolbar[data-collapsed="true"] .menu-toggle svg {
@@ -385,7 +405,11 @@ body {
 }
 
 .toolbar[data-collapsed="true"][data-awake="true"] .menu-toggle,
-.toolbar[data-collapsed="true"] .menu-toggle:focus-visible,
+.toolbar[data-collapsed="true"] .menu-toggle:focus-visible {
+    opacity: 1;
+    transition: opacity 150ms ease, var(--toggle-resize);
+}
+
 .toolbar[data-collapsed="true"][data-awake="true"] ~ .board-control,
 .toolbar[data-collapsed="true"] ~ .board-control[data-open="true"],
 .toolbar[data-collapsed="true"] ~ .board-control:focus-within {
@@ -824,8 +848,13 @@ body {
     }
 
     .toolbar[data-collapsed="true"] .toolbar-actions > * {
-        top: calc((var(--i) + 1) * -48px);
+        top: calc(var(--i) * -48px - var(--close-size) - 6px);
         left: 0;
+    }
+
+    /* The cross, smaller than the column's buttons, centred over them. */
+    .toolbar .menu-toggle {
+        align-self: center;
     }
 
     .replay-bar,
@@ -941,4 +970,16 @@ body {
         transition-duration: 1ms !important;
         animation-duration: 1ms !important;
     }
+}
+
+/* Sits exactly where the toolbar does, unseen, for my-clock.js to hear
+   when that moves: the safe area can arrive after the first layout. */
+.toolbar-place {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: max(10px, env(safe-area-inset-left));
+    height: max(10px, env(safe-area-inset-top));
+    visibility: hidden;
+    pointer-events: none;
 }

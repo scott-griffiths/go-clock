@@ -509,17 +509,25 @@ window.addEventListener('load', () => {
     }
 
     // Where a setting's button sits, or, for the toolbar's (the faces, its
-    // first tool), where it is sliding out to: one step on from the toggle.
+    // first tool), where it is sliding out to: one step on from the cross.
     function anchorOf(control) {
         const rect = summaryOf(control).getBoundingClientRect();
         if (!control.closest('#toolbar')) {
             return rect;
         }
-        const toggle = menuToggle.getBoundingClientRect();
-        const step = parseFloat(getComputedStyle(toolbar).columnGap) || 6;
-        const left = isLandscape() ? toggle.left : toggle.right + step;
-        const top = isLandscape() ? toggle.bottom + step : toggle.top;
+        const {left, top} = firstToolPlace();
         return {left, top, right: left + rect.width, bottom: top + rect.height};
+    }
+
+    // The toolbar's first tool's place once the row is out, after the
+    // cross (whose size is the stylesheet's --close-size), measured from
+    // the toolbar itself: the tool may still be sliding out, and the
+    // toggle still shrinking to the cross.
+    function firstToolPlace() {
+        const bar = toolbar.getBoundingClientRect();
+        const style = getComputedStyle(toolbar);
+        const step = (parseFloat(style.getPropertyValue('--close-size')) || 30) + (parseFloat(style.columnGap) || 6);
+        return isLandscape() ? {left: bar.left, top: bar.top + step} : {left: bar.left + step, top: bar.top};
     }
 
     function isLandscape() {
@@ -916,30 +924,30 @@ window.addEventListener('load', () => {
     // that button, running down (the line to the board's foot). It comes
     // and goes with the toolbar's own row when that is tucked away or
     // brought back (the CSS, keyed off the toolbar's data-collapsed). The
-    // first tool's place is measured from the toggle, one step on from it:
+    // first tool's place is measured from the toolbar (firstToolPlace):
     // the tool itself may still be sliding out.
     function placeToolBar(bar, stretch) {
         const board = $('#goban-image')?.getBoundingClientRect();
         if (!board || bar.hidden) {
             return;
         }
-        const toggle = menuToggle.getBoundingClientRect();
+        const row = toolbar.getBoundingClientRect();
+        const first = firstToolPlace();
         // The row beneath the toolbar's, spaced as the toolbar's own are.
         const gap = parseFloat(getComputedStyle(bar).columnGap) || 6;
-        const step = parseFloat(getComputedStyle(toolbar).columnGap) || 6;
         if (isLandscape()) {
-            const top = toggle.bottom + step;
+            const top = first.top;
             Object.assign(bar.style, {
-                left: `${Math.round(toggle.right + gap)}px`,
+                left: `${Math.round(row.right + gap)}px`,
                 top: `${Math.round(top)}px`,
                 width: '',
                 height: stretch ? `${Math.round(board.bottom - top)}px` : ''
             });
         } else {
-            const left = toggle.right + step;
+            const left = first.left;
             Object.assign(bar.style, {
                 left: `${Math.round(left)}px`,
-                top: `${Math.round(toggle.bottom + gap)}px`,
+                top: `${Math.round(row.bottom + gap)}px`,
                 width: stretch ? `${Math.round(board.right - left)}px` : '',
                 height: ''
             });
@@ -1480,6 +1488,17 @@ window.addEventListener('load', () => {
     keepScreenAwake();
     document.addEventListener('visibilitychange', keepScreenAwake);
     window.addEventListener('resize', scheduleResize);
+    // On a phone the safe area can arrive after the first layout, moving
+    // the toolbar down clear of the notch with no resize to say so; all
+    // that is placed from it (a tool's row, an open list) moves with it.
+    const toolbarPlace = document.createElement('div');
+    toolbarPlace.className = 'toolbar-place';
+    toolbarPlace.setAttribute('aria-hidden', 'true');
+    document.body.append(toolbarPlace);
+    new ResizeObserver(() => {
+        placeToolBars();
+        openControls.forEach(placePanel);
+    }).observe(toolbarPlace);
     setInterval(() => {
         storeGobanState();
         describeBoard();
