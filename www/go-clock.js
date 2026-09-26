@@ -14,7 +14,7 @@ import {fingerDown, fingerMove, fingerUp, endFinger} from './hand.js';
 import {setLandingOffset, redistribute, strayPlan} from './placement.js';
 import {moveStone, moveDuration} from './moves.js';
 import {magicTransform, retarget, dropMagicStones} from './magic.js';
-import {$, gobanImage, drawOnTable, maxLift, setStyles, setVisible, setStoneShadow, stoneImageSrc,
+import {$, gobanImage, drawOnTable, maxLift, setStyles, setVisible, setStoneShadow, setShadowBoard, stoneImageSrc,
         cancelElementAnimations, animateElement, elementCentre, stoneElement, looseStone} from './stone-dom.js';
 
 function displacedCoords(fromCoords, toCoords) {
@@ -292,7 +292,8 @@ export function GoClock(){
         var lift = Math.min(height, maxLift);
         var scale = 1 + lift/20;
         var diameter = (this.goban_width/20)*scale | 0;
-        var cx = this.goban_width/2, cy = this.goban_height/2;
+        // The board's middle, in the goban element's px, as x and y are.
+        var cx = this.x_offset + this.goban_width/2, cy = this.y_offset + this.goban_height/2;
         x = cx + (x - cx)*scale;
         y = cy + (y - cy)*scale;
         return [x - diameter/2, y - diameter/2, diameter, diameter];
@@ -479,6 +480,11 @@ export function GoClock(){
         this.window_width = width;
         this.window_height = height;
         Object.assign(this, this.layout(width, height));
+        setShadowBoard({
+            diameter: this.goban_width/20 | 0,
+            centreX: this.x_offset + this.goban_width/2,
+            centreY: this.y_offset + this.goban_height/2
+        });
         this.stand_in = null;
         gobanImage.id = 'goban-image';
         gobanImage.alt = '';

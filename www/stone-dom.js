@@ -118,6 +118,11 @@ export function carryHeight(points) {
     return Math.min(8, 4 + points/3);
 }
 
+// For looking at how the shadows behave: true draws them in solid red
+// with a crisp edge, in exactly the place and size they otherwise have.
+export const shadowDebug = false;
+const shadowRgb = shadowDebug ? '220 0 0' : '0 0 0';
+
 // A stone's shadow, for a stone `height` (0 to maxLift) off the board:
 // further away, softer and fainter the higher it is, but still there to
 // see all the way up, so it does not seem to arrive only as the stone
@@ -125,6 +130,17 @@ export function carryHeight(points) {
 function shadowLook(height) {
     const lift = Math.max(0, Math.min(height, maxLift));
     const t = lift/maxLift;
+    if (shadowDebug) {
+        return {
+            opacity: 0.9,
+            fill: 0.9,
+            glow: 0.9,
+            blur: 0.5,
+            spread: 1 - lift*0.06,
+            dx: 1.25 + lift*0.45,
+            dy: 1.75 + lift*0.4
+        };
+    }
     return {
         opacity: 0.72*(1 - 0.5*t),
         fill: 0.34*(1 - 0.45*t),
@@ -191,12 +207,89 @@ export function setStoneShadow(element, height = 0, above = height) {
     setLiftFocus(shadow, above);
     const look = shadowLook(height);
     shadow.style.setProperty('--stone-shadow-opacity', look.opacity);
+    shadow.style.setProperty('--stone-shadow-rgb', shadowRgb);
     shadow.style.setProperty('--stone-shadow-fill-alpha', look.fill);
     shadow.style.setProperty('--stone-shadow-blur-alpha', look.glow);
     shadow.style.setProperty('--stone-shadow-blur-size', `${look.blur}px`);
     shadow.style.setProperty('--stone-shadow-spread-size', `${look.spread}px`);
     shadow.style.setProperty('--stone-shadow-offset-x', `${look.dx}px`);
     shadow.style.setProperty('--stone-shadow-offset-y', `${look.dy}px`);
+    if (height > 0) {
+        trackShadow(shadow);
+    }
+}
+
+// Where a lifted stone's shadow falls: on the board, beneath it. A stone
+// is drawn bigger the higher it is, and pushed out from the middle of the
+// board as it grows (pixelStonePosition, go-clock.js), so its size says
+// how high it is and where the point beneath it is; its shadow lies there
+// on the board, as big as the stone is there, and further off down and
+// to the right the higher it is, the light being up to the left. The
+// board's own measures, set with each draw (go-clock.js): a stone's width
+// lying on it, and its middle, in the goban element's px.
+let board = null;
+export function setShadowBoard(geometry) {
+    board = geometry;
+}
+
+// How far a shadow falls from beneath its stone, for each unit of height
+// (as maxLift), in stone widths across and down.
+const shadowFall = [0.16, 0.19];
+
+// The shadows of stones that are, or are going to be, off the board,
+// placed every frame while they are: a stone's height changes with every
+// step of whatever is moving it (moves.js, magic.js, the replay, the hand).
+const lifted = new Set();
+let shadowFrame = null;
+function trackShadow(shadow) {
+    lifted.add(shadow);
+    if (shadowFrame === null && typeof requestAnimationFrame !== 'undefined') {
+        shadowFrame = requestAnimationFrame(placeShadows);
+    }
+}
+function placeShadows() {
+    shadowFrame = null;
+    // The goban's own box: stones are measured from it, and in its own px
+    // (a stand-in for a rebuild scales it all: go-clock.js).
+    const goban = typeof document !== 'undefined' && document.getElementById('goban');
+    const gobanBox = goban?.getBoundingClientRect();
+    const zoom = gobanBox && goban.offsetWidth ? gobanBox.width/goban.offsetWidth : 1;
+    lifted.forEach((shadow) => {
+        if (placeShadow(shadow, gobanBox, zoom)) {
+            lifted.delete(shadow);
+        }
+    });
+    if (lifted.size > 0) {
+        shadowFrame = requestAnimationFrame(placeShadows);
+    }
+}
+
+// One shadow put where it falls; returns whether its stone is down (or
+// gone) and done with, its shadow back under it as a stone lying on the
+// board has it. Measured from the stone's painted box, not its layout
+// one: that is in whole px, and a stone's height from its width would go
+// up in steps.
+function placeShadow(shadow, gobanBox, zoom) {
+    const stone = shadow.parentElement;
+    const box = stone?.isConnected && !stone.hidden ? stone.getBoundingClientRect() : null;
+    const width = box ? box.width/zoom : 0;
+    const scale = board && gobanBox && width ? width/board.diameter : 1;
+    if (!box || scale < 1.01) {
+        if (shadow.style.transform) {
+            shadow.style.transform = '';
+        }
+        return !box || (stone.getAnimations().length == 0 && shadow.getAnimations().length == 0);
+    }
+    // Its middle, the point beneath it, and its height.
+    const cx = (box.left - gobanBox.left)/zoom + width/2;
+    const cy = (box.top - gobanBox.top)/zoom + box.height/zoom/2;
+    const gx = board.centreX + (cx - board.centreX)/scale;
+    const gy = board.centreY + (cy - board.centreY)/scale;
+    const height = (scale - 1)*20;
+    const sx = gx + shadowFall[0]*board.diameter*height;
+    const sy = gy + shadowFall[1]*board.diameter*height;
+    shadow.style.transform = `translate(${(sx - cx).toFixed(2)}px, ${(sy - cy).toFixed(2)}px) scale(${(1/scale).toFixed(4)})`;
+    return false;
 }
 
 // The shadow following its stone from `from` to `to` high over
@@ -214,15 +307,16 @@ export function animateStoneShadow(element, from, to, duration, {easing = 'ease'
     const keyframes = [];
     for (let i = 0; i <= steps; ++i) {
         const look = shadowLook(from + (to - from)*i/steps);
+        // Its place is placeShadow's, every frame.
         keyframes.push({
             opacity: look.opacity,
-            backgroundColor: `rgb(0 0 0 / ${look.fill})`,
-            boxShadow: `0 0 ${look.blur}px ${look.spread}px rgb(0 0 0 / ${look.glow})`,
-            transform: `translate(${look.dx}px, ${look.dy}px)`
+            backgroundColor: `rgb(${shadowRgb} / ${look.fill})`,
+            boxShadow: `0 0 ${look.blur}px ${look.spread}px rgb(${shadowRgb} / ${look.glow})`
         });
     }
     const timing = {duration: duration*1000, delay: delay*1000, easing, fill: 'backwards'};
     const animation = shadow.animate(keyframes, timing);
+    trackShadow(shadow);
     shadow.shadowAnimation = animation;
     animation.addEventListener('finish', () => {
         if (shadow.shadowAnimation === animation) {

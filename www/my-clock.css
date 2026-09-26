@@ -94,8 +94,8 @@ body {
     z-index: 0;
     inset: 0;
     border-radius: 50%;
-    background: rgb(0 0 0 / var(--stone-shadow-fill-alpha, 0.34));
-    box-shadow: 0 0 var(--stone-shadow-blur-size, 3px) var(--stone-shadow-spread-size, 1px) rgb(0 0 0 / var(--stone-shadow-blur-alpha, 0.4));
+    background: rgb(var(--stone-shadow-rgb, 0 0 0) / var(--stone-shadow-fill-alpha, 0.34));
+    box-shadow: 0 0 var(--stone-shadow-blur-size, 3px) var(--stone-shadow-spread-size, 1px) rgb(var(--stone-shadow-rgb, 0 0 0) / var(--stone-shadow-blur-alpha, 0.4));
     opacity: var(--stone-shadow-opacity, 0.72);
     pointer-events: none;
     transform: translate(var(--stone-shadow-offset-x, 1.25px), var(--stone-shadow-offset-y, 1.75px));
