@@ -372,13 +372,6 @@ body {
     min-height: var(--close-size);
 }
 
-/* Tucked away, the toolbar's button wears the tool in use, picked out as
-   a chosen tool is in the open row: dark on white. */
-.toolbar[data-collapsed="true"] .menu-toggle {
-    background: rgb(255 255 255 / 0.93);
-    color: #261917;
-}
-
 .menu-toggle svg {
     display: block;
     width: 18px;
@@ -386,12 +379,15 @@ body {
 }
 
 /* Tucked away, the toggle dims well down after a moment, so it is not
-   the first thing seen, and the board's own menu with it (unless that is
-   open); a touch anywhere (my-clock.js sets `awake` for a while) or a
-   keyboard's focus brings them straight back. */
+   the first thing seen, and the board's own menu with it; a touch
+   anywhere (my-clock.js sets `awake` for a while) or a keyboard's focus
+   brings them straight back, and neither dims while the other's menu is
+   open. Awake, the toggle wears the tool in use as a chosen tool is
+   picked out in the open row, dark on white; dimmed, it goes back to
+   white on dark. */
 .toolbar[data-collapsed="true"] .menu-toggle {
     opacity: 0.45;
-    transition: opacity 600ms ease 2s, var(--toggle-resize);
+    transition: opacity 600ms ease 2s, background-color 600ms ease 2s, color 600ms ease 2s, var(--toggle-resize);
 }
 
 .toolbar[data-collapsed="true"] .menu-toggle svg {
@@ -405,9 +401,12 @@ body {
 }
 
 .toolbar[data-collapsed="true"][data-awake="true"] .menu-toggle,
+.toolbar[data-collapsed="true"][data-board-open="true"] .menu-toggle,
 .toolbar[data-collapsed="true"] .menu-toggle:focus-visible {
     opacity: 1;
-    transition: opacity 150ms ease, var(--toggle-resize);
+    background: rgb(255 255 255 / 0.93);
+    color: #261917;
+    transition: opacity 150ms ease, background-color 150ms ease, color 150ms ease, var(--toggle-resize);
 }
 
 .toolbar[data-collapsed="true"][data-awake="true"] ~ .board-control,

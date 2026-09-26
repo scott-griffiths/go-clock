@@ -354,9 +354,14 @@ export function dropMagicStones(clock) {
     clock.magic_flights.forEach((flight) => {
         // Still waiting its turn to start, staggered behind others in the
         // same group: nothing on screen has moved for it yet, so there is
-        // only the wait to cancel.
+        // only the wait to cancel, and a stone it was to fetch from the
+        // table, still lying there, to put back on the table's list (as
+        // retarget does), or nothing would know it was there.
         if (flight.timeoutId != null) {
             window.clearTimeout(flight.timeoutId);
+            if (flight.kind == 'table') {
+                clock.table_stones.push(flight.entry);
+            }
             return;
         }
         const element = flight.element;

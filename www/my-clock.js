@@ -503,6 +503,13 @@ window.addEventListener('load', () => {
                 top = anchor.top - gap - height;
             }
             left = anchor.left;
+            // A board setting's row, under its own button, stops short of
+            // the board menu's cross: it ends, at the furthest, under the
+            // setting beside it, as the toolbar's rows start under the
+            // tool beside its cross.
+            if (control.parentElement.id === 'board-actions') {
+                left = Math.min(left, $('#board-actions').getBoundingClientRect().right - width);
+            }
         }
         panel.style.left = `${Math.round(Math.max(minX, Math.min(maxX, left)))}px`;
         panel.style.top = `${Math.round(Math.max(minY, Math.min(maxY, top)))}px`;
@@ -576,6 +583,8 @@ window.addEventListener('load', () => {
             setCollapsed(true);
         }
         boardControl.dataset.open = String(open);
+        // For the stylesheet: the toolbar's toggle does not dim meanwhile.
+        toolbar.dataset.boardOpen = String(open);
         boardToggle.setAttribute('aria-expanded', String(open));
         boardToggle.title = open ? 'Close the board\'s settings' : 'The board';
         boardToggle.setAttribute('aria-label', boardToggle.title);
