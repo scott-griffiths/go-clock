@@ -39,8 +39,10 @@ const discIds = ['finger', 'finger2'];
 // stone diameters from where it landed is a drag, not a hold.
 const holdSteps = [500, 1000];
 const holdSlop = 0.5;
-const blastReach = 1/5;
-const blastSpeed = [120, 60];
+const blastReach = 1/3;
+const blastSpeed = [120, 30];
+// How strongly the blast is seen, from 0 (not at all) to 1 (full).
+const blastOpacity = 0.2;
 
 // The finger at (px, py), having just moved `travel` px in `sdt` seconds:
 // every reachable stone within reach of it is shoved clear. Only the
@@ -362,21 +364,40 @@ export function blast(world, px, py, reach, diameter) {
     world.sound?.knock(1);
 }
 
-// The blast seen: a ring flung out from under the finger to its reach,
-// fading as it goes.
+// The blast seen: a flash under the finger, and a shockwave flung out
+// from it to the blast's reach, bright most of the way and fading at the
+// last, with a fainter echo a moment behind.
 function showBlast(x, y, radius, reach) {
-    var ring = document.createElement('div');
-    ring.className = 'blast-ring';
-    setStyles(ring, {width: reach*2, height: reach*2, left: x - reach, top: y - reach});
-    $('#goban').append(ring);
-    var animation = ring.animate?.([
-        {opacity: 0.9, transform: `scale(${radius/reach})`},
+    var start = `scale(${radius/reach})`;
+    blastPart('blast-flash', x, y, reach*0.6, [
+        {opacity: 1, transform: 'scale(0.3)'},
+        {opacity: 0.8, transform: 'scale(1)', offset: 0.3},
+        {opacity: 0, transform: 'scale(1.2)'}
+    ], {duration: 450, easing: 'ease-out'});
+    blastPart('blast-ring', x, y, reach, [
+        {opacity: 1, transform: start},
+        {opacity: 1, transform: 'scale(0.9)', offset: 0.6},
+        {opacity: 0, transform: 'scale(1.05)'}
+    ], {duration: 700, easing: 'cubic-bezier(0.15, 0.7, 0.3, 1)'});
+    blastPart('blast-ring echo', x, y, reach*0.8, [
+        {opacity: 0.8, transform: start},
         {opacity: 0, transform: 'scale(1)'}
-    ], {duration: 380, easing: 'cubic-bezier(0.1, 0.8, 0.3, 1)'});
+    ], {duration: 700, delay: 120, fill: 'backwards', easing: 'cubic-bezier(0.15, 0.7, 0.3, 1)'});
+}
+
+// One part of the blast seen, `size` px in radius at (x, y), gone once
+// it has played.
+function blastPart(className, x, y, size, keyframes, options) {
+    var part = document.createElement('div');
+    part.className = className;
+    setStyles(part, {width: size*2, height: size*2, left: x - size, top: y - size});
+    $('#goban').append(part);
+    keyframes.forEach((keyframe) => keyframe.opacity *= blastOpacity);
+    var animation = part.animate?.(keyframes, options);
     if (animation) {
-        animation.onfinish = () => ring.remove();
+        animation.onfinish = () => part.remove();
     } else {
-        ring.remove();
+        part.remove();
     }
 }
 
