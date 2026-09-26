@@ -1,6 +1,7 @@
 import SwiftUI
 import UniformTypeIdentifiers
 import AVFoundation
+import CoreHaptics
 import WebKit
 
 /**
@@ -214,10 +215,16 @@ enum ShellInfo {
  the hand meets a stone), and `bump:<strength>` when it does, the strength
  (0 to 1) being how hard the stone had to be shoved; the engine is warmed
  again after each bump, since a shove through a crowd makes several.
+ A finger held still winds up with `press`, and goes off with `blast`:
+ as hard a jolt as the taptic engine gives, a sharp crack at full
+ strength and a heavy rumble dying away under it (Core Haptics, or a
+ heavy impact where there is none).
  */
 enum Haptics {
     static let name = "goClockHaptic"
     private static let bump = UIImpactFeedbackGenerator(style: .medium)
+    private static let heavy = UIImpactFeedbackGenerator(style: .heavy)
+    private static var engine: CHHapticEngine?
 
     static func play(_ kind: String) {
         if kind == "prepare" {
@@ -225,6 +232,53 @@ enum Haptics {
         } else if kind.hasPrefix("bump:"), let strength = Double(kind.dropFirst(5)) {
             bump.impactOccurred(intensity: CGFloat(min(1, max(0.3, strength))))
             bump.prepare()
+        } else if kind == "press" {
+            bump.impactOccurred(intensity: 0.8)
+            heavy.prepare()
+            startEngine()
+        } else if kind == "blast" {
+            blast()
+        }
+    }
+
+    // The engine, started ahead of the blast so it goes off on time.
+    private static func startEngine() {
+        guard CHHapticEngine.capabilitiesForHardware().supportsHaptics else {
+            return
+        }
+        if engine == nil {
+            engine = try? CHHapticEngine()
+            engine?.playsHapticsOnly = true
+            engine?.isAutoShutdownEnabled = true
+            engine?.resetHandler = { try? engine?.start() }
+        }
+        try? engine?.start()
+    }
+
+    private static func blast() {
+        startEngine()
+        let full = CHHapticEventParameter(parameterID: .hapticIntensity, value: 1)
+        let events = [
+            CHHapticEvent(eventType: .hapticTransient, parameters: [
+                full, CHHapticEventParameter(parameterID: .hapticSharpness, value: 1)
+            ], relativeTime: 0),
+            CHHapticEvent(eventType: .hapticContinuous, parameters: [
+                full, CHHapticEventParameter(parameterID: .hapticSharpness, value: 0.3)
+            ], relativeTime: 0, duration: 0.35)
+        ]
+        let fade = CHHapticParameterCurve(parameterID: .hapticIntensityControl, controlPoints: [
+            .init(relativeTime: 0, value: 1),
+            .init(relativeTime: 0.1, value: 0.8),
+            .init(relativeTime: 0.35, value: 0)
+        ], relativeTime: 0)
+        do {
+            guard let engine else {
+                throw CocoaError(.featureUnsupported)
+            }
+            let pattern = try CHHapticPattern(events: events, parameterCurves: [fade])
+            try engine.makePlayer(with: pattern).start(atTime: CHHapticTimeImmediate)
+        } catch {
+            heavy.impactOccurred(intensity: 1)
         }
     }
 }

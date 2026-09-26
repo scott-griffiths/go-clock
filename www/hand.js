@@ -30,6 +30,18 @@ const tidyDelay = 500;
 // my-clock.js allows down on the board at once.
 const discIds = ['finger', 'finger2'];
 
+// A finger held still on the board winds up and goes off: a tap of
+// feedback after `holdSteps[0]` ms (the usual long press), and after
+// `holdSteps[1]` a blast that throws every stone within
+// `blastReach` of the board's width outward, from `blastSpeed[0]`
+// stone diameters a second at its heart to `blastSpeed[1]` at its rim;
+// they knock on into the stones beyond. Moving more than `holdSlop`
+// stone diameters from where it landed is a drag, not a hold.
+const holdSteps = [500, 1000];
+const holdSlop = 0.5;
+const blastReach = 1/5;
+const blastSpeed = [120, 60];
+
 // The finger at (px, py), having just moved `travel` px in `sdt` seconds:
 // every reachable stone within reach of it is shoved clear. Only the
 // finger's own disc is tested here - cheap enough for every substep of a
@@ -208,7 +220,8 @@ export function fingerDown(clock, id, clientX, clientY) {
     var x = clientX - finger.left;
     var y = clientY - finger.top;
     showDisc($('#' + discId), radius, x, y);
-    finger.touches.set(id, {discId: discId, radius: radius, x: x, y: y, targetX: x, targetY: y, pressing: true});
+    finger.touches.set(id, {discId: discId, radius: radius, x: x, y: y, targetX: x, targetY: y, pressing: true,
+                            landX: x, landY: y, landedAt: null, held: 0});
     return true;
 }
 
@@ -239,6 +252,7 @@ function runHand(clock, finger) {
                 return;
             }
             pressing = true;
+            windUp(clock, finger, touch, now);
             // Towards where the pointer is, in steps small enough that
             // no stone is skipped over.
             pushStones(world, touch.radius, diameter, touch.x, touch.y, touch.targetX, touch.targetY, frame,
@@ -288,6 +302,82 @@ function runHand(clock, finger) {
         }
     };
     finger.frame = window.requestAnimationFrame(step);
+}
+
+// A finger held still: the next tap of feedback once it has been held
+// long enough for it, and at the last, the blast. A finger that has
+// wandered off from where it landed is dragging, and winds up no further.
+function windUp(clock, finger, touch, now) {
+    if (touch.landedAt === null) {
+        touch.landedAt = now;
+    }
+    if (touch.held < 0 || touch.held >= holdSteps.length) {
+        return;
+    }
+    if (Math.hypot(touch.targetX - touch.landX, touch.targetY - touch.landY) > finger.diameter*holdSlop) {
+        touch.held = -1;
+        return;
+    }
+    if (now - touch.landedAt < holdSteps[touch.held]) {
+        return;
+    }
+    touch.held += 1;
+    if (touch.held < holdSteps.length) {
+        clock.haptic?.('press');
+        return;
+    }
+    clock.haptic?.('blast');
+    var reach = clock.goban_width*blastReach;
+    blast(finger.world, touch.x, touch.y, reach, finger.diameter);
+    showBlast(touch.x, touch.y, touch.radius, reach);
+}
+
+// Every stone within `reach` of (px, py) sent flying straight away from
+// it, the nearest fastest; collide() and the world's knocks do the rest.
+export function blast(world, px, py, reach, diameter) {
+    world.stones.forEach((stone) => {
+        if (!world.reachable(stone)) {
+            return;
+        }
+        var dx = stone.x - px;
+        var dy = stone.y - py;
+        var distance = Math.hypot(dx, dy);
+        if (distance >= reach) {
+            return;
+        }
+        if (distance === 0) {
+            var angle = Math.random()*Math.PI*2;
+            dx = Math.cos(angle);
+            dy = Math.sin(angle);
+            distance = 1;
+        }
+        var speed = diameter*(blastSpeed[0] + (blastSpeed[1] - blastSpeed[0])*distance/reach);
+        var along = stone.vx*dx/distance + stone.vy*dy/distance;
+        if (along < speed) {
+            stone.vx += (speed - along)*dx/distance;
+            stone.vy += (speed - along)*dy/distance;
+        }
+        stone.asleep = false;
+    });
+    world.sound?.knock(1);
+}
+
+// The blast seen: a ring flung out from under the finger to its reach,
+// fading as it goes.
+function showBlast(x, y, radius, reach) {
+    var ring = document.createElement('div');
+    ring.className = 'blast-ring';
+    setStyles(ring, {width: reach*2, height: reach*2, left: x - reach, top: y - reach});
+    $('#goban').append(ring);
+    var animation = ring.animate?.([
+        {opacity: 0.9, transform: `scale(${radius/reach})`},
+        {opacity: 0, transform: 'scale(1)'}
+    ], {duration: 380, easing: 'cubic-bezier(0.1, 0.8, 0.3, 1)'});
+    if (animation) {
+        animation.onfinish = () => ring.remove();
+    } else {
+        ring.remove();
+    }
 }
 
 // The hand's disc, landing at (x, y) in the goban.

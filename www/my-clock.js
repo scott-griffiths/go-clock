@@ -165,7 +165,8 @@ function fadeTo(element, opacity, duration = 300, onFinish) {
 // (0 to 1) being how much: a shove through a crowd of stones makes many
 // bumps at once, so they are thinned out. 'prepare', as the finger lands,
 // warms the shell's engine so the first bump is on time, and is nothing
-// elsewhere.
+// elsewhere. 'press' is a finger held still winding up, and 'blast' the
+// moment it goes off: as hard a jolt as there is to give.
 let lastBump = 0;
 function haptic(kind, strength = 1) {
     if (kind === 'bump') {
@@ -181,6 +182,10 @@ function haptic(kind, strength = 1) {
             handler.postMessage(kind === 'bump' ? `bump:${strength.toFixed(2)}` : kind);
         } else if (kind === 'bump') {
             navigator.vibrate?.(Math.round(4 + 12*strength));
+        } else if (kind === 'press') {
+            navigator.vibrate?.(25);
+        } else if (kind === 'blast') {
+            navigator.vibrate?.(200);
         }
     } catch {
         // No feedback to give.
