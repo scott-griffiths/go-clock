@@ -102,7 +102,7 @@ test('at nothing, the stopwatch shows 00 over 00, and 00 hundredths', () => {
         ···················`);
 });
 
-test('running, the stopwatch shows its minutes over its seconds, with a cross in each hundredths place', () => {
+test('running, the stopwatch shows its minutes over its seconds, with a dash in each hundredths place', () => {
     expectFace(at(12, 34, 56), true, `
         ···················
         ···················
@@ -115,11 +115,11 @@ test('running, the stopwatch shows its minutes over its seconds, with a cross in
         ······●···●········
         ·····●●●··●●●●●····
         ···················
-        ·○○○·○·○···○·○·○·○·
+        ·○○○·○·○···········
         ···○·○·○···········
-        ··○○·○○○····○···○··
+        ··○○·○○○···○○○·○○○·
         ···○···○···········
-        ·○○○···○·○·○·○·○·○·
+        ·○○○···○·○·········
         ···················
         ···················
         ···················`);

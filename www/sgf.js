@@ -243,3 +243,23 @@ export function gameResult(info) {
     }
     return `${winner} wins by ${Number(by)}`;
 }
+
+// All the record says about a game worth reading, for the replay's
+// information: its name (or, without one, its players and year), then
+// who played which colour and at what rank, the event and round, when
+// and where, the komi, and how it ended. Only the lines the record has
+// material for.
+export function gameDetails(info) {
+    const value = (key) => info[key]?.[0]?.trim() || '';
+    const player = (colour, name, rank) => name ? `${colour}: ${[name, rank].filter(Boolean).join(' ')}` : '';
+    const round = value('RO');
+    return [
+        value('GN') || gameTitle(info),
+        player('Black', value('PB'), value('BR')),
+        player('White', value('PW'), value('WR')),
+        [value('EV'), /^\d+$/.test(round) ? `game ${round}` : round].filter(Boolean).join(', '),
+        [value('DT') || value('DTX'), value('PC')].filter(Boolean).join(' · '),
+        value('KM') ? `Komi ${value('KM')}` : '',
+        gameResult(info)
+    ].filter(Boolean);
+}

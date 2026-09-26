@@ -67,19 +67,20 @@ s9 = [[1, 2], [0, 2], [0, 1], [0, 0], [1, 0], [2, 0], [2, 1], [2, 2], [2, 3], [2
 
 var tiny_num = [s0, s1, s2, s3, s4, s5, s6, s7, s8, s9];
 
-// A cross, five stones in a tiny digit's 3 by 5 box: stands in for a
-// hundredths digit while the stopwatch is running and there is none to show.
-var tiny_x = [[0, 0], [2, 0], [1, 2], [0, 4], [2, 4]];
+// A dash, three stones across the middle of a tiny digit's 3 by 5 box:
+// stands in for a hundredths digit while the stopwatch is running and
+// there is none to show.
+var tiny_dash = [[0, 2], [1, 2], [2, 2]];
 
 function addStone(stones, x, y, colour) {
     stones[y*gridsize + x] = colour;
 }
 
-// A tiny cross in place of a digit, its top-left corner at (x_offset,
+// A tiny dash in place of a digit, its top-left corner at (x_offset,
 // y_offset), for a hundredths digit the stopwatch has no time to show.
-function drawCross(stones, x_offset, y_offset, colour) {
-    for (var i = 0; i < tiny_x.length; ++i) {
-        addStone(stones, tiny_x[i][0] + x_offset, tiny_x[i][1] + y_offset, colour);
+function drawDash(stones, x_offset, y_offset, colour) {
+    for (var i = 0; i < tiny_dash.length; ++i) {
+        addStone(stones, tiny_dash[i][0] + x_offset, tiny_dash[i][1] + y_offset, colour);
     }
 }
 
@@ -239,7 +240,7 @@ export function faceFor(view, {hours, minutes, seconds = 0, days = 0}, twentyFou
 // run on to three figures from a hundred rather than turning over into
 // hours. The seconds sit to the left, past a point, with the hundredths
 // beyond it: while running there is no hundredths reading to give, so a
-// white cross stands in each digit's place instead.
+// white dash stands in each digit's place instead.
 export function stopwatchFace(ms, running) {
     var stones = emptyBoard();
     var minutes = Math.floor(ms/60000)%1000;
@@ -257,8 +258,8 @@ export function stopwatchFace(ms, running) {
     drawNumber(stones, seconds%10, 5, 11, 1, white);
     addStone(stones, 9, 15, white);
     if (running) {
-        drawCross(stones, 11, 11, white);
-        drawCross(stones, 15, 11, white);
+        drawDash(stones, 11, 11, white);
+        drawDash(stones, 15, 11, white);
     } else {
         drawNumber(stones, Math.floor(hundredths/10), 11, 11, 1, white);
         drawNumber(stones, hundredths%10, 15, 11, 1, white);

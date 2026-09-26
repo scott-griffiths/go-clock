@@ -657,10 +657,10 @@ body {
     outline-offset: -2px;
 }
 
-/* The line of information: centred on the board's top edge (my-clock.js
-   places it), sized to its words, which wrap if a game's name is too long
-   for the screen. The icon, a replayed game's shelf, only when there is
-   one. */
+/* The information: centred on the board's top edge (my-clock.js places
+   it), sized to its words, which wrap if a line is too long for the
+   screen. Its first line is a heading, the rest plainer beneath it. The
+   icon, a replayed game's, only when there is one. */
 .info {
     position: fixed;
     top: 0;
@@ -683,6 +683,15 @@ body {
     font-weight: 700;
     line-height: 1.15;
     pointer-events: none;
+}
+
+#info-text {
+    display: grid;
+    gap: 3px;
+}
+
+#info-text > div + div {
+    font-weight: 500;
 }
 
 .info .setting-icon {

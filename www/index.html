@@ -67,9 +67,8 @@
                         <span class="setting-icon" aria-hidden="true"></span>
                     </button>
                     <!-- The gallery (gallery.js): pictures made of stones,
-                         in a shuffled order, each named on the board's top
-                         edge while it is showing. Its controls open in the
-                         row beneath it (#gallery-bar, below). -->
+                         in a shuffled order. Its controls open in the row
+                         beneath it (#gallery-bar, below). -->
                     <button id="gallery" class="setting-summary" type="button" title="Gallery" aria-label="Gallery" aria-pressed="false">
                         <span class="setting-icon" aria-hidden="true"></span>
                     </button>
@@ -151,18 +150,19 @@
                     </div>
                 </div>
             </div>
-            <!-- The one place a line of information shows, on the board's
-                 top edge in either orientation (my-clock.js places it): a
-                 setting as it changes ("Board: Kaya"), or held while its
-                 button or choice is, and a replayed game's name and result,
-                 under its shelf's icon. -->
+            <!-- The one place information shows, on the board's top edge
+                 in either orientation (my-clock.js places it): for now, a
+                 replayed game's details, under its icon, while its info
+                 button (#replay-info) is pressed. -->
             <div id="info" class="info" role="status" aria-live="polite" hidden>
                 <span id="info-icon" class="setting-icon" aria-hidden="true"></span>
                 <span id="info-text"></span>
             </div>
-            <!-- A game being replayed: play or pause, next to where the
-                 game has got to, on a line from the first move to the last,
-                 which can be dragged to any move. In the row beneath the
+            <!-- A game being replayed: play or pause, and on to the next
+                 game, next to where the game has got to, on a line from the
+                 first move to the last, which can be dragged to any move;
+                 and, after the line, the game's details, shown while that
+                 button is pressed. In the row beneath the
                  toolbar's, from under the replay button (or, in landscape,
                  beside it, running down), where my-clock.js places it; comes
                  and goes with the toolbar's own row when that is tucked away
@@ -171,10 +171,16 @@
                 <button id="replay-play" class="setting-summary" type="button">
                     <span class="setting-icon" aria-hidden="true"></span>
                 </button>
+                <button id="replay-next" class="setting-summary" type="button" title="Next game" aria-label="Next game">
+                    <span class="setting-icon" aria-hidden="true"></span>
+                </button>
                 <div id="replay-track" class="replay-track" role="slider" tabindex="0" aria-label="Move" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0">
                     <div class="replay-line"></div>
                     <div id="replay-marker" class="replay-marker"></div>
                 </div>
+                <button id="replay-info" class="setting-summary" type="button" title="About the game" aria-label="About the game" aria-pressed="false" aria-controls="info">
+                    <span class="setting-icon" aria-hidden="true"></span>
+                </button>
             </div>
             <!-- The stopwatch's controls, as a stopwatch has them: start
                  or stop, and reset, which only a stopped stopwatch can be.

@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {parseSgf, playGame, gameTitle, gameResult} from '../www/sgf.js';
+import {parseSgf, playGame, gameTitle, gameResult, gameDetails} from '../www/sgf.js';
 import {pointIndex, white, black} from '../www/board.js';
 
 const at = (x, y) => pointIndex(x, y);
@@ -94,4 +94,27 @@ test('the result is put into words, naming the winner where the record does', ()
     assert.equal(gameResult({RE: ['B+T']}), 'Black wins on time');
     assert.equal(gameResult({RE: ['0']}), 'A drawn game');
     assert.equal(gameResult({}), '');
+});
+
+test('a game\'s details are the lines its record has material for', () => {
+    assert.deepEqual(gameDetails({
+        GN: ['AlphaGo – Lee Sedol, game 1'], PB: ['Lee Sedol'], BR: ['9p'], PW: ['AlphaGo'],
+        EV: ['Google DeepMind Challenge Match'], RO: ['1'], DT: ['2016-03-09'], PC: ['Seoul, Korea'],
+        KM: ['7.5'], RE: ['W+R']
+    }), [
+        'AlphaGo – Lee Sedol, game 1',
+        'Black: Lee Sedol 9p',
+        'White: AlphaGo',
+        'Google DeepMind Challenge Match, game 1',
+        '2016-03-09 · Seoul, Korea',
+        'Komi 7.5',
+        'AlphaGo (White) wins by resignation'
+    ]);
+    assert.deepEqual(gameDetails({PB: ['Shusaku'], PW: ['Gennan Inseki'], DT: ['1846'], RO: ['Final round']}), [
+        'Shusaku – Gennan Inseki, 1846',
+        'Black: Shusaku',
+        'White: Gennan Inseki',
+        'Final round',
+        '1846'
+    ]);
 });

@@ -4,7 +4,7 @@ import {preloadTumbleSheets} from './flight.js';
 import {startReplay, cancelReplay, setReplayRate, seekReplay, loadGame, nextGameFile} from './replay.js';
 import {Stopwatch} from './stopwatch.js';
 import {pictureBoard, shuffledPictures} from './gallery.js';
-import {gameTitle, gameResult} from './sgf.js';
+import {gameDetails} from './sgf.js';
 import {faceIcons, speedIcons, precisionIcons, backgroundIcons, woodIcons, icons} from './icons.js';
 import {computerBoardSrc, gobanImageSrc, setFlatStones, stoneImageSrc, colourOfImage} from './stone-dom.js';
 
@@ -637,14 +637,17 @@ window.addEventListener('load', () => {
         }, toggleWakeTime);
     }
 
-    // The one line of information, on the board's top edge (see index.html):
-    // `text`, under an `icon` (a replayed game's shelf) if there is one,
-    // for `stay` milliseconds, or until hideInfo if that is null. For now,
-    // only a replayed game's own (its name, and its result), and the name
-    // of the picture the gallery is showing.
-    function showInfo(text, {icon = '', stay = 1600} = {}) {
+    // The information, on the board's top edge (see index.html): `lines`,
+    // the first a heading, beside an `icon` if there is one, for `stay`
+    // milliseconds, or until hideInfo if that is null. For now, only a
+    // replayed game's details (the replay's info button).
+    function showInfo(lines, {icon = '', stay = 1600} = {}) {
         $('#info-icon').innerHTML = icon;
-        $('#info-text').textContent = text;
+        $('#info-text').replaceChildren(...lines.map((line) => {
+            const div = document.createElement('div');
+            div.textContent = line;
+            return div;
+        }));
         window.clearTimeout(infoTimer);
         info.getAnimations?.().forEach((animation) => animation.cancel());
         info.style.opacity = '1';
@@ -663,8 +666,10 @@ window.addEventListener('load', () => {
     }
 
     // Centred over the board: in portrait just above its top edge, clear
-    // of the stones; in landscape, where the board reaches nearly to the
-    // top of the screen, on the edge, kept on the screen.
+    // of the stones, but below the toolbar's rows (a tool's own row
+    // among them), over the board's edge if it must be; in landscape,
+    // where the board reaches nearly to the top of the screen, on the
+    // edge, kept on the screen.
     function placeInfo() {
         const board = $('#goban-image')?.getBoundingClientRect();
         if (!board) {
@@ -675,7 +680,15 @@ window.addEventListener('load', () => {
         const margin = 10;
         const inset = safeInsets();
         const portrait = window.innerHeight > window.innerWidth;
-        const top = Math.max(board.top - (portrait ? height + 8 : height/2), 4 + inset.top);
+        let floor = 4 + inset.top;
+        if (portrait) {
+            [toolbar, replayBar, stopwatchBar, galleryBar].forEach((row) => {
+                if (!row.hidden && (row === toolbar || toolbar.dataset.collapsed !== 'true')) {
+                    floor = Math.max(floor, row.getBoundingClientRect().bottom + 8);
+                }
+            });
+        }
+        const top = Math.max(board.top - (portrait ? height + 8 : height/2), floor);
         const centre = board.left + board.width/2;
         const left = Math.max(margin + inset.left + width/2, Math.min(window.innerWidth - margin - inset.right - width/2, centre));
         info.style.top = `${Math.round(top)}px`;
@@ -880,6 +893,9 @@ window.addEventListener('load', () => {
         replayBar.hidden = name !== 'replay';
         stopwatchBar.hidden = name !== 'stopwatch';
         galleryBar.hidden = name !== 'gallery';
+        if (name !== 'replay') {
+            showGameInfo(false);
+        }
         // The faces are the clock's own row, in the place another tool's
         // takes: they go when it does.
         if (name !== 'clock' && openControls.includes($('#face-control'))) {
@@ -891,9 +907,6 @@ window.addEventListener('load', () => {
             goClock.picture = null;
             window.clearTimeout(galleryTimer);
             galleryTimer = null;
-            if (previous === 'gallery') {
-                hideInfo();
-            }
         }
         writeSetting('tool', name);
         showToggleIcon();
@@ -1031,7 +1044,6 @@ window.addEventListener('load', () => {
         goClock.picture = pictureBoard(picture);
         window.clearTimeout(galleryTimer);
         galleryTimer = null;
-        showInfo(picture.name, {icon: icons.gallery, stay: null});
     }
 
     function stepGallery(step) {
@@ -1139,8 +1151,37 @@ window.addEventListener('load', () => {
         seekReplay(goClock, Math.max(0, Math.min(replayMoves, now + step)));
     });
 
+    // The replay's info button: the game's details (sgf.js) on the
+    // board's top edge while it is pressed, as long as there is a game to
+    // tell of; pressed again, or the game gone, and they go.
+    const infoButton = $('#replay-info');
+    let replayGame = null;
+
+    function showGameInfo(show) {
+        const shown = show && replayGame !== null;
+        infoButton.setAttribute('aria-pressed', String(shown));
+        infoButton.disabled = replayGame === null;
+        if (shown) {
+            showInfo(gameDetails(replayGame.info), {icon: icons.replay, stay: null});
+        } else {
+            hideInfo();
+        }
+    }
+
+    // A game that has not yet come to its end is left for the next,
+    // swept off the board as a first game is; one still being replayed
+    // hands over when it has let go of the board (the replay's onEnd).
+    let nextGameWanted = false;
+    function nextGame() {
+        if (goClock.replay) {
+            nextGameWanted = true;
+            cancelReplay(goClock);
+        } else {
+            startGame();
+        }
+    }
+
     function startGame() {
-        const icon = icons.replay;
         const loading = loadGame(`games/${nextGameFile()}`);
         const began = startReplay(goClock, loading, {
             onStart: (game) => {
@@ -1150,17 +1191,29 @@ window.addEventListener('load', () => {
             // Held at its last move rather than handed back to the clock:
             // play starts it again from the beginning, and the replay
             // button gives the board back to the time.
-            onRest: (game) => {
+            onRest: () => {
                 replayPaused = true;
                 playReplay();
-                const result = gameResult(game.info);
-                if (result) {
-                    showInfo(result, {icon, stay: 6000});
-                }
             },
             // The board is the clock's again, unless another tool has
-            // already taken it.
+            // already taken it, or the next game is wanted: that begins
+            // once the transform this is called from is done with the
+            // board, and if it cannot, the clock has it.
+            // The game's details, if showing, stay for the next game's to
+            // replace (startGame).
             onEnd: (error) => {
+                replayGame = null;
+                if (nextGameWanted && !error && tool === 'replay') {
+                    nextGameWanted = false;
+                    window.setTimeout(() => {
+                        if (tool === 'replay' && !goClock.replay && !startGame()) {
+                            setTool('clock');
+                        }
+                    }, 0);
+                    return;
+                }
+                nextGameWanted = false;
+                showGameInfo(false);
                 if (tool === 'replay') {
                     setTool('clock');
                 }
@@ -1170,12 +1223,16 @@ window.addEventListener('load', () => {
             }
         });
         if (began) {
-            // Named as soon as the record is in, while the board is still
-            // being cleared for it.
+            // Its details to be had as soon as the record is in. Those of
+            // the game before, still showing (the next button), stay until
+            // then, and are replaced by this one's.
             const replay = goClock.replay;
+            replayGame = null;
+            infoButton.disabled = infoButton.getAttribute('aria-pressed') !== 'true';
             loading.then((game) => {
                 if (goClock.replay === replay) {
-                    showInfo(gameTitle(game.info), {icon, stay: 10000});
+                    replayGame = game;
+                    showGameInfo(infoButton.getAttribute('aria-pressed') === 'true');
                 }
             }, () => {});
             setTool('replay');
@@ -1184,6 +1241,7 @@ window.addEventListener('load', () => {
             // Straight away, while the board is still being cleared.
             showReplayProgress(0, 0);
         }
+        return began;
     }
 
     function toggleReplay() {
@@ -1462,6 +1520,11 @@ window.addEventListener('load', () => {
         stopwatch.reset();
         stopwatchChanged();
     });
+    $('.setting-icon', $('#replay-next')).innerHTML = icons.next;
+    $('#replay-next').addEventListener('click', nextGame);
+    $('.setting-icon', infoButton).innerHTML = icons.about;
+    showGameInfo(false);
+    infoButton.addEventListener('click', () => showGameInfo(infoButton.getAttribute('aria-pressed') !== 'true'));
     playButton.addEventListener('click', () => {
         const atEnd = replayMoves > 0 && Number(replayTrack.getAttribute('aria-valuenow')) >= replayMoves;
         if (replayPaused && atEnd) {
