@@ -12,7 +12,7 @@ import {gridsize, white, dist} from './board.js';
 import {routeIsClear} from './planner.js';
 import {$, setStyles, setVisible, setStoneShadow, animateStoneShadow, stoneImageSrc, stoneElement, animateElement, elementCentre,
         cancelElementAnimations, drawOnTable, maxLift, tableStoneScale} from './stone-dom.js';
-import {setLandingOffset} from './placement.js';
+import {setLandingOffset, isStray} from './placement.js';
 
 // A flight: a moment to rise, the crossing, and a moment to settle, in
 // seconds; how high a lifted stone is carried; and how long a stone
@@ -97,6 +97,13 @@ export function magicTransform(clock) {
             flights.push({kind: 'away', from, colour: shown[from]});
         }
     });
+    // And a stone that stays, but has strayed far off its point (a finger
+    // left it: placement.js), is lifted back onto it, as the hand would.
+    for (let i = 0; i < gridsize*gridsize; ++i) {
+        if (shown[i] == wanted[i] && !arrivingNow.has(i) && isStray(clock, i)) {
+            flights.push({kind: 'slide', from: i, to: i, colour: shown[i], home: true});
+        }
+    }
 
     if (flights.length == 0) {
         return false;
@@ -118,7 +125,7 @@ export function magicTransform(clock) {
     });
     const landings = new Set(flights.map((flight) => flight.to).filter((to) => to !== undefined));
     flights.forEach((flight) => {
-        if (flight.kind == 'slide') {
+        if (flight.kind == 'slide' && !flight.home) {
             landings.delete(flight.to);
             flight.slid = routeIsClear(after, flight.from, flight.to, landings);
             landings.add(flight.to);

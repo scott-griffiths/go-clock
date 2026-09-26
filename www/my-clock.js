@@ -1,12 +1,13 @@
 import {GoClock} from './go-clock.js';
+import {gridsize, white, black} from './board.js';
 import {Sounds} from './sounds.js';
 import {preloadTumbleSheets} from './flight.js';
-import {startReplay, cancelReplay, setReplayRate, seekReplay, loadGame, nextGameFile} from './replay.js';
+import {startReplay, cancelReplay, setReplayRate, seekReplay, loadGame, nextGameFile, gameFiles} from './replay.js';
 import {Stopwatch} from './stopwatch.js';
 import {pictureBoard, shuffledPictures} from './gallery.js';
 import {gameDetails} from './sgf.js';
 import {faceIcons, speedIcons, precisionIcons, backgroundIcons, woodIcons, icons} from './icons.js';
-import {computerBoardSrc, gobanImageSrc, setFlatStones, stoneImageSrc, colourOfImage} from './stone-dom.js';
+import {computerBoardSrc, gobanImageSrc, setFlatStones, stoneImageSrc, colourOfImage, stoneSrcs} from './stone-dom.js';
 
 const $ = (selector, scope = document) => scope.querySelector(selector);
 const $$ = (selector, scope = document) => [...scope.querySelectorAll(selector)];
@@ -903,8 +904,7 @@ window.addEventListener('load', () => {
     // The tool in use: its button pressed, worn by the toggle and first in
     // the row, and its own row beneath (the replay's bar, the stopwatch's
     // buttons) out with the toolbar's; the board shows the stopwatch while
-    // that is the tool. Remembered, but a game is not taken up again: on
-    // a reload that is the clock.
+    // that is the tool. Remembered, and a game with it (storeReplay).
     function setTool(name) {
         const previous = tool;
         tool = name;
@@ -1056,16 +1056,27 @@ window.addEventListener('load', () => {
     // its top edge while it is. Playing, the hands make each picture, it
     // stays for half a minute once made, and the next is begun; paused,
     // the picture stays. Back and on move a picture either way, playing
-    // or not, and the hands start on it at once.
+    // or not, and the hands start on it at once. The picture and whether
+    // it is playing are remembered: the page opens on the same one, first
+    // in the new order.
     const galleryBar = $('#gallery-bar');
     const galleryBack = $('#gallery-back');
     const galleryPlay = $('#gallery-play');
     const galleryNext = $('#gallery-next');
     const galleryPictures = shuffledPictures();
     const galleryWait = 30000;
+    const storedGallery = readJSON('gallery');
+    const storedPicture = galleryPictures.findIndex((picture) => picture.name === storedGallery?.picture);
+    if (storedPicture > 0) {
+        galleryPictures.unshift(...galleryPictures.splice(storedPicture, 1));
+    }
     let galleryIndex = 0;
-    let galleryPlaying = true;
+    let galleryPlaying = storedGallery?.playing !== false;
     let galleryTimer = null;
+
+    function storeGallery() {
+        writeSetting('gallery', JSON.stringify({picture: galleryPictures[galleryIndex].name, playing: galleryPlaying}));
+    }
 
     function showPicture() {
         const picture = galleryPictures[galleryIndex];
@@ -1076,6 +1087,7 @@ window.addEventListener('load', () => {
 
     function stepGallery(step) {
         galleryIndex = wrap(galleryIndex + step, galleryPictures.length);
+        storeGallery();
         showPicture();
         goClock.transform();
     }
@@ -1112,12 +1124,29 @@ window.addEventListener('load', () => {
         replayTrack.setAttribute('aria-valuenow', String(moves));
         replayTrack.setAttribute('aria-valuetext', `Move ${moves} of ${total}`);
         replayMarker.style.setProperty('--progress', total > 0 ? String(moves/total) : '0');
+        storeReplay();
     }
 
     // Held where it is, or playing at the rate for the hand's speed: the
     // play button shows the one it would change to.
     const playButton = $('#replay-play');
     let replayPaused = false;
+    // The game on the board, by its file in www/games, while there is one.
+    let replayFile = null;
+
+    // The game being replayed, how far it has got, and whether it is
+    // held, saved as they change, for the page to take it up again where
+    // it was (startGame); nothing once the game is done with. Not before
+    // its record is in: until then the move is not yet the game's.
+    function storeReplay() {
+        if (goClock.replay && replayFile && replayMoves > 0) {
+            writeSetting('replay', JSON.stringify({
+                file: replayFile,
+                move: Number(replayTrack.getAttribute('aria-valuenow')),
+                paused: replayPaused
+            }));
+        }
+    }
 
     function playReplay() {
         setReplayRate(goClock, replayPaused ? 0 : playbackRates[stoneSpeed]);
@@ -1126,6 +1155,7 @@ window.addEventListener('load', () => {
         playButton.setAttribute('aria-label', label);
         playButton.dataset.info = replayPaused ? 'Replay: Paused' : 'Replay: Playing';
         $('.setting-icon', playButton).innerHTML = replayPaused ? icons.play : icons.pause;
+        storeReplay();
     }
 
     // The marker dragged (or the line touched): the move under the pointer,
@@ -1209,9 +1239,14 @@ window.addEventListener('load', () => {
         }
     }
 
-    function startGame() {
-        const loading = loadGame(`games/${nextGameFile()}`);
+    // A game begun: the next of the shelf's, or, with `resume` (as
+    // storeReplay saved it), the one that was on the board when the page
+    // was last shut, taken up at the same move, held or playing as it was.
+    function startGame(resume = null) {
+        const file = resume?.file ?? nextGameFile();
+        const loading = loadGame(`games/${file}`);
         const began = startReplay(goClock, loading, {
+            from: resume ? resume.move : null,
             onStart: (game) => {
                 showReplayProgress(0, game.moves.length);
             },
@@ -1231,6 +1266,8 @@ window.addEventListener('load', () => {
             // replace (startGame).
             onEnd: (error) => {
                 replayGame = null;
+                replayFile = null;
+                writeSetting('replay', 'null');
                 if (nextGameWanted && !error && tool === 'replay') {
                     nextGameWanted = false;
                     window.setTimeout(() => {
@@ -1263,8 +1300,9 @@ window.addEventListener('load', () => {
                     showGameInfo(infoButton.getAttribute('aria-pressed') === 'true');
                 }
             }, () => {});
+            replayFile = file;
             setTool('replay');
-            replayPaused = false;
+            replayPaused = resume?.paused === true;
             playReplay();
             // Straight away, while the board is still being cleared.
             showReplayProgress(0, 0);
@@ -1314,8 +1352,75 @@ window.addEventListener('load', () => {
         goClock.stones_shown = [...state].map((value) => Number(value));
     }
 
+    // A stone image by its file name, as saved: one of the stones' own,
+    // or null (the computer board's flat discs are drawn, not files).
+    function stoneFile(src) {
+        const name = src?.split('/').pop();
+        return stoneSrcs.some((known) => known.endsWith('/' + name)) ? name : null;
+    }
+    function stoneFileSrc(name) {
+        return stoneSrcs.find((known) => known.endsWith('/' + name)) ?? null;
+    }
+
+    // The board as it stands, saved every few seconds and as the page is
+    // hidden or shut: each point's stone, and how far off its point it
+    // lies, and which of the white stones' images it wears; and the stones
+    // on the table.
     function storeGobanState() {
         writeSetting('state', goClock.stones_shown.join(''));
+        const offsets = [];
+        const looks = [];
+        goClock.stones_shown.forEach((colour, i) => {
+            if (colour == 0) {
+                return;
+            }
+            const [dx, dy] = goClock.offsets[i].map((value) => Math.round(value*1000)/1000);
+            if (dx || dy) {
+                offsets.push([i, dx, dy]);
+            }
+            const file = stoneFile($('#p' + i + ' img')?.getAttribute('src'));
+            if (file) {
+                looks.push([i, file]);
+            }
+        });
+        writeSetting('offsets', JSON.stringify(offsets));
+        writeSetting('looks', JSON.stringify(looks));
+        writeSetting('table', JSON.stringify(goClock.table_stones.map((entry) => ({
+            colour: entry.colour,
+            file: stoneFile(entry.src),
+            coords: entry.coords.map((value) => Math.round(value*1000)/1000),
+            lift: entry.lift || 0
+        }))));
+    }
+
+    // What storeGobanState saved besides the stones, put back before the
+    // board is first drawn; anything that does not make sense is left out.
+    function restoreBoardDetails() {
+        const points = gridsize*gridsize;
+        const onPoint = (i) => Number.isInteger(i) && i >= 0 && i < points && goClock.stones_shown[i] != 0;
+        const number = (value) => typeof value === 'number' && Number.isFinite(value);
+        (readJSON('offsets') ?? []).forEach((item) => {
+            if (Array.isArray(item) && onPoint(item[0]) && number(item[1]) && number(item[2])
+                && Math.abs(item[1]) < 2 && Math.abs(item[2]) < 2) {
+                goClock.offsets[item[0]] = [item[1], item[2]];
+            }
+        });
+        const srcs = Array(points).fill(null);
+        (readJSON('looks') ?? []).forEach((item) => {
+            if (Array.isArray(item) && onPoint(item[0])) {
+                srcs[item[0]] = stoneFileSrc(item[1]);
+            }
+        });
+        goClock.restored_srcs = srcs;
+        goClock.table_stones = (readJSON('table') ?? [])
+            .filter((entry) => entry && (entry.colour == white || entry.colour == black)
+                && Array.isArray(entry.coords) && entry.coords.length == 2 && entry.coords.every(number))
+            .map((entry) => ({
+                colour: entry.colour,
+                src: stoneImageSrc(entry.colour, stoneFileSrc(entry.file)),
+                coords: entry.coords,
+                lift: number(entry.lift) ? Math.max(0, Math.min(1, entry.lift)) : 0
+            }));
     }
 
     function hideAbout() {
@@ -1383,6 +1488,7 @@ window.addEventListener('load', () => {
     const storedState = readSetting('state');
     if (storedState && /^[013]{361}$/.test(storedState)) {
         setGobanState(storedState);
+        restoreBoardDetails();
     }
 
     $('#replay .setting-icon').innerHTML = icons.replay;
@@ -1400,10 +1506,17 @@ window.addEventListener('load', () => {
     setSeconds(showSeconds);
     setPlacement(placement);
     setSound(sound);
-    // The clock, or the stopwatch if that was on the board when the page
-    // was last shut.
+    // The tool that had the board when the page was last shut: a game
+    // being replayed is taken up again where it was (startGame), if it
+    // still can be; otherwise the clock.
     const storedTool = readSetting('tool');
-    setTool(storedTool === 'stopwatch' || storedTool === 'gallery' ? storedTool : 'clock');
+    const storedReplay = readJSON('replay');
+    if (storedTool === 'replay' && gameFiles.includes(storedReplay?.file)
+        && Number.isInteger(storedReplay.move) && storedReplay.move >= 0 && startGame(storedReplay)) {
+        // Taken up.
+    } else {
+        setTool(storedTool === 'stopwatch' || storedTool === 'gallery' ? storedTool : 'clock');
+    }
     goClock.haptic = haptic;
 
     // The hand: up to two fingers on the board or its surround are the
@@ -1457,6 +1570,11 @@ window.addEventListener('load', () => {
         i: () => aboutButton.click()
     };
     document.addEventListener('keydown', (event) => {
+        // A key already used where it was pressed (the replay's line takes
+        // the arrows) is not a shortcut as well.
+        if (event.defaultPrevented) {
+            return;
+        }
         if (event.key === 'Escape') {
             setOpenControl(null);
             hideAbout();
@@ -1529,6 +1647,7 @@ window.addEventListener('load', () => {
     galleryNext.addEventListener('click', () => stepGallery(1));
     galleryPlay.addEventListener('click', () => {
         galleryPlaying = !galleryPlaying;
+        storeGallery();
         showGalleryPlay();
         window.clearTimeout(galleryTimer);
         galleryTimer = null;
@@ -1592,6 +1711,15 @@ window.addEventListener('load', () => {
     registerServiceWorker();
     keepScreenAwake();
     document.addEventListener('visibilitychange', keepScreenAwake);
+    // Saved as the page goes out of sight or is shut, not only every few
+    // seconds: an app put away and killed is most of the time the last
+    // the board is seen.
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') {
+            storeGobanState();
+        }
+    });
+    window.addEventListener('pagehide', storeGobanState);
     window.addEventListener('resize', scheduleResize);
     // On a phone the safe area can arrive after the first layout, moving
     // the toolbar down clear of the notch with no resize to say so; all

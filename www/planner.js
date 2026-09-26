@@ -134,7 +134,7 @@ const tie = 1e-9;
 // any of the equals with the same chance: each new equal takes the place
 // of the one held with a chance of one in however many there now are
 // (reservoir sampling), so no list has to be kept.
-function chooser(random) {
+export function chooser(random = Math.random) {
     var best = null;
     var score = Infinity;
     var equals = 0;

@@ -2,12 +2,14 @@
 // is "exact", but a little off, as a hand would leave it. A stone lands
 // with a small random offset (bigger the faster the hand and the more
 // careless the placement), and a stone that lands too close to a
-// neighbour shoves it over a touch. A stone is never straightened once
-// it lies: one a finger left askew stays so until the hand next moves it.
+// neighbour shoves it over a touch. A stone is not straightened once it
+// lies: one a finger left askew stays so, unless it has strayed so far
+// that it seems to be on another point (strayPlan).
 // The offsets live on the clock (`offsets`, one [dx, dy] per point, in
 // board units); these are functions of it.
 
-import {gridsize, minx, maxx, miny, maxy} from './board.js';
+import {gridsize, dist, minx, maxx, miny, maxy} from './board.js';
+import {chooser} from './planner.js';
 
 function disorderRadius(clock) {
     if (clock.placement == 0) {
@@ -26,8 +28,10 @@ function maxOffsetRadius(clock) {
     if (clock.placement == 0) {
         return 0;
     }
+    // Short of a stray (strayRadius), or a careless hand would be forever
+    // putting back stones its own landings had nudged.
     if (clock.placement == 2) {
-        return 0.28;
+        return 0.24;
     }
     return 0.18;
 }
@@ -61,6 +65,42 @@ function adjustOffset(clock, index, dx, dy) {
     // A stone a finger left well off its point is not pulled in by a nudge.
     var maxRadius = Math.max(maxOffsetRadius(clock), Math.hypot(current[0], current[1]));
     clock.offsets[index] = clampOffset(clock, [current[0] + dx, current[1] + dy], maxRadius);
+}
+
+// How far a stone lies off its point, in points.
+export function offsetRadius(clock, index) {
+    return Math.hypot(clock.offsets[index][0], clock.offsets[index][1]);
+}
+
+// A stone this far off its point (in points) has strayed, as a finger can
+// leave one (hand.js): well beyond anything a hand puts down (see
+// maxOffsetRadius), and, with a neighbour strayed the other way, a gap
+// that looks like a missing point. The hand puts it back when it has
+// nothing better to do. Nearer than that, a stone is left exactly where
+// it lies.
+export const strayRadius = 0.25;
+
+export function isStray(clock, index) {
+    return clock.stones_shown[index] != 0 && offsetRadius(clock, index) >= strayRadius;
+}
+
+// The hand's move putting a strayed stone back on its point, if there is
+// one: the nearest to the hand (a tie to either, by chance), lifted and
+// put down as any stone is, with a landing offset of the precision's.
+// `reserved` points are another hand's business. A plan as planner.js
+// makes them, a 'move' from the point to itself, and how far the stone
+// actually goes.
+export function strayPlan(clock, hand, reserved = new Set()) {
+    var nearest = chooser();
+    for (var i = 0; i < clock.stones_shown.length; ++i) {
+        if (!reserved.has(i) && isStray(clock, i)) {
+            nearest.offer(i, dist(hand.position, i));
+        }
+    }
+    if (nearest.best === null) {
+        return null;
+    }
+    return {kind: 'move', from: nearest.best, to: nearest.best, lift: true, distance: offsetRadius(clock, nearest.best)};
 }
 
 export function setLandingOffset(clock, index) {

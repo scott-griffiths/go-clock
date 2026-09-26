@@ -11,7 +11,7 @@ import {sinkOn} from './water.js';
 import {sweepBoard} from './sweep.js';
 import {replayWanted, replaySettled, replayWait} from './replay.js';
 import {fingerDown, fingerMove, fingerUp, endFinger} from './hand.js';
-import {setLandingOffset, redistribute} from './placement.js';
+import {setLandingOffset, redistribute, strayPlan} from './placement.js';
 import {moveStone, moveDuration} from './moves.js';
 import {magicTransform, retarget, dropMagicStones} from './magic.js';
 import {$, gobanImage, drawOnTable, maxLift, setStyles, setVisible, setStoneShadow, stoneImageSrc,
@@ -257,6 +257,8 @@ export function GoClock(){
     // before it goes to the bowl. Each has a colour, src, coords (board
     // coordinates, beyond the grid) and an element of its own.
     this.table_stones = [];
+    // Each point's stone image to draw it with at the first draw(), or null.
+    this.restored_srcs = null;
 
     this.fingerRadius = function() {
         return this.goban_width/16;
@@ -481,6 +483,14 @@ export function GoClock(){
         gobanImage.id = 'goban-image';
         gobanImage.alt = '';
         var goban = $('#goban');
+        // Each stone keeps the image it wears (one of the white stones' four)
+        // through the rebuild; or, the first time, the one it wore when the
+        // page was last shut (`restored_srcs`, my-clock.js).
+        var srcs = this.restored_srcs || Array.from({length: gridsize*gridsize}, (_, i) => {
+            var image = $('#p' + i + ' img');
+            return image && !image.hidden ? image.getAttribute('src') : null;
+        });
+        this.restored_srcs = null;
         goban.style.transform = '';
         goban.style.overflow = '';
         goban.replaceChildren(gobanImage);
@@ -527,7 +537,7 @@ export function GoClock(){
         for (var i = 0; i < gridsize*gridsize; ++i) {
             var p = this.stones_shown[i];
             if (p != 0) {
-                this.drawStone(this.get_coords(i), p, 0);
+                this.drawStone(this.get_coords(i), p, 0, srcs[i]);
             } else {
                 // Draw the stone anyway, then hide it
                 this.drawStone(this.get_coords(i), 1, 0);
@@ -748,6 +758,8 @@ export function GoClock(){
                 this.stones = replayWanted(this) || this.stones;
             }
             var reserved = otherHand.points(this);
+            // Nothing the face wants: a stone a finger left far off its
+            // point put back on it.
             var plan = planMove({
                 shown: this.stones_shown,
                 wanted: this.stones,
@@ -755,7 +767,7 @@ export function GoClock(){
                 tableStones: this.table_stones,
                 reserved: reserved,
                 movesOnly: hand === this.other
-            });
+            }) || strayPlan(this, hand, reserved);
             if (plan) {
                 // The rest before the stone; and not while the other hand
                 // is picking up or putting down, nor so as to put this

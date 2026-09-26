@@ -208,8 +208,11 @@ export function stageOfMove(stages, move) {
 // error if the game could not be had, and `onProgress` with the number
 // of moves the board shows whenever that changes. Returns whether it
 // began: not while a finger is on the board, the board is being swept,
-// or a replay is already under way.
-export function startReplay(clock, loading, {onStart = null, onRest = null, onEnd = null, onProgress = null} = {}) {
+// or a replay is already under way. `from`, a number of moves, takes the
+// game up where it was left when the page was last shut: the board is not
+// cleared, being that game's already, and is taken to that move in one
+// magic change once the record is in, if it does not show it already.
+export function startReplay(clock, loading, {onStart = null, onRest = null, onEnd = null, onProgress = null, from = null} = {}) {
     if (clock.replay || clock.sweeping_board || clock.finger || typeof document === 'undefined') {
         return false;
     }
@@ -237,7 +240,9 @@ export function startReplay(clock, loading, {onStart = null, onRest = null, onEn
     // The game begins once the board is clear and the record is here. In
     // space the stones are flung off; elsewhere the board is swept, and
     // the sweep calls transform() once the stones have come to rest.
-    if (clock.table_void) {
+    if (from !== null) {
+        replay.cleared = true;
+    } else if (clock.table_void) {
         flingStones(clock);
         replay.timer = window.setTimeout(() => {
             replay.timer = null;
@@ -251,7 +256,9 @@ export function startReplay(clock, loading, {onStart = null, onRest = null, onEn
     loading.then((game) => {
         if (clock.replay === replay) {
             replay.game = game;
-            clock.transform();
+            if (from === null || !seekReplay(clock, from)) {
+                clock.transform();
+            }
         }
     }, (error) => {
         if (clock.replay === replay) {
@@ -292,6 +299,7 @@ export function replayWanted(clock) {
     if (!replay.started) {
         replay.started = true;
         replay.onStart?.(replay.game);
+        reportProgress(replay);
     }
     const stages = replay.game.stages;
     // Taken to a move: that position, until the board shows it.

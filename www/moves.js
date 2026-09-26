@@ -29,7 +29,7 @@ export function moveDuration(clock, plan, speed) {
     case 'table':
         return Math.sqrt(Math.hypot(pointX(plan.to) - plan.entry.coords[0], pointY(plan.to) - plan.entry.coords[1])/speed);
     case 'move':
-        return Math.sqrt(dist(plan.from, plan.to)/speed);
+        return Math.sqrt((plan.distance ?? dist(plan.from, plan.to))/speed);
     case 'swap':
         return Math.sqrt(dist(plan.source, plan.target)/speed);
     default:
@@ -155,7 +155,11 @@ function repositionStone(clock, hand, coords1, coords2, colour, speed) {
     var movingStoneImage = hand.element().querySelector('img');
     movingStoneImage.src = src;
     setVisible(movingStoneImage, true);
-    var distance = dist(clock.get_index(coords1), clock.get_index(coords2));
+    // A stone put back on its own point (strayPlan) goes as far as it
+    // actually lies off it.
+    var distance = clock.get_index(coords1) == clock.get_index(coords2)
+        ? Math.hypot(coords2[0] - coords1[0], coords2[1] - coords1[1])
+        : dist(clock.get_index(coords1), clock.get_index(coords2));
     var duration = Math.sqrt(distance/speed);
     hand.lands(duration);
     if (hand.pending_swap && hand.pending_swap.phase == 'push') {
