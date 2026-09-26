@@ -12,7 +12,7 @@ import {gridsize, white, dist} from './board.js';
 import {routeIsClear} from './planner.js';
 import {$, setStyles, setVisible, setStoneShadow, animateStoneShadow, stoneImageSrc, stoneElement, animateElement, elementCentre,
         cancelElementAnimations, drawOnTable, maxLift, tableStoneScale} from './stone-dom.js';
-import {setLandingOffset, setOffset, alignedOffset, alignmentTriggerRadius, offsetRadius} from './placement.js';
+import {setLandingOffset} from './placement.js';
 
 // A flight: a moment to rise, the crossing, and a moment to settle, in
 // seconds; how high a lifted stone is carried; and how long a stone
@@ -25,8 +25,7 @@ const flightHeight = 5;
 const slidePerPoint = 0.15;
 
 // Everything the board wants done, set going at once. Returns whether
-// anything is in flight (the last landing calls transform() again);
-// stones straightened do not count, being done in a moment.
+// anything is in flight (the last landing calls transform() again).
 //
 // Asked again while stones are still in the air, for a board that wants
 // something else (a new picture, the next second, a replay taken to
@@ -98,18 +97,6 @@ export function magicTransform(clock) {
             flights.push({kind: 'away', from, colour: shown[from]});
         }
     });
-
-    // The stones that stay, but lie askew, set straighter (not by a
-    // careless hand), as the idle hand would one at a time.
-    if (clock.placement != 2) {
-        const trigger = alignmentTriggerRadius(clock);
-        for (let i = 0; i < gridsize*gridsize; ++i) {
-            if (shown[i] != 0 && shown[i] == wanted[i] && !arrivingNow.has(i) && offsetRadius(clock, i) > trigger) {
-                setOffset(clock, i, alignedOffset(clock, i));
-                clock.updateBoardPosition(i, true);
-            }
-        }
-    }
 
     if (flights.length == 0) {
         return false;

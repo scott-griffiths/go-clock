@@ -27,7 +27,10 @@ function isWrongColourPair(diff) {
 //   {kind: 'remove', from}          a stone to the bowl
 //   {kind: 'add', to, colour}       a stone from the bowl
 //   null                            the board is right
-export function planMove({shown, wanted, hand, tableStones = [], reserved = new Set(), movesOnly = false}) {
+// Where two choices are equally good (the same trip), either may be
+// taken, `random` (0 to 1, Math.random's kind) deciding: the hand has no
+// favourite corner of the board.
+export function planMove({shown, wanted, hand, tableStones = [], reserved = new Set(), movesOnly = false, random = Math.random}) {
     var diff = [];
     for (var i = 0; i < shown.length; ++i) {
         // A point another hand is at is neither wrong nor spare.
@@ -35,28 +38,25 @@ export function planMove({shown, wanted, hand, tableStones = [], reserved = new 
     }
     var trip = (from, to) => dist(hand, from) + dist(from, to);
 
-    var best_i = -1;
-    var best_j = -1;
-    // First, stones on a point where the other colour wants to be, to a
-    // point wanting their own.
+    // A stone to move, from `from` to `to`: first, those on a point where
+    // the other colour wants to be, to a point wanting their own; and a
+    // spare stone of the right colour to a point wanting one.
+    var move = chooser(random);
     for (var j = 0; j < diff.length; ++j) {
         if (isWrongColourPair(diff[j])) {
             var want = (diff[j] == black - white) ? -black : -white;
             for (var i = 0; i < diff.length; ++i) {
-                if (diff[i] == want && (best_j == -1 || trip(j, i) < trip(best_j, best_i))) {
-                    best_i = i;
-                    best_j = j;
+                if (diff[i] == want) {
+                    move.offer({from: j, to: i}, trip(j, i));
                 }
             }
         }
     }
-    // Then a spare stone of the right colour to a point wanting one.
     for (var i = 0; i < diff.length; ++i) {
         if (diff[i] == -white || diff[i] == -black) {
             for (var j = 0; j < diff.length; ++j) {
-                if (diff[j] == -diff[i] && (best_j == -1 || trip(j, i) < trip(best_j, best_i))) {
-                    best_j = j;
-                    best_i = i;
+                if (diff[j] == -diff[i]) {
+                    move.offer({from: j, to: i}, trip(j, i));
                 }
             }
         }
@@ -64,10 +64,8 @@ export function planMove({shown, wanted, hand, tableStones = [], reserved = new 
 
     // A stone on the table is as good as a spare on the board, by the same
     // measure; the board's own wins a tie.
-    var best_table = null;
-    var best_table_i = -1;
-    var best_table_score = Infinity;
     if (tableStones.length > 0) {
+        var table = chooser(random);
         var handAt = [pointX(hand), pointY(hand)];
         for (var i = 0; i < diff.length; ++i) {
             if (diff[i] != -white && diff[i] != -black) {
@@ -78,24 +76,16 @@ export function planMove({shown, wanted, hand, tableStones = [], reserved = new 
                 if (entry.colour != -diff[i]) {
                     return;
                 }
-                var score = Math.hypot(handAt[0] - entry.coords[0], handAt[1] - entry.coords[1])
-                    + Math.hypot(target[0] - entry.coords[0], target[1] - entry.coords[1]);
-                if (score < best_table_score) {
-                    best_table = entry;
-                    best_table_i = i;
-                    best_table_score = score;
-                }
+                table.offer({entry: entry, to: i}, Math.hypot(handAt[0] - entry.coords[0], handAt[1] - entry.coords[1])
+                    + Math.hypot(target[0] - entry.coords[0], target[1] - entry.coords[1]));
             });
         }
-        if (best_table && best_j != -1 && trip(best_j, best_i) <= best_table_score) {
-            best_table = null;
+        if (table.best && !(move.best && move.score <= table.score + tie)) {
+            return {kind: 'table', entry: table.best.entry, to: table.best.to};
         }
     }
-    if (best_table) {
-        return {kind: 'table', entry: best_table, to: best_table_i};
-    }
-    if (best_j != -1) {
-        return {kind: 'move', from: best_j, to: best_i, lift: !routeIsClear(shown, best_j, best_i, reserved)};
+    if (move.best) {
+        return {kind: 'move', from: move.best.from, to: move.best.to, lift: !routeIsClear(shown, move.best.from, move.best.to, reserved)};
     }
     if (movesOnly) {
         return null;
@@ -103,40 +93,71 @@ export function planMove({shown, wanted, hand, tableStones = [], reserved = new 
 
     // No spare to be had: a wrong-coloured stone and a point wanting its
     // colour can change places.
-    var best_swap = null;
+    var swap = chooser(random);
     for (var j = 0; j < diff.length; ++j) {
         if (!isWrongColourPair(diff[j])) {
             continue;
         }
         for (var i = 0; i < diff.length; ++i) {
-            if (diff[i] != -diff[j]) {
-                continue;
-            }
-            var score = dist(hand, j) + dist(j, i) + dist(i, j);
-            if (!best_swap || score < best_swap.score) {
-                best_swap = {source: j, target: i, score: score};
+            if (diff[i] == -diff[j]) {
+                swap.offer({source: j, target: i}, dist(hand, j) + dist(j, i) + dist(i, j));
             }
         }
     }
-    if (best_swap) {
-        return {kind: 'swap', source: best_swap.source, target: best_swap.target};
+    if (swap.best) {
+        return {kind: 'swap', source: swap.best.source, target: swap.best.target};
     }
 
     // No moving will help: the nearest point that is wrong gets a stone
     // from the bowl, or loses one to it.
-    var nearest = -1;
+    var nearest = chooser(random);
     for (var i = 0; i < diff.length; ++i) {
-        if (diff[i] != 0 && (nearest == -1 || dist(hand, i) < dist(hand, nearest))) {
-            nearest = i;
+        if (diff[i] != 0) {
+            nearest.offer(i, dist(hand, i));
         }
     }
-    if (nearest == -1) {
+    if (nearest.best === null) {
         return null;
     }
-    if (diff[nearest] != -white && diff[nearest] != -black) {
-        return {kind: 'remove', from: nearest};
+    var point = nearest.best;
+    if (diff[point] != -white && diff[point] != -black) {
+        return {kind: 'remove', from: point};
     }
-    return {kind: 'add', to: nearest, colour: -diff[nearest]};
+    return {kind: 'add', to: point, colour: -diff[point]};
+}
+
+// Scores this close are the same trip: sums of square roots that are
+// equal on paper can differ in the last bits.
+const tie = 1e-9;
+
+// The best of a run of candidates, by the lowest score, a tie going to
+// any of the equals with the same chance: each new equal takes the place
+// of the one held with a chance of one in however many there now are
+// (reservoir sampling), so no list has to be kept.
+function chooser(random) {
+    var best = null;
+    var score = Infinity;
+    var equals = 0;
+    return {
+        offer(candidate, candidateScore) {
+            if (candidateScore < score - tie) {
+                best = candidate;
+                score = candidateScore;
+                equals = 1;
+            } else if (candidateScore <= score + tie) {
+                equals += 1;
+                if (random()*equals < 1) {
+                    best = candidate;
+                }
+            }
+        },
+        get best() {
+            return best;
+        },
+        get score() {
+            return score;
+        }
+    };
 }
 
 // Whether a stone can slide from one point to another: the line between

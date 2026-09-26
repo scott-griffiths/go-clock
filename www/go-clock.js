@@ -11,7 +11,7 @@ import {sinkOn} from './water.js';
 import {sweepBoard} from './sweep.js';
 import {replayWanted, replaySettled, replayWait} from './replay.js';
 import {fingerDown, fingerMove, fingerUp, endFinger} from './hand.js';
-import {setLandingOffset, alignIdleStone} from './placement.js';
+import {setLandingOffset, redistribute} from './placement.js';
 import {moveStone, moveDuration} from './moves.js';
 import {magicTransform, retarget, dropMagicStones} from './magic.js';
 import {$, gobanImage, drawOnTable, maxLift, setStyles, setVisible, setStoneShadow, stoneImageSrc,
@@ -36,10 +36,10 @@ function displacedCoords(fromCoords, toCoords) {
 }
 
 // A hand: what it is carrying, and where. The clock has two. The hand does
-// everything — stones from the bowl and back to it, swaps, the nudges
-// straighter — and the other hand only moves stones already on the screen,
-// from point to point and up from the table. Each carries its stone in an
-// element of its own, made by draw().
+// everything — stones from the bowl and back to it, swaps — and the other
+// hand only moves stones already on the screen, from point to point and up
+// from the table. Each carries its stone in an element of its own, made by
+// draw().
 function Hand(name, elementId, position) {
     this.name = name;
     this.elementId = elementId;
@@ -50,7 +50,6 @@ function Hand(name, elementId, position) {
     this.clear_route = true; // Slid, rather than lifted over what is in the way
     this.src = null; // The image of the stone being carried
     this.pending_swap = null;
-    this.alignment_move = null;
     this.table_pickup = null;
     this.position = position; // The point the hand is at, for the next move's reckoning
     this.pace = 1; // This move's speed, as a share of the clock's
@@ -95,6 +94,10 @@ Hand.prototype.points = function(clock) {
     }
     return points;
 };
+
+// How long the stones take to glide to their places for a new precision,
+// in seconds: slow enough to be seen as one movement of the whole board.
+const redistributeTime = 0.6;
 
 export function GoClock(){
     this.stones = []; // The current (desired) state
@@ -185,7 +188,7 @@ export function GoClock(){
         return p.index ?? Math.round(p[0]) + gridsize*Math.round(p[1]);
     };
 
-    this.updateBoardPosition = function(index, animate = false) {
+    this.updateBoardPosition = function(index, animate = false, duration = 0.18) {
         if (typeof document === 'undefined') {
             return;
         }
@@ -196,12 +199,12 @@ export function GoClock(){
         var coords = this.get_coords(index);
         var p = this.stonePosition(coords[0], coords[1], 0);
         if (animate && this.stones_shown[index] != 0) {
-            animateElement(element, 0.18, {
+            animateElement(element, duration, {
                 left: p[0],
                 top: p[1],
                 width: p[2],
                 height: p[3],
-                easing: 'ease-out'
+                easing: duration > 0.18 ? 'ease-in-out' : 'ease-out'
             });
         } else {
             setStyles(element, {
@@ -211,6 +214,26 @@ export function GoClock(){
                 height: p[3]
             });
         }
+    };
+
+    // The precision changed: every stone on the board glides at once to
+    // where the new one would have put it (placement.js), all but those
+    // the hands or the magic have in hand. Not while a finger or the
+    // sweep has the stones loose.
+    this.redistribute = function() {
+        if (this.finger || this.sweeping_board) {
+            return;
+        }
+        var reserved = new Set();
+        this.hands.forEach((hand) => hand.points(this).forEach((point) => reserved.add(point)));
+        this.magic_flights.forEach((flight) => {
+            [flight.from, flight.to].forEach((point) => {
+                if (point !== undefined) {
+                    reserved.add(point);
+                }
+            });
+        });
+        redistribute(this, reserved).forEach((index) => this.updateBoardPosition(index, true, redistributeTime));
     };
 
     // Sweeping the board: sweep.js.
@@ -388,7 +411,6 @@ export function GoClock(){
             movingStone.style.opacity = '1.0';
             hand.moving = false;
             hand.pending_swap = null;
-            hand.alignment_move = null;
             hand.src = null;
             hand.table_pickup = null;
         });
@@ -646,8 +668,7 @@ export function GoClock(){
     };
     
     // A move towards the board the face wants for each hand that is free,
-    // and the next once it has landed; or, with the board right, a stone
-    // nudged straighter; or a look again as the second turns. The hand
+    // and the next once it has landed; or a look again as the second turns. The hand
     // plans first, and the other hand keeps clear of whatever the hand is
     // doing (and the hand of it): the points a move touches are reserved
     // from the other's planning. Each hand rests a moment before each
@@ -770,8 +791,6 @@ export function GoClock(){
                 hand.ready = false;
                 hand.pace = pace;
                 this.startMove(hand, plan);
-                moveStone(this, hand);
-            } else if (hand === this.hand && alignIdleStone(this, hand, reserved)) {
                 moveStone(this, hand);
             }
         });

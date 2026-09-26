@@ -1,7 +1,7 @@
 // The hand's next move, for each kind of difference between the board and
 // the face: a stone from the bowl, a spare slid or lifted over, two stones
-// changing places, a stone to the bowl, a stone from the table; and the
-// hand's own position deciding between equals.
+// changing places, a stone to the bowl, a stone from the table; the
+// hand's own position deciding between stones; and chance between equals.
 
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
@@ -81,4 +81,32 @@ test('a stone on the table of the wrong colour is no use', () => {
     const {shown, wanted} = boards([], [[9, 18, white]]);
     const plan = planMove({shown, wanted, hand: at(9, 18), tableStones: [{colour: black, coords: [9, 20]}]});
     assert.equal(plan.kind, 'add');
+});
+
+test('equally good moves are each taken, by chance, about as often as each other', () => {
+    // Four wanted points around the hand, all the same way off: the four
+    // bowl stones are equally good, and none is the favourite.
+    const {shown, wanted} = boards([], [[9, 5, white], [9, 13, white], [5, 9, white], [13, 9, white]]);
+    const counts = new Map();
+    for (let n = 0; n < 4000; ++n) {
+        const plan = planMove({shown, wanted, hand: at(9, 9)});
+        counts.set(plan.to, (counts.get(plan.to) || 0) + 1);
+    }
+    assert.deepEqual([...counts.keys()].sort((a, b) => a - b), [at(9, 5), at(5, 9), at(13, 9), at(9, 13)].sort((a, b) => a - b));
+    counts.forEach((count) => assert.ok(count > 800 && count < 1200, `taken ${count} times in 4000`));
+});
+
+test('chance only decides between equals: the nearer is always taken', () => {
+    const {shown, wanted} = boards([], [[9, 6, white], [9, 13, white], [5, 9, white]]);
+    for (let n = 0; n < 200; ++n) {
+        assert.equal(planMove({shown, wanted, hand: at(9, 9)}).to, at(9, 6));
+    }
+});
+
+test('with the chance fixed, the choice between equals is fixed too', () => {
+    const {shown, wanted} = boards([[4, 9, white], [14, 9, white]], [[9, 4, white], [9, 14, white]]);
+    const first = planMove({shown, wanted, hand: at(9, 9), random: () => 0.99});
+    const last = planMove({shown, wanted, hand: at(9, 9), random: () => 0});
+    assert.notDeepEqual(first, last);
+    assert.deepEqual(planMove({shown, wanted, hand: at(9, 9), random: () => 0.99}), first);
 });

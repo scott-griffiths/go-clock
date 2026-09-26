@@ -715,7 +715,15 @@ window.addEventListener('load', () => {
     }, faceIcons, true, true);
     const showSpeed = createSettingControl('speed', stoneSpeeds.map(([name]) => name), stoneSpeeds.map(([name]) => name), setClockSpeed, speedIcons, true, true);
     const showWood = createSettingControl('wood', woods.map(([name]) => name), woods.map(([name]) => name), setWood, woodIcons, true, true);
-    const showPlacement = createSettingControl('placement', placements, placements, setPlacement, precisionIcons, true, true);
+    // Picked from its list, a different precision is seen at once: every
+    // stone on the board moves to where it would have put it.
+    const showPlacement = createSettingControl('placement', placements, placements, (index) => {
+        const before = placement;
+        setPlacement(index);
+        if (placement !== before) {
+            goClock.redistribute();
+        }
+    }, precisionIcons, true, true);
     const showBackground = createSettingControl('background', backgrounds.map((table) => table.name), backgrounds.map((table) => table.name), setBackground, backgroundIcons, true, true);
 
     function setClockSpeed(index) {

@@ -436,8 +436,8 @@ export function fingerUp(clock, id) {
 // is. Each stone stays put and is recorded at its nearest point, with
 // its displacement as its offset; when two stones share a nearest point
 // the second is counted at the next free one, but still lies where it
-// is, however far that is from its point, until the clock's hand moves
-// it (the idle hand straightens a stone well off its point: placement.js).
+// is, however far that is from its point, until the clock's hand next
+// has a use for it.
 // Fallen stones stay on the table, in play.
 export function endFinger(clock) {
     var finger = clock.finger;

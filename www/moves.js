@@ -11,7 +11,7 @@
 
 import {gridsize, white, go_bowl, go_table, dist, pointX, pointY} from './board.js';
 import {$, setStyles, setVisible, setStoneShadow, animateStoneShadow, stoneImageSrc, cancelElementAnimations, animateElement, tableStoneScale, carryHeight} from './stone-dom.js';
-import {settleAfterLanding, setOffset} from './placement.js';
+import {settleAfterLanding} from './placement.js';
 
 // A stone from the bowl takes as long as a move of this many points: a
 // drop straight in is over in a flash otherwise, and looks nothing like
@@ -133,12 +133,8 @@ function repositionStone(clock, hand, coords1, coords2, colour, speed) {
         self.stones_shown[landingIndex] = hand.colour;
         setVisible(hand.element(), false);
         setVisible(hand.element().querySelector('.stone-shadow'), false);
-        if (hand.alignment_move) {
-            setOffset(clock, landingIndex, hand.alignment_move.offset);
-            self.updateBoardPosition(landingIndex, false);
-        }
-        self.drawStone(hand.alignment_move ? self.get_coords(landingIndex) : hand.to, hand.colour, 0, hand.src);
-        if (!hand.alignment_move && !hand.clear_route) {
+        self.drawStone(hand.to, hand.colour, 0, hand.src);
+        if (!hand.clear_route) {
             self.sound?.place(hand.colour == white ? 'white' : 'black');
         }
         if (hand.pending_swap && hand.pending_swap.phase == 'push') {
@@ -146,11 +142,7 @@ function repositionStone(clock, hand, coords1, coords2, colour, speed) {
             returnPushedStone(clock, hand);
             return;
         }
-        if (hand.alignment_move) {
-            hand.alignment_move = null;
-        } else {
-            settleAfterLanding(clock, landingIndex);
-        }
+        settleAfterLanding(clock, landingIndex);
         hand.src = null;
         hand.moving = false;
         self.transform();
@@ -164,21 +156,14 @@ function repositionStone(clock, hand, coords1, coords2, colour, speed) {
     movingStoneImage.src = src;
     setVisible(movingStoneImage, true);
     var distance = dist(clock.get_index(coords1), clock.get_index(coords2));
-    var coordinateDistance = Math.sqrt((coords2[0] - coords1[0])*(coords2[0] - coords1[0]) +
-                                       (coords2[1] - coords1[1])*(coords2[1] - coords1[1]));
     var duration = Math.sqrt(distance/speed);
-    if (hand.alignment_move) {
-        duration = Math.max(0.16, Math.min(0.45, Math.sqrt((coordinateDistance*7)/speed)));
-    }
     hand.lands(duration);
     if (hand.pending_swap && hand.pending_swap.phase == 'push') {
         var pushDuration = Math.max(0.12, Math.min(duration*0.28, 0.35));
         showPushedStone(clock, hand, hand.pending_swap, Math.max(0, duration - pushDuration), pushDuration);
     }
     if (hand.clear_route) {
-        if (!hand.alignment_move) {
-            clock.sound?.slide(duration);
-        }
+        clock.sound?.slide(duration);
         animateElement(hand.element(), duration, {
             left: p2[0],
             top: p2[1],
