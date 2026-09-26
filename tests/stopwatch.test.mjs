@@ -79,7 +79,7 @@ test('a stopwatch from nothing saved, or something garbled, is at nothing', () =
     });
 });
 
-test('at nothing, the stopwatch shows 00 over 00, and no hundredths', () => {
+test('at nothing, the stopwatch shows 00 over 00, and 00 hundredths', () => {
     expectFace(0, false, `
         ···················
         ···················
@@ -92,17 +92,17 @@ test('at nothing, the stopwatch shows 00 over 00, and no hundredths', () => {
         ····●···●·●···●····
         ·····●●●···●●●·····
         ···················
-        ······○○○·○○○······
-        ······○·○·○·○······
-        ······○·○·○·○······
-        ······○·○·○·○······
-        ······○○○·○○○······
+        ·○○○·○○○···○○○·○○○·
+        ·○·○·○·○···○·○·○·○·
+        ·○·○·○·○···○·○·○·○·
+        ·○·○·○·○···○·○·○·○·
+        ·○○○·○○○·○·○○○·○○○·
         ···················
         ···················
         ···················`);
 });
 
-test('running, the stopwatch shows its minutes over its seconds, and nothing finer', () => {
+test('running, the stopwatch shows its minutes over its seconds, with a cross in each hundredths place', () => {
     expectFace(at(12, 34, 56), true, `
         ···················
         ···················
@@ -115,11 +115,11 @@ test('running, the stopwatch shows its minutes over its seconds, and nothing fin
         ······●···●········
         ·····●●●··●●●●●····
         ···················
-        ······○○○·○·○······
-        ········○·○·○······
-        ·······○○·○○○······
-        ········○···○······
-        ······○○○···○······
+        ·○○○·○·○···○·○·○·○·
+        ···○·○·○···········
+        ··○○·○○○····○···○··
+        ···○···○···········
+        ·○○○···○·○·○·○·○·○·
         ···················
         ···················
         ···················`);
@@ -170,6 +170,7 @@ test('from a hundred minutes the stopwatch shows three figures of them', () => {
         ···················
         ···················`);
 });
+
 
 // A move carries one stone off a point and onto another, so a change of
 // face takes as many moves as the more of the stones it adds and those it

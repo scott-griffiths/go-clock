@@ -475,7 +475,7 @@ window.addEventListener('load', () => {
     // and to the other side, or shifted, if it would leave the screen.
     function placePanel(control) {
         const panel = $('.setting-options', control);
-        const anchor = summaryOf(control).getBoundingClientRect();
+        const anchor = anchorOf(control);
         const width = panel.offsetWidth;
         const height = panel.offsetHeight;
         const gap = 6;
@@ -496,20 +496,30 @@ window.addEventListener('load', () => {
             if (left > maxX) {
                 left = anchor.left - gap - width;
             }
-            // Beside the toolbar's first button, where the one that opened
-            // it is, or is still sliding to (leadWithCurrentTool).
-            top = control.closest('#toolbar') ? menuToggle.getBoundingClientRect().top : anchor.top;
+            top = anchor.top;
         } else {
             top = anchor.bottom + gap;
             if (top > maxY) {
                 top = anchor.top - gap - height;
             }
-            // The toolbar's second row starts under its first button, the
-            // toggle, whichever button opened it.
-            left = control.closest('#toolbar') ? menuToggle.getBoundingClientRect().left : anchor.left;
+            left = anchor.left;
         }
         panel.style.left = `${Math.round(Math.max(minX, Math.min(maxX, left)))}px`;
         panel.style.top = `${Math.round(Math.max(minY, Math.min(maxY, top)))}px`;
+    }
+
+    // Where a setting's button sits, or, for the toolbar's (the faces, its
+    // first tool), where it is sliding out to: one step on from the toggle.
+    function anchorOf(control) {
+        const rect = summaryOf(control).getBoundingClientRect();
+        if (!control.closest('#toolbar')) {
+            return rect;
+        }
+        const toggle = menuToggle.getBoundingClientRect();
+        const step = parseFloat(getComputedStyle(toolbar).columnGap) || 6;
+        const left = isLandscape() ? toggle.left : toggle.right + step;
+        const top = isLandscape() ? toggle.bottom + step : toggle.top;
+        return {left, top, right: left + rect.width, bottom: top + rect.height};
     }
 
     function isLandscape() {
@@ -544,10 +554,9 @@ window.addEventListener('load', () => {
     }
 
     // The board's menu (index.html), a second toolbar at the bottom left:
-    // its button brings the board's settings out along the row,
-    // and puts them back, as the toolbar's toggle does; a touch
-    // elsewhere puts them back too (closeOutside), but the toolbar's row
-    // being tucked away leaves them be.
+    // its button brings the board's settings out along the row, wearing a
+    // cross while they are out, and puts them back on a second press, as
+    // the toolbar's toggle does.
     const boardControl = $('#board-control');
     const boardToggle = $('#board-toggle');
     function setBoardOpen(open) {
@@ -560,14 +569,16 @@ window.addEventListener('load', () => {
         }
         boardControl.dataset.open = String(open);
         boardToggle.setAttribute('aria-expanded', String(open));
-        toolbar.dataset.boardOpen = String(open);
-        $('span', boardToggle).innerHTML = icons.board;
+        boardToggle.title = open ? 'Close the board\'s settings' : 'The board';
+        boardToggle.setAttribute('aria-label', boardToggle.title);
+        $('span', boardToggle).innerHTML = open ? icons.close : icons.board;
     }
 
     // The controls tucked away behind their first button, or brought back;
     // remembered, like a setting.
-    // The toggle wears the tool in use (the clock, the stopwatch, or the
-    // replay while a game is on), open or tucked away. Brought back by a
+    // Tucked away, the toggle wears the tool in use (the clock, the
+    // stopwatch, the gallery, or the replay while a game is on); open, a
+    // cross, at the start of the row, that tucks it away. Brought back by a
     // tap, the tool's own row comes out with it: the faces, the
     // stopwatch's buttons, or the replay's play and line (those two come
     // and go with the row anyway).
@@ -577,9 +588,6 @@ window.addEventListener('load', () => {
         if (!collapsed) {
             setBoardOpen(false);
         }
-        if (!collapsed) {
-            leadWithCurrentTool();
-        }
         toolbar.dataset.collapsed = collapsed ? 'true' : 'false';
         menuToggle.setAttribute('aria-expanded', String(!collapsed));
         menuToggle.title = collapsed ? 'Show the controls' : 'Hide the controls';
@@ -587,45 +595,10 @@ window.addEventListener('load', () => {
         showToggleIcon();
         writeSetting('menu', collapsed ? 0 : 1);
         if (!collapsed && openTool && tool === 'clock') {
-            // With the row, not after it: its second row starts under the
-            // toggle, which does not move.
+            // With the row, not after it: its second row is placed from
+            // the toggle, which does not move (anchorOf).
             setOpenControl($('#face-control'));
         }
-    }
-
-    // Brought back, the row's first button comes out in the toggle's place
-    // (the toggle itself goes), so the tool the toggle wore goes first and
-    // stays where it was, the others after it in their usual order: the
-    // clock, the stopwatch, the replay, the gallery. Chosen while the row is out, a
-    // tool moves up to the front, sliding across as the ones it passes
-    // slide along.
-    const toolsInRow = {clock: $('#face-control'), stopwatch: stopwatchButton, replay: replayButton, gallery: galleryButton};
-    function leadWithCurrentTool() {
-        const lead = toolsInRow[tool];
-        const order = [lead, ...Object.values(toolsInRow).filter((element) => element !== lead)];
-        const row = $('#toolbar-actions');
-        if (order.every((element, i) => row.children[i] === element)) {
-            return;
-        }
-        const children = [...row.children];
-        const before = children.map((child) => child.getBoundingClientRect());
-        row.append(...order);
-        numberRow(row);
-        if (toolbar.dataset.collapsed === 'true') {
-            return;
-        }
-        children.forEach((child, i) => {
-            const after = child.getBoundingClientRect();
-            child.style.transition = 'none';
-            child.style.left = `${before[i].left - after.left}px`;
-            child.style.top = `${before[i].top - after.top}px`;
-        });
-        row.getBoundingClientRect();
-        children.forEach((child) => {
-            child.style.transition = '';
-            child.style.left = '';
-            child.style.top = '';
-        });
     }
 
     // Each button's place in its row, for the slide in and out.
@@ -634,7 +607,7 @@ window.addEventListener('load', () => {
     }
 
     function showToggleIcon() {
-        $('span', menuToggle).innerHTML = icons[tool];
+        $('span', menuToggle).innerHTML = toolbar.dataset.collapsed === 'true' ? icons[tool] : icons.close;
     }
 
     // A touch anywhere brings the tucked-away toggle back to full strength
@@ -890,6 +863,11 @@ window.addEventListener('load', () => {
         replayBar.hidden = name !== 'replay';
         stopwatchBar.hidden = name !== 'stopwatch';
         galleryBar.hidden = name !== 'gallery';
+        // The faces are the clock's own row, in the place another tool's
+        // takes: they go when it does.
+        if (name !== 'clock' && openControls.includes($('#face-control'))) {
+            setOpenControl(null);
+        }
         if (name === 'gallery') {
             showPicture();
         } else {
@@ -902,7 +880,6 @@ window.addEventListener('load', () => {
         }
         writeSetting('tool', name);
         showToggleIcon();
-        leadWithCurrentTool();
         placeToolBars();
         describeBoard();
     }
@@ -920,41 +897,50 @@ window.addEventListener('load', () => {
     }
 
     // Instead of the button's own opening and closing of the faces: chosen,
-    // the clock always shows them.
+    // the clock always shows them. Pressed again while it is already the
+    // tool in use, it puts the row away instead, as each tool's button does
+    // (below).
     faceSummary.addEventListener('click', (event) => {
         event.stopImmediatePropagation();
+        if (tool === 'clock') {
+            setCollapsed(true);
+            return;
+        }
         useTool('clock');
         setOpenControl($('#face-control'));
     }, true);
 
     // A tool's own row (index.html), beneath the toolbar's and from under
-    // its first button, the tool in use, and, for the replay's line, on to
-    // the board's right edge; in landscape, beside that button, running
-    // down (the line to the board's foot). It comes and goes with the
-    // toolbar's own row when that is tucked away or brought back (the CSS,
-    // keyed off the toolbar's data-collapsed). The first button's place is
-    // measured by the toggle over it: the button may still be sliding
-    // there (leadWithCurrentTool).
+    // its first tool (the clock, after the toggle's cross), and, for the
+    // replay's line, on to the board's right edge; in landscape, beside
+    // that button, running down (the line to the board's foot). It comes
+    // and goes with the toolbar's own row when that is tucked away or
+    // brought back (the CSS, keyed off the toolbar's data-collapsed). The
+    // first tool's place is measured from the toggle, one step on from it:
+    // the tool itself may still be sliding out.
     function placeToolBar(bar, stretch) {
         const board = $('#goban-image')?.getBoundingClientRect();
         if (!board || bar.hidden) {
             return;
         }
-        const first = menuToggle.getBoundingClientRect();
+        const toggle = menuToggle.getBoundingClientRect();
         // The row beneath the toolbar's, spaced as the toolbar's own are.
         const gap = parseFloat(getComputedStyle(bar).columnGap) || 6;
+        const step = parseFloat(getComputedStyle(toolbar).columnGap) || 6;
         if (isLandscape()) {
+            const top = toggle.bottom + step;
             Object.assign(bar.style, {
-                left: `${Math.round(first.right + gap)}px`,
-                top: `${Math.round(first.top)}px`,
+                left: `${Math.round(toggle.right + gap)}px`,
+                top: `${Math.round(top)}px`,
                 width: '',
-                height: stretch ? `${Math.round(board.bottom - first.top)}px` : ''
+                height: stretch ? `${Math.round(board.bottom - top)}px` : ''
             });
         } else {
+            const left = toggle.right + step;
             Object.assign(bar.style, {
-                left: `${Math.round(first.left)}px`,
-                top: `${Math.round(first.bottom + gap)}px`,
-                width: stretch ? `${Math.round(board.right - first.left)}px` : '',
+                left: `${Math.round(left)}px`,
+                top: `${Math.round(toggle.bottom + gap)}px`,
+                width: stretch ? `${Math.round(board.right - left)}px` : '',
                 height: ''
             });
         }
@@ -1380,32 +1366,17 @@ window.addEventListener('load', () => {
             }
         }
     });
-    // A touch anywhere outside an open setting closes it; likewise the about
-    // box. Heard on pointerdown, touchstart and click alike: iOS is choosy
-    // about which taps become clicks, a swipe never does, and closing twice
-    // is harmless.
+    // A touch anywhere outside the about box closes it (each menu and
+    // submenu closes only on its own button, not on a touch elsewhere:
+    // openOnClick, setCollapsed, setBoardOpen). Heard on pointerdown,
+    // touchstart and click alike: iOS is choosy about which taps become
+    // clicks, a swipe never does, and closing twice is harmless.
     function closeOutside(event) {
         // A toggle redraws its own icon as it is clicked, so by the time
         // the click reaches here what was touched may have gone: it was
         // inside, not out.
         if (!event.target.isConnected) {
             return;
-        }
-        // The innermost open list that was touched stays, with its
-        // parents; a touch outside them all closes everything. The
-        // toolbar's toggle opens and closes its own (setCollapsed).
-        if (!menuToggle.contains(event.target)) {
-            setOpenControl(openControls.findLast((c) => c.contains(event.target)) ?? null);
-        }
-        if (boardControl.dataset.open === 'true' && !boardControl.contains(event.target)) {
-            setBoardOpen(false);
-        }
-        // Likewise the toolbar's own row, and the tool's with it.
-        if (toolbar.dataset.collapsed !== 'true' && !toolbar.contains(event.target)
-            && !replayBar.contains(event.target) && !stopwatchBar.contains(event.target)
-            && !galleryBar.contains(event.target)
-            && !aboutBox.contains(event.target) && !boardControl.contains(event.target)) {
-            setCollapsed(true);
         }
         if (!aboutBox.hidden && !aboutBox.contains(event.target) && !aboutButton.contains(event.target)) {
             hideAbout();
@@ -1421,7 +1392,16 @@ window.addEventListener('load', () => {
     muteButton.addEventListener('click', () => {
         setSound(sound === 1 ? 0 : 1);
     });
+    // Each tool's button, pressed while its tool is the one in use, puts
+    // the toolbar's row away instead of doing what it otherwise would
+    // (starting a game, opening the gallery, starting the stopwatch): the
+    // other way to tuck the row away, along with the toggle's cross
+    // (menuToggle).
     replayButton.addEventListener('click', () => {
+        if (tool === 'replay') {
+            setCollapsed(true);
+            return;
+        }
         if (!goClock.replay) {
             startGame();
         }
@@ -1430,7 +1410,13 @@ window.addEventListener('load', () => {
     $('.setting-icon', galleryBack).innerHTML = icons.back;
     $('.setting-icon', galleryNext).innerHTML = icons.next;
     showGalleryPlay();
-    galleryButton.addEventListener('click', () => useTool('gallery'));
+    galleryButton.addEventListener('click', () => {
+        if (tool === 'gallery') {
+            setCollapsed(true);
+            return;
+        }
+        useTool('gallery');
+    });
     galleryBack.addEventListener('click', () => stepGallery(-1));
     galleryNext.addEventListener('click', () => stepGallery(1));
     galleryPlay.addEventListener('click', () => {
@@ -1442,7 +1428,11 @@ window.addEventListener('load', () => {
         goClock.transform();
     });
     stopwatchButton.addEventListener('click', (event) => {
-        useTool('stopwatch');
+        if (tool === 'stopwatch') {
+            setCollapsed(true);
+        } else {
+            useTool('stopwatch');
+        }
         // Clicked rather than pressed from the keyboard, it lets go of the
         // focus it took, which would have the space bar pressing it again
         // rather than starting the stopwatch.

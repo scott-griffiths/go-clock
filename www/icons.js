@@ -149,6 +149,22 @@ function miniGoban() {
     return body + '</g>';
 }
 
+// A game replayed: the goban, with a play button over it, the grid cut
+// back from all round the triangle so it stands clear of the lines. Each
+// copy has its mask under its own id: the icon is on the replay's button
+// and on the toolbar's toggle at once, and a mask shared by id goes with
+// the first copy, however that one is hidden.
+let replayMasks = 0;
+function replayIcon() {
+    const id = `replay-gap-${++replayMasks}`;
+    const triangle = 'M9.5 8v8l6.5 -4Z';
+    return svg(`<mask id="${id}" maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24">`
+        + '<rect width="24" height="24" fill="white" stroke="none"/>'
+        + `<path d="${triangle}" fill="black" stroke="black" stroke-width="5"/></mask>`
+        + `<g mask="url(#${id})">${miniGoban()}</g>`
+        + `<path d="${triangle}" fill="currentColor" stroke="currentColor" stroke-width="1"/>`);
+}
+
 export const icons = {
     // The tools icon: a wrench, for what is done with the clock rather
     // than how it looks, in outline like the rest.
@@ -158,8 +174,11 @@ export const icons = {
     clock: svg('<circle cx="12" cy="12" r="10"/><path d="M12 12l-4.1 -2.8M12 12l6.5 -4.7"/>'),
     // The board's own settings: the goban, bare.
     board: svg(miniGoban()),
-    // A game replayed: the goban, with a play button over it.
-    replay: svg(miniGoban() + '<path d="M8.75 7v10l8.25 -5Z" fill="currentColor" stroke="none"/>'),
+    get replay() {
+        return replayIcon();
+    },
+    // An open menu's button, which closes it: a cross.
+    close: svg('<path d="M6 6l12 12M18 6L6 18" stroke-width="2"/>'),
     // The stopwatch: its case, the crown on top that starts and stops it,
     // the button beside that, and the hand a third of the way round.
     stopwatch: svg('<circle cx="12" cy="13.5" r="8"/><path d="M12 5.5V3M9.5 2.5h5M17.7 7.8l1.4 -1.4"/>'

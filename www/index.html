@@ -41,8 +41,11 @@
                      Choosing a face, a speed, a precision, a background
                      or a board leaves the list open, rather than closing it
                      as most choices do, so several can be tried in a row.
-                     Next, the stopwatch, a game replayed, and the gallery:
-                     the four tools, one on the board at a time.
+                     Next, the stopwatch, the gallery, and a game replayed:
+                     the four tools, one on the board at a time, always in
+                     that order. Open, the toggle wears a cross, at the
+                     row's start, and closes it; tucked away, it wears the
+                     tool in use.
                      Along the top of the screen in portrait; down the left in
                      landscape, where the board leaves the sides free. -->
                 <button id="menu-toggle" class="button menu-toggle" type="button" title="Hide the controls" aria-label="Hide the controls" aria-expanded="true" aria-controls="toolbar-actions">
@@ -63,6 +66,13 @@
                     <button id="stopwatch" class="setting-summary" type="button" title="Stopwatch" aria-label="Stopwatch" aria-pressed="false" data-info="Stopwatch">
                         <span class="setting-icon" aria-hidden="true"></span>
                     </button>
+                    <!-- The gallery (gallery.js): pictures made of stones,
+                         in a shuffled order, each named on the board's top
+                         edge while it is showing. Its controls open in the
+                         row beneath it (#gallery-bar, below). -->
+                    <button id="gallery" class="setting-summary" type="button" title="Gallery" aria-label="Gallery" aria-pressed="false">
+                        <span class="setting-icon" aria-hidden="true"></span>
+                    </button>
                     <!-- A game replayed on the board (replay.js), picked at
                          random: the button starts one, and while it runs is
                          pressed instead, and stops it. Play or pause and
@@ -71,22 +81,15 @@
                     <button id="replay" class="setting-summary" type="button" title="Replay a game" aria-label="Replay a game" aria-pressed="false" data-info="Replay a game">
                         <span class="setting-icon" aria-hidden="true"></span>
                     </button>
-                    <!-- The gallery (gallery.js): pictures made of stones,
-                         in a shuffled order, each named on the board's top
-                         edge while it is showing. Its controls open in the
-                         row beneath it (#gallery-bar, below). -->
-                    <button id="gallery" class="setting-summary" type="button" title="Gallery" aria-label="Gallery" aria-pressed="false">
-                        <span class="setting-icon" aria-hidden="true"></span>
-                    </button>
                 </div>
             </div>
             <!-- The board: its own button, a small goban, at the top right
                  of the screen, a menu apart from the toolbar's that works
-                 the same way, mirrored: tapped, it turns to a cross and the
-                 visual settings of the board rather than the clock (the
-                 hand's speed and precision, the table, and the wood) come
-                 out leftwards from under it, each dropping its choices
-                 beneath; tapped again, or a touch elsewhere, and they go
+                 the same way, mirrored: tapped, it turns to a cross, at the
+                 row's right-hand end, and the visual settings of the board
+                 rather than the clock (the hand's speed and precision, the
+                 table, and the wood) come out leftwards beside it, each
+                 dropping its choices beneath; the cross tapped, and they go
                  back. Only one of it and the toolbar's row is open at a
                  time. The button stays when the toolbar's row is tucked
                  away, dimming with its toggle. -->
@@ -122,7 +125,7 @@
                     <!-- Not visual settings, any of these: the clock's
                          hours, whether it shows seconds, the sound, and
                          what the clock is. Tucked under one "Tools" button,
-                         set apart in the row by a gap, as a row of icons
+                         as a row of icons
                          like the face's. The first three are toggles rather
                          than choices, each showing where it stands by its
                          icon and swapping over when tapped, the row left

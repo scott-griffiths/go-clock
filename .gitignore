@@ -9,3 +9,7 @@ ios/**/*.xcworkspace/xcuserdata/
 ios/build/
 DerivedData/
 .idea/
+
+# A personal script for putting a dev build on one particular phone: it
+# carries that phone's device identifier, so it stays out of the repository.
+scripts/wolfie.sh
